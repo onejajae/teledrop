@@ -7,8 +7,22 @@ from api.router import router as api_router
 from config import Settings, get_settings
 
 
+def init_db(settings: Settings):
+    from sqlalchemy import create_engine
+    from db.model import Base
+
+    engine = create_engine(settings.db_host, connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine)
+
+
 def make_app(settings: Settings) -> FastAPI:
-    print(settings)
+    import os
+
+    if not os.path.exists(settings.db_host):
+        init_db(settings)
+    if not os.path.isdir(settings.share_directory):
+        os.mkdir(settings.share_directory)
+
     if settings.app_mode == "prod":
         app = FastAPI(docs_url=None, redoc_url=None)
     else:
