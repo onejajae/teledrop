@@ -30,7 +30,7 @@ async function uploadFile(file, detail) {
 		}
 	});
 	return response.data;
-};
+}
 
 async function isKeyExist(key) {
 	const headers = {};
@@ -40,7 +40,7 @@ async function isKeyExist(key) {
 
 	const response = await axiosInstance.get(`/keycheck/`, { params: { key }, headers });
 	return response.data;
-};
+}
 
 async function getUploadList() {
 	const headers = {
@@ -49,6 +49,6 @@ async function getUploadList() {
 	const params = {};
 	const response = await axiosInstance.post(`/list/`, params, { headers });
 	return response.data;
-};
+}
 
 export { uploadFile, isKeyExist, getUploadList };

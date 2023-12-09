@@ -18,4 +18,4 @@ const sessionStorageWrapper = (key, initValue) => {
 	return store;
 };
 
-export {localStorageWrapper, sessionStorageWrapper}
+export { localStorageWrapper, sessionStorageWrapper };
