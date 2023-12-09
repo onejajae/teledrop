@@ -1,0 +1,32 @@
+services:
+  api:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: teledrop-api
+    restart: always
+    
+    ports:
+      # - 443:443
+      - 8080:50000
+    volumes:
+      - ./:/app
+      - ./share:/share
+    environment:
+        - TZ=Asia/Seoul
+        - APP_MODE=prod
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: teledrop-nginx
+    restart: always
+    depends_on:
+      - api
+    volumes:
+      - ./web/build:/app
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      # - 443:443
+      - 80:8080
+    environment:
+        - TZ=Asia/Seoul
