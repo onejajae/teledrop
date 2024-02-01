@@ -8,6 +8,6 @@
 
 <Card href={url} padding="md" size="xl">
 	<Heading tag="h5">다운로드</Heading>
-	<P size="base">{filename}</P>
+	<P size="base" class="truncate">{filename}</P>
 	<P size="sm">{filesize(fileSize, { standard: 'jedec' })}</P>
 </Card>

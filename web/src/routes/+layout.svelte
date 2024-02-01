@@ -9,7 +9,7 @@
 	import { accessToken } from '$lib';
 </script>
 
-<div class="grid place-items-center px-2">
+<div class="flex justify-center px-2">
 	<div class="container max-w-screen-sm">
 		<header class="my-2">
 			<Header></Header>
