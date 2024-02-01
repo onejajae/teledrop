@@ -3,6 +3,7 @@
 
 	import { refresh } from '$api/auth';
 	import Loading from '$components/common/Loading.svelte';
+	
 	let username;
 	let password1;
 	let password2;
@@ -31,6 +32,9 @@
 	}
 </script>
 
+<svelte:head>
+	<title>회원가입</title>
+</svelte:head>
 {#await refresh()}
 	<Loading></Loading>
 {:then}

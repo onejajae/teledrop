@@ -39,6 +39,9 @@
 	}
 </script>
 
+<svelte:head>
+	<title>teledrop</title>
+</svelte:head>
 {#await promise}
 	<Loading></Loading>
 {:then data}

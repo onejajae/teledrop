@@ -7,6 +7,9 @@
 	let incorrect = false;
 </script>
 
+<svelte:head>
+	<title>로그인</title>
+</svelte:head>
 {#await refresh()}
 	<Loading></Loading>
 {:then data}

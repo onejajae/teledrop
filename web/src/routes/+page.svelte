@@ -2,10 +2,10 @@
 	import { Heading, Button, A } from 'flowbite-svelte';
 	import { uploadFile } from '$api/upload';
 	import { refresh } from '$api/auth';
+	
 	import UploadResult from '$components/upload/UploadResult.svelte';
 	import UploadStatus from '$components/upload/UploadStatus.svelte';
 	import DetailInput from '$components/upload/DetailInput.svelte';
-	import FileInput from '$components/upload/FileInput.svelte';
 	import FileDropzone from '$components/upload/FileDropzone.svelte';
 	import ErrorHandler from '$components/upload/error/ErrorHandler.svelte';
 	import Loading from '$components/common/Loading.svelte';
@@ -45,6 +45,9 @@
 	}
 </script>
 
+<svelte:head>
+	<title>teledrop</title>
+</svelte:head>
 {#await refresh()}
 	<Loading></Loading>
 {:then}
