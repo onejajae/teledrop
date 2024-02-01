@@ -1,22 +1,19 @@
 <script>
+	import { Heading, Progressbar } from 'flowbite-svelte';
+	import { sineOut } from 'svelte/easing';
 	import { uploadProgress } from '$lib';
 </script>
 
 <div class="text-center">
-	<h1>업로드 중...</h1>
+	<Heading tag="h3">업로드 진행중...</Heading>
 </div>
-<div
-	class="progress"
-	role="progressbar"
-	aria-label="Basic example"
-	aria-valuenow={$uploadProgress}
-	aria-valuemin="0"
-	aria-valuemax="100"
->
-	<div
-		class="progress-bar progress-bar-striped progress-bar-animated"
-		style="width: {$uploadProgress}%"
-	>
-		{$uploadProgress}%
-	</div>
-</div>
+<Progressbar
+	progress={$uploadProgress}
+	size="h-4"
+	labelInside
+	animate
+	precision={2}
+	tweenDuration={1500}
+	easing={sineOut}
+	class="mt-6"
+/>

@@ -1,5 +1,16 @@
 <script>
+	import { AccordionItem, Accordion } from 'flowbite-svelte';
+	import {
+		Label,
+		Input,
+		Textarea,
+		InputAddon,
+		ButtonGroup,
+		Helper,
+		Checkbox
+	} from 'flowbite-svelte';
 	import { isKeyExist } from '$api/upload';
+
 	export let uploadDetail = {
 		key: '',
 		title: '',
@@ -41,120 +52,75 @@
 </script>
 
 <form>
-	<div class="accordion accordion-flush" id="upload-accordion">
-		<div class="accordion-item">
-			<h5 class="accordion-header">
-				<button
-					class="accordion-button collapsed"
-					type="button"
-					data-bs-toggle="collapse"
-					data-bs-target="#upload-configs"
-					aria-expanded="false"
-					aria-controls="upload-configs"
-				>
-					업로드 세부 설정
-				</button>
-			</h5>
-
-			<div
-				id="upload-configs"
-				class="accordion-collapse collapse"
-				data-bs-parent="#upload-accordion"
-			>
-				<div class="accordion-body">
-					<div class="mb-3">
-						<label for="url-key" class="form-label">접근 URL</label>
-						<div class="input-group">
-							<span class="input-group-text" id="keyInput">https://onejajae.net/</span>
-							<input
-								type="text"
-								class="form-control"
-								id="url-key"
-								aria-describedby="keyInput basic-addon4"
-								bind:value={uploadDetail.key}
-								autocomplete="off"
-								class:is-valid={!isKeyDuplicated}
-								class:is-invalid={isKeyDuplicated}
-								on:change={keyCheck}
-								placeholder="입력하지 않으면 자동 생성됩니다."
-							/>
-							<div id="url-key-feedback" class="invalid-feedback">이미 사용 중인 URL 입니다.</div>
-						</div>
-					</div>
-					<div class="mb-3">
-						<label for="titleInput" class="form-label">제목</label>
-						<input
-							type="text"
-							class="form-control"
-							id="titleInput"
-							bind:value={uploadDetail.title}
-							autocomplete="off"
-						/>
-					</div>
-					<div class="mb-3">
-						<label for="descriptionInput" class="form-label">설명</label>
-						<textarea
-							class="form-control"
-							id="descriptionInput"
-							rows="3"
-							bind:value={uploadDetail.description}
-						></textarea>
-					</div>
-					<div class="mb-3">
-						<label for="passwordInput1" class="form-label">비밀번호</label>
-						<input
-							type="password"
-							class="form-control"
-							class:is-invalid={!isPasswordValid}
-							id="passwordInput1"
-							bind:value={password1}
-							autocomplete="off"
-							on:input={passwordCheck}
-						/>
-					</div>
-					<div class="mb-3">
-						<label for="passwordInput2" class="form-label">비밀번호 확인</label>
-						<input
-							type="password"
-							class="form-control"
-							class:is-invalid={!isPasswordValid}
-							id="passwordInput2"
-							bind:value={password2}
-							autocomplete="off"
-							on:input={passwordCheck}
-						/>
-						<div id="url-key-feedback" class="invalid-feedback">비밀번호가 일치하지 않습니다.</div>
-					</div>
-					<div class="mb-3">
-						<div class="row">
-							<div class="col">
-								<div class="form-check">
-									<input
-										class="form-check-input"
-										type="checkbox"
-										id="flexCheckDefault"
-										disabled={!isLogin}
-										bind:checked={uploadDetail.is_anonymous}
-									/>
-									<label class="form-check-label" for="flexCheckDefault"> 익명으로 업로드 </label>
-								</div>
-							</div>
-							<div class="col">
-								<div class="form-check">
-									<input
-										class="form-check-input"
-										type="checkbox"
-										id="flexCheckChecked"
-										disabled={isLogin && uploadDetail.is_anonymous}
-										bind:checked={uploadDetail.user_only}
-									/>
-									<label class="form-check-label" for="flexCheckChecked"> 사용자 전용 </label>
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
+	<Accordion flush>
+		<AccordionItem>
+			<span slot="header" class="px-5">업로드 세부 설정</span>
+			<div class="mb-3">
+				<Label for="url-key" class="mb-2">접근 URL</Label>
+				<ButtonGroup class="w-full">
+					<InputAddon>https://onejajae.net/</InputAddon>
+					<Input
+						id="url-key"
+						placeholder="입력하지 않으면 자동 생성됩니다."
+						color={isKeyDuplicated ? 'red' : 'green'}
+						on:change={keyCheck}
+						bind:value={uploadDetail.key}
+					/>
+				</ButtonGroup>
+				{#if isKeyDuplicated}
+					<Helper class="" color="red">
+						<span class="font-medium">이미 사용 중인 URL 입니다.</span>
+					</Helper>
+				{/if}
 			</div>
-		</div>
-	</div>
+			<div class="mb-3">
+				<Label for="name" class="mb-2">제목</Label>
+				<Input type="text" id="name" placeholder="제목" bind:value={uploadDetail.title} />
+			</div>
+			<div class="mb-1">
+				<Label for="description" class="mb-2">설명</Label>
+				<Textarea
+					id="description"
+					placeholder=""
+					rows="4"
+					name="description"
+					bind:value={uploadDetail.description}
+				/>
+			</div>
+			<div class="mb-3">
+				<Label for="password" class="mb-2">비밀번호</Label>
+				<Input
+					type="password"
+					id="password"
+					placeholder="•••••"
+					bind:value={password1}
+					on:input={passwordCheck}
+					color={isPasswordValid ? 'base' : 'red'}
+					autoComplete="off"
+				/>
+			</div>
+
+			<div class="mb-3">
+				<Label for="password-confirm" class="mb-2">비밀번호 확인</Label>
+				<Input
+					type="password"
+					id="password-confirm"
+					placeholder="•••••"
+					bind:value={password2}
+					on:input={passwordCheck}
+					color={isPasswordValid ? 'base' : 'red'}
+					autoComplete="off"
+				/>
+				{#if !isPasswordValid}
+					<Helper class="" color="red">
+						<span class="font-medium">비밀번호가 일치하지 않습니다.</span>
+					</Helper>
+				{/if}
+			</div>
+
+			<div class="mb-3">
+				<Checkbox bind:checked={uploadDetail.user_only} disabled={isLogin}>사용자 전용</Checkbox>
+			</div>
+		</AccordionItem>
+	</Accordion>
 </form>

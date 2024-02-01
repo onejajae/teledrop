@@ -1,12 +1,13 @@
 <script>
+	import { Heading, Button, A } from 'flowbite-svelte';
 	import { uploadFile } from '$api/upload';
 	import { refresh } from '$api/auth';
 	import UploadResult from '$components/upload/UploadResult.svelte';
 	import UploadStatus from '$components/upload/UploadStatus.svelte';
 	import DetailInput from '$components/upload/DetailInput.svelte';
 	import FileInput from '$components/upload/FileInput.svelte';
+	import FileDropzone from '$components/upload/FileDropzone.svelte';
 	import ErrorHandler from '$components/upload/error/ErrorHandler.svelte';
-	import UploadButton from '$components/upload/UploadButton.svelte';
 	import Loading from '$components/common/Loading.svelte';
 
 	// data to send
@@ -48,25 +49,29 @@
 	<Loading></Loading>
 {:then}
 	{#if waitUpload}
-		<h2>파일 업로드</h2>
-		<FileInput bind:file></FileInput>
-		<DetailInput bind:uploadDetail bind:isKeyDuplicated bind:isPasswordValid bind:isLogin
-		></DetailInput>
-		<UploadButton {upload} uploadAvailable={Boolean(file) && !isKeyDuplicated && isPasswordValid}
-		></UploadButton>
+		<Heading tag="h3" class="mb-4">파일 업로드</Heading>
+		<!-- <FileInput bind:file /> -->
+		<FileDropzone bind:file />
+		<DetailInput bind:uploadDetail bind:isKeyDuplicated bind:isPasswordValid bind:isLogin />
+		<div class="text-center">
+			<Button
+				class="mt-3"
+				color="green"
+				outline
+				pill
+				disabled={!(Boolean(file) && !isKeyDuplicated && isPasswordValid)}
+				on:click={upload}>업로드</Button
+			>
+		</div>
 	{:else}
 		{#await uploadResult}
 			<UploadStatus></UploadStatus>
 		{:then data}
 			<UploadResult uploadResult={data}></UploadResult>
-			<div>
-				<a href="/" on:click={reload}>업로드 화면으로 돌아가기</a>
-			</div>
+			<A href="/" on:click={reload}>업로드 화면으로 돌아가기</A>
 		{:catch error}
 			<ErrorHandler {error}></ErrorHandler>
-			<div>
-				<a href="/" on:click={reload}>업로드 화면으로 돌아가기</a>
-			</div>
+			<A href="/" on:click={reload}>업로드 화면으로 돌아가기</A>
 		{/await}
 	{/if}
 {:catch}

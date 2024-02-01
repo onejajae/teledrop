@@ -4,8 +4,8 @@ import { writable } from 'svelte/store';
 import { localStorageWrapper, sessionStorageWrapper } from '$utils/persistStorage';
 const uploadProgress = writable(0);
 const accessToken = {
-	access_token: localStorageWrapper('access_token', ''),
-	username: localStorageWrapper('username', '')
+	access_token: sessionStorageWrapper('access_token', ''),
+	username: sessionStorageWrapper('username', '')
 };
 
 export { uploadProgress, accessToken };

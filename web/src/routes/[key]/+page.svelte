@@ -32,7 +32,7 @@
 	<div class="text-center">
 		<Viewer {data}></Viewer>
 	</div>
-	<div class="mt-3 d-flex justify-content-center">
+	<div class="d-flex justify-content-center mt-3">
 		<div class="w-100">
 			<Detail {data}></Detail>
 			<DownloadCard filename={data.filename} url={data.url} fileSize={data.file_size}

@@ -1,50 +1,60 @@
 <script>
+	import { Button, Heading, Label, Input, Helper, Spinner } from 'flowbite-svelte';
 	import { login, refresh } from '$api/auth';
 	let username;
 	let password;
 	let incorrect = false;
+	let waitLogin = false;
 	async function loginHandle(event) {
+		waitLogin = true;
 		event.preventDefault();
 		try {
 			const response = await login(username, password);
 			location.replace('/');
 		} catch (error) {
 			incorrect = true;
+			waitLogin = false;
 		}
+		waitLogin = false;
 	}
 </script>
 
-<div class="form-title text-center mb-3">
-	<label for="username">
-		<h4>로그인</h4>
-	</label>
-</div>
-
-<div class="d-flex flex-column text-center">
-	<form>
-		<div class="form-group mb-3">
-			<input
+<div class="mb-4 space-y-4 p-5">
+	<form class="flex flex-col space-y-6" action="/">
+		<div class="text-center">
+			<Heading tag="h4">로그인</Heading>
+		</div>
+		<Label class="space-y-2">
+			<span>사용자 ID</span>
+			<Input
 				type="text"
-				class="form-control"
-				id="username"
-				placeholder="아이디"
+				name="username"
+				placeholder="사용자 ID"
 				bind:value={username}
+				autoComplete="off"
 			/>
-		</div>
-		<div class="form-group mb-3">
-			<input
+		</Label>
+		<Label class="space-y-2">
+			<span>비밀번호</span>
+			<Input
 				type="password"
-				class="form-control"
-				id="password"
-				placeholder="비밀번호"
+				name="password"
+				placeholder="••••••"
 				bind:value={password}
+				autoComplete="off"
 			/>
-		</div>
+		</Label>
+		<Button type="submit" on:click={loginHandle}>
+			{#if waitLogin}
+				<Spinner size="4" />
+			{:else}
+				로그인
+			{/if}
+		</Button>
 		{#if incorrect}
-			<div class="form-text text-danger mb-3">아이디 또는 비밀번호가 올바르지 않습니다.</div>
+			<Helper class="mt-2" color="red">
+				<span class="font-medium">아이디 또는 비밀번호가 올바르지 않습니다.</span>
+			</Helper>
 		{/if}
-		<button type="submit" class="btn btn-outline-primary rounded-pill" on:click={loginHandle}
-			>확인</button
-		>
 	</form>
 </div>
