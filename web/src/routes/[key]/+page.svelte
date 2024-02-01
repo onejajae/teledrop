@@ -45,7 +45,7 @@
 {#await promise}
 	<Loading></Loading>
 {:then data}
-	<div class="text-center">
+	<div class="flex justify-center">
 		<Viewer {data}></Viewer>
 	</div>
 	<div class="w-100 my-5">
