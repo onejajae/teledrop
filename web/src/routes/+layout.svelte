@@ -10,7 +10,7 @@
 </script>
 
 <div class="grid place-items-center px-2">
-	<div class="container max-w-screen-sm">
+	<div class="container ">
 		<header class="my-2">
 			<Header></Header>
 		</header>
