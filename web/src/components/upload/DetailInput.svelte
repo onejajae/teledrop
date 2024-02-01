@@ -76,7 +76,14 @@
 			</div>
 			<div class="mb-3">
 				<Label for="title" class="mb-2">제목</Label>
-				<Input type="text" id="title" name="title" placeholder="제목" bind:value={uploadDetail.title} autoComplete="off"/>
+				<Input
+					type="text"
+					id="title"
+					name="title"
+					placeholder="제목"
+					bind:value={uploadDetail.title}
+					autoComplete="off"
+				/>
 			</div>
 			<div class="mb-1">
 				<Label for="description" class="mb-2">설명</Label>

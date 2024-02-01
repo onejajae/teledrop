@@ -4,7 +4,7 @@
 </script>
 
 <div class="my-5 flex justify-center">
-	<FooterIcon href="https://github.com">
+	<FooterIcon href="https://github.com/onejajae/teledrop">
 		<GithubSolid />
 	</FooterIcon>
 </div>

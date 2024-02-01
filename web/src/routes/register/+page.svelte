@@ -3,7 +3,7 @@
 
 	import { refresh } from '$api/auth';
 	import Loading from '$components/common/Loading.svelte';
-	
+
 	let username;
 	let password1;
 	let password2;

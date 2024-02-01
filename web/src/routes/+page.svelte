@@ -2,7 +2,7 @@
 	import { Heading, Button, A } from 'flowbite-svelte';
 	import { uploadFile } from '$api/upload';
 	import { refresh } from '$api/auth';
-	
+
 	import UploadResult from '$components/upload/UploadResult.svelte';
 	import UploadStatus from '$components/upload/UploadStatus.svelte';
 	import DetailInput from '$components/upload/DetailInput.svelte';
