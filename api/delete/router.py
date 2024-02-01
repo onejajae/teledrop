@@ -12,8 +12,8 @@ router = APIRouter()
 @router.delete("/{key}")
 async def delete_file(
     key: str,
-    password: str,
+    password: str = None,
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    pass
+    print(key, password, current_user)

@@ -17,9 +17,20 @@ async function getFileInfo(key, password = null) {
 	if (password !== null) url.searchParams.append('password', password);
 	if (access_token) url.searchParams.append('access_token', access_token);
 	response.data.url = `${url.toString()}`;
-	console.log(response.data.url);
 
 	return response.data;
 }
 
-export { getFileInfo };
+async function deleteFile(key, password = null) {
+	const params = {};
+	const headers = {};
+
+	const access_token = get(accessToken.access_token);
+	if (access_token) headers.Authorization = `Bearer ${access_token}`;
+
+	if (password !== null) params.password = password;
+
+	await axiosInstance.delete(`/${key}`, { params, headers });
+}
+
+export { getFileInfo, deleteFile };

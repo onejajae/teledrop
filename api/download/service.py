@@ -18,6 +18,7 @@ async def get_info(key: str, db: Session, settings: Settings):
             filename=upload.filename,
             file_size=upload.content.size,
             content_type=upload.content.mime,
+            username=upload.user.username,
             title=upload.title,
             description=upload.description,
             datetime=upload.datetime,

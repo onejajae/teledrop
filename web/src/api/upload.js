@@ -47,7 +47,7 @@ async function getUploadList() {
 		Authorization: `Bearer ${get(accessToken.access_token)}`
 	};
 	const params = {};
-	const response = await axiosInstance.post(`/list/`, params, { headers });
+	const response = await axiosInstance.get(`/list/`, { params, headers });
 	return response.data;
 }
 

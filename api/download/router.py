@@ -78,7 +78,7 @@ async def download_file(
     return FileResponse(file_path, filename=filename)
 
 
-@router.post("/list/", response_model=list[UploadListElement])
+@router.get("/list/", response_model=list[UploadListElement])
 async def get_file_list(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),

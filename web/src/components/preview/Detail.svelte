@@ -1,12 +1,11 @@
 <script>
+	import { Heading, P } from "flowbite-svelte";
 	export let data;
 </script>
 
 {#if data.title !== data.filename}
-	<h3>{data.title}</h3>
+	<Heading tag="h3">{data.title}</Heading>
 {/if}
 {#if data.description}
-	<div class="mt-2">
-		<p style="white-space: pre-line;">{data.description}</p>
-	</div>
+	<P class="my-3">{data.description}</P>
 {/if}

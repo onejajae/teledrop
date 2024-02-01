@@ -8,6 +8,7 @@ class DownloadPreview(BaseModel):
     file_size: int
     content_type: str
 
+    username: str
     title: str
     description: str | None
     datetime: datetime
