@@ -65,6 +65,7 @@
 						color={isKeyDuplicated ? 'red' : 'green'}
 						on:change={keyCheck}
 						bind:value={uploadDetail.key}
+						autoComplete="off"
 					/>
 				</ButtonGroup>
 				{#if isKeyDuplicated}
@@ -74,8 +75,8 @@
 				{/if}
 			</div>
 			<div class="mb-3">
-				<Label for="name" class="mb-2">제목</Label>
-				<Input type="text" id="name" placeholder="제목" bind:value={uploadDetail.title} />
+				<Label for="title" class="mb-2">제목</Label>
+				<Input type="text" id="title" name="title" placeholder="제목" bind:value={uploadDetail.title} autoComplete="off"/>
 			</div>
 			<div class="mb-1">
 				<Label for="description" class="mb-2">설명</Label>
@@ -96,7 +97,7 @@
 					bind:value={password1}
 					on:input={passwordCheck}
 					color={isPasswordValid ? 'base' : 'red'}
-					autoComplete="off"
+					autoComplete="new-password"
 				/>
 			</div>
 
@@ -109,7 +110,7 @@
 					bind:value={password2}
 					on:input={passwordCheck}
 					color={isPasswordValid ? 'base' : 'red'}
-					autoComplete="off"
+					autoComplete="new-password"
 				/>
 				{#if !isPasswordValid}
 					<Helper class="" color="red">
