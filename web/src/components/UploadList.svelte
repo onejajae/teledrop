@@ -9,7 +9,7 @@
 		{#each data as upload}
 			<ListgroupItem href="/{upload.key}">
 				<div class="me-auto ms-2 py-1">
-					<div class="text-base font-semibold truncate">{upload.filename}</div>
+					<div class="truncate text-base font-semibold">{upload.filename}</div>
 					<div class="text-sm font-light">{upload.datetime}</div>
 				</div>
 			</ListgroupItem>

@@ -1,5 +1,5 @@
 <script>
-	import { Heading, P } from "flowbite-svelte";
+	import { Heading, P } from 'flowbite-svelte';
 	export let data;
 </script>
 
