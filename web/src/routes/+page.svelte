@@ -22,7 +22,6 @@
 	let isLogin = false;
 
 	async function upload() {
-		console.log(uploadDetail);
 		if (!file) {
 			alert('파일을 선택해 주세요');
 			return;

@@ -1,24 +1,17 @@
 <script>
 	import { Dropzone } from 'flowbite-svelte';
 	export let file;
-	let value = [];
 	let filename = '';
 	const dropHandle = (event) => {
-		value = [];
 		event.preventDefault();
-
-		if (event.dataTransfer.items) {
-			const file = event.dataTransfer.items[0].getAsFile();
-			filename = file.name;
-			[...event.dataTransfer.items].forEach((item, i) => {
-				console.log(item);
-				if (!item.type) {
-					alert('폴더를 업로드할 수 없습니다.');
-					filename = '';
-				}
-			});
-		} else {
-			filename = event.dataTransfer.files[0].name;
+		file = event.dataTransfer.files;
+		for (let f of file) {
+			filename = f.name;
+			if (!f.type) {
+				alert('폴더를 업로드할 수 없습니다.');
+				filename = '';
+				break;
+			}
 		}
 	};
 
@@ -30,25 +23,7 @@
 		}
 		const files = event.target.files;
 		filename = files[0].name;
-		// if (files.length > 0) {
-		// 	value.push(files[0].name);
-		// 	value = value;
-		// }
 	};
-
-	// const showFiles = (files) => {
-	// 	if (files.length === 1) return files[0];
-	// 	let concat = '';
-	// 	files.map((file) => {
-	// 		concat += file;
-	// 		concat += ',';
-	// 		concat += ' ';
-	// 	});
-
-	// 	if (concat.length > 40) concat = concat.slice(0, 40);
-	// 	concat += '...';
-	// 	return concat;
-	// };
 </script>
 
 <Dropzone
@@ -79,7 +54,8 @@
 			<span class="font-semibold">클릭하여 업로드</span> 또는 끌어서 가져오기
 		</p>
 	{:else}
-		<!-- <p>{showFiles(value)}</p> -->
-		<p>{filename}</p>
+		<p class="mb-2 text-sm text-gray-500 dark:text-gray-400">
+			<span class="font-semibold">{filename}</span>
+		</p>
 	{/if}
 </Dropzone>
