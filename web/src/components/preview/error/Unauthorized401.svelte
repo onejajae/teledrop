@@ -4,6 +4,6 @@
 </script>
 
 <div class="text-center">
-	<Heading tag="h4">존재하지 않습니다.</Heading>
+	<Heading tag="h4">권한 없음</Heading>
     <Button class="mt-5" href="/" size="sm" color="red" outline>돌아가기</Button>
 </div>

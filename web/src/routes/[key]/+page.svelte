@@ -1,6 +1,8 @@
 <script>
 	import { Button, P } from 'flowbite-svelte';
 	import dayjs from 'dayjs';
+	import 'dayjs/locale/ko';
+	dayjs.locale('ko');
 
 	import { page } from '$app/stores';
 	import { get } from 'svelte/store';
@@ -8,6 +10,7 @@
 	import { goto } from '$app/navigation';
 
 	import { getFileInfo, deleteFile } from '$api/preview';
+	import { refresh } from '$api/auth';
 
 	import Loading from '$components/common/Loading.svelte';
 	import Viewer from '$components/preview/viewer/Viewer.svelte';
@@ -15,6 +18,7 @@
 	import DownloadCard from '$components/preview/DownloadCard.svelte';
 	import Forbidden403 from '$components/preview/error/Forbidden403.svelte';
 	import NotFound404 from '$components/preview/error/NotFound404.svelte';
+	import Unauthorized401 from '$components/preview/error/Unauthorized401.svelte';
 
 	let key;
 	let password;
@@ -35,6 +39,7 @@
 		if (key != $page.params.key) {
 			key = $page.params.key;
 			password = $page.url.searchParams.get('password');
+			refresh();
 			promise = getFileInfo(key, password);
 		}
 	}
@@ -66,6 +71,6 @@
 	{:else if error.response.status === 404}
 		<NotFound404></NotFound404>
 	{:else if error.response.status === 401}
-		권한 없음
+		<Unauthorized401></Unauthorized401>
 	{/if}
 {/await}

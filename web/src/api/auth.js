@@ -19,11 +19,19 @@ async function refresh() {
 	const headers = {
 		Authorization: `Bearer ${get(accessToken.access_token)}`
 	};
-	const response = await axiosInstance.get(`/auth/refresh/`, { headers });
-	accessToken.access_token.set(response.data.access_token);
-	accessToken.username.set(response.data.username);
+	try {
+		const response = await axiosInstance.get(`/auth/refresh/`, { headers });
+		accessToken.access_token.set(response.data.access_token);
+		accessToken.username.set(response.data.username);
 
-	return response.data;
+		return response.data;
+	}
+	catch (error) {
+		accessToken.access_token.set("");
+		accessToken.username.set("");
+
+		throw error
+	}
 }
 
 async function logout() {
