@@ -1,5 +1,6 @@
 <script>
-	import { Button } from 'flowbite-svelte';
+	import { Button, P } from 'flowbite-svelte';
+	import dayjs from 'dayjs';
 
 	import { page } from '$app/stores';
 	import { get } from 'svelte/store';
@@ -53,11 +54,12 @@
 		<DownloadCard filename={data.filename} url={data.url} fileSize={data.file_size}></DownloadCard>
 	</div>
 
-	{#if data.username === get(accessToken.username)}
-		<div class="text-end">
+	<div class="flex justify-between">
+		<P class="mt-3 ps-1">{dayjs(data.datetime).format('YYYY-MM-DD (dd) HH:mm:ss')} 등록</P>
+		{#if data.username === get(accessToken.username)}
 			<Button color="red" outline on:click={deleteHandle}>삭제</Button>
-		</div>
-	{/if}
+		{/if}
+	</div>
 {:catch error}
 	{#if error.response.status === 403}
 		<Forbidden403 bind:password bind:isPasswordCorrect {key} bind:promise></Forbidden403>
