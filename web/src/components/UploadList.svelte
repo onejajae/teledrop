@@ -5,6 +5,8 @@
 	dayjs.extend(relativeTime);
 	dayjs.locale('ko');
 
+	import { page } from '$app/stores';
+
 	import { Listgroup, ListgroupItem, Heading } from 'flowbite-svelte';
 	import { getUploadList } from '$api/upload';
 </script>
@@ -13,7 +15,7 @@
 <Listgroup active>
 	{#await getUploadList() then data}
 		{#each data as upload}
-			<ListgroupItem href="/{upload.key}">
+			<ListgroupItem href="/{upload.key}" current={upload.key === $page.params.key}>
 				<div class="me-auto ms-2 py-1">
 					<div class="truncate text-base font-semibold">{upload.filename}</div>
 					<div class="text-sm font-light">{dayjs(upload.datetime).fromNow()}</div>
