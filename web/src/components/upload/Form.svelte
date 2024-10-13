@@ -72,63 +72,61 @@
 </script>
 
 <form on:submit|preventDefault={handleUpload} class="flex flex-col space-y-3">
-	<div class="">
-		<Dropzone
-			class="h-full  p-3"
-			id="dropzone"
-			name="file"
-			on:drop={handleFileDrop}
-			on:dragover={(event) => {
-				event.preventDefault();
-			}}
-			on:change={handleFileChange}
-			bind:files
-		>
-			{#if !filename}
-				<div class="my-10 flex flex-col items-center space-y-3">
-					<p class="text-center">
-						<svg
-							aria-hidden="true"
-							class="h-10 w-10 text-gray-400"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-							xmlns="http://www.w3.org/2000/svg"
-							><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-							/></svg
-						>
-					</p>
+	<Dropzone
+		class="h-full p-3"
+		id="dropzone"
+		name="file"
+		on:drop={handleFileDrop}
+		on:dragover={(event) => {
+			event.preventDefault();
+		}}
+		on:change={handleFileChange}
+		bind:files
+	>
+		{#if !filename}
+			<div class="my-10 flex flex-col items-center space-y-3">
+				<p class="text-center">
+					<svg
+						aria-hidden="true"
+						class="h-10 w-10 text-gray-400"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+						xmlns="http://www.w3.org/2000/svg"
+						><path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+						/></svg
+					>
+				</p>
 
-					<p class=" text-gray-500 dark:text-gray-400">
-						<span class="font-semibold">클릭하여 업로드</span> 또는 끌어서 가져오기
-					</p>
+				<p class=" text-gray-500 dark:text-gray-400">
+					<span class="font-semibold">클릭하여 업로드</span> 또는 끌어서 가져오기
+				</p>
+			</div>
+		{:else}
+			{#key filedata}
+				<div>
+					{#if filetype.startsWith('image/')}
+						<Img class="max-h-svh" src={filedata} />
+					{:else if filetype.startsWith('video/')}
+						<video class="max-h-svh" controls>
+							<source src={filedata} type={filetype} />
+							<track kind="captions" />
+							이 브라우저에서는 미리보기가 지원되지 않습니다.
+						</video>
+					{:else}
+						<P><FileOutline class="size-20"></FileOutline></P>
+					{/if}
 				</div>
-			{:else}
-				{#key filedata}
-					<div>
-						{#if filetype.startsWith('image/')}
-							<Img class="max-h-svh" src={filedata} />
-						{:else if filetype.startsWith('video/')}
-							<video class="max-h-svh" controls>
-								<source src={filedata} type={filetype} />
-								<track kind="captions" />
-								이 브라우저에서는 미리보기가 지원되지 않습니다.
-							</video>
-						{:else}
-							<P><FileOutline class="size-20"></FileOutline></P>
-						{/if}
-					</div>
-					<p class="mt-3 text-sm text-gray-500 dark:text-gray-400">
-						<span class="font-semibold">{filename}</span>
-					</p>
-				{/key}
-			{/if}
-		</Dropzone>
-	</div>
+				<p class="mt-3 text-sm text-gray-500 dark:text-gray-400">
+					<span class="font-semibold">{filename}</span>
+				</p>
+			{/key}
+		{/if}
+	</Dropzone>
 
 	<Label for="url-key" class="space-y-1">
 		<span>접근 URL</span>

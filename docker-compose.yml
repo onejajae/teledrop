@@ -6,6 +6,7 @@ services:
       args:
         - HOST_DOMAIN=localhost   # edit here to your domain or ip to serve
     container_name: teledrop
+    restart: unless-stopped
     ports:
       - 80:8000/tcp
     volumes:
