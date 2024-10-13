@@ -70,7 +70,7 @@
 			</span>
 			<span>
 				<Select
-				class="font-semibold "
+					class="font-semibold"
 					items={sortBys}
 					placeholder=""
 					size="sm"

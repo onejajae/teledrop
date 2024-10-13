@@ -22,7 +22,7 @@ export class API {
 			});
 			const token = res.data;
 			accessToken.set(token.access_token);
-			username.set(token.username)
+			username.set(token.username);
 		} catch (error) {
 			accessToken.set(null);
 			username.set(null);
@@ -47,7 +47,7 @@ export class API {
 	}
 
 	static async getUserInfo() {
-		try{
+		try {
 			const res = await this.instance.get(`/me`, {
 				headers: { authorization: `Bearer ${get(accessToken)}` }
 			});
