@@ -1,8 +1,21 @@
-__pycache__/
-.DS_Store
+# common ignores (sharing gitignore and dockerignore) - pycache, envfile, etc..
+**/__pycache__/
+**/*.py[cod]
+*$py.class
 .env
 .env.*
-*.db
+
+# vscode
+.vscode
+
+# virtual environment
+.venv
+
+# macOS 
+.DS_Store
+
+# WSL
+*Zone.identifier
+
+# teledrop default share directory
 share/
-venv/
-.vscode/

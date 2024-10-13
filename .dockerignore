@@ -1,27 +1,6 @@
-# Environments
-.env*
-
-
-# Virtual Environments
-venv/
-
-
-### Python ###
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
+# common ignores (sharing gitignore and dockerignore) - pycache, envfile, etc..
+**/__pycache__/
+**/*.py[cod]
 *$py.class
-
-
-### PyCharm ###
-.idea/
-
-
-### VisualStudioCode ###
-.vscode/
-
-
-### etc ###
-misc/
-web/
-share/
+.env
+.env.*
