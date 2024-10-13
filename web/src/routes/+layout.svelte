@@ -1,29 +1,28 @@
 <script>
-	import '../app.pcss';
+	import '../app.css';
 
-	import Header from '$components/Header.svelte';
-	import Footer from '$components/Footer.svelte';
-	import UploadList from '$components/UploadList.svelte';
+	import Header from '../components/Header.svelte';
+	import PostList from '../components/PostList.svelte';
 
-	import { get } from 'svelte/store';
-	import { accessToken } from '$lib';
+	import { accessToken } from '$lib/store.js';
 </script>
 
+<svelte:head>
+	<title>teledrop</title>
+</svelte:head>
 <div class="flex justify-center px-2">
-	<div class="container max-w-screen-sm">
+	<div class="container max-w-screen-sm space-y-3">
 		<header class="my-2">
 			<Header></Header>
 		</header>
-		<main class="my-5 rounded-xl bg-gray-50 p-5 shadow-xl dark:bg-gray-700">
-			<slot />
+		<main>
+			{#key $accessToken}
+				<slot />
+			{/key}
 		</main>
-		{#if get(accessToken.access_token)}
-			<div class="my-5 rounded-xl bg-gray-50 p-5 shadow-xl dark:bg-gray-700">
-				<UploadList></UploadList>
-			</div>
+		{#if $accessToken}
+			<PostList></PostList>
 		{/if}
-		<footer>
-			<Footer></Footer>
-		</footer>
+		<footer></footer>
 	</div>
 </div>

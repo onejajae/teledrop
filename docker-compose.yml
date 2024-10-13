@@ -1,43 +1,14 @@
 services:
-  api:
-    build: 
+  teledrop:
+    build:
       context: .
       dockerfile: Dockerfile
-    container_name: teledrop-api
-    restart: always
-    networks:
-      - traefik-net
+      args:
+        - HOST_DOMAIN=localhost
+    container_name: teledrop
+    ports:
+      - 80:8000/tcp
     volumes:
-      - ./:/app
-      - ./share:/share
+      - ./share:/teledrop/share
     environment:
-        - TZ=Asia/Seoul
-        - APP_MODE=prod
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.teledrop-api.entrypoints=websecure"
-      - "traefik.http.routers.teledrop-api.rule=Host(`teledrop.onejajae.net`)"
-      - "traefik.http.services.teledrop-api.loadbalancer.server.port=50000"
-
-  nginx:
-    image: nginx:stable-alpine
-    container_name: teledrop-nginx
-    restart: always
-    networks:
-      - traefik-net
-    depends_on:
-      - api
-    volumes:
-      - ./web/build:/app
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-    environment:
-        - TZ=Asia/Seoul
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.teledrop-web.entrypoints=websecure"
-      - "traefik.http.routers.teledrop-web.rule=Host(`onejajae.net`)"
-      - "traefik.http.services.teledrop-web.loadbalancer.server.port=50001"
-
-networks:
-  traefik-net:
-    external: true
+      - TZ=Asia/Seoul

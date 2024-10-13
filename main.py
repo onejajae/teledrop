@@ -1,43 +1,65 @@
+import os
+
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
-# from app.file.router import router as file_router
-from api.router import router as api_router
-
-from config import Settings, get_settings
-
-
-def init_db(settings: Settings):
-    from sqlalchemy import create_engine
-    from db.model import Base
-
-    engine = create_engine(settings.db_host, connect_args={"check_same_thread": False})
-    Base.metadata.create_all(engine)
+from api.db.init import init_db
+from api.router import api_router
+from api.config import get_settings
 
 
-def make_app(settings: Settings) -> FastAPI:
-    import os
+settings = get_settings()
 
-    if not os.path.exists(settings.db_host):
-        init_db(settings)
-    if not os.path.isdir(settings.share_directory):
-        os.mkdir(settings.share_directory)
 
-    if settings.app_mode == "prod":
-        app = FastAPI(docs_url=None, redoc_url=None)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if not os.path.isdir(settings.SHARE_DIRECTORY):
+        os.mkdir(settings.SHARE_DIRECTORY)
+    if not os.path.exists(settings.SQLITE_HOST):
+        init_db()
+
+    yield
+
+    # after app shutdown
+
+
+def make_app() -> FastAPI:
+    if settings.APP_MODE == "prod":
+        app = FastAPI(
+            lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None
+        )
     else:
-        app = FastAPI()
+        print(settings)
+        app = FastAPI(lifespan=lifespan)
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
 
     return app
 
 
-settings = get_settings()
-app = make_app(settings)
+app = make_app()
+app.include_router(api_router, prefix=settings.PREFIX_API_BASE)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allow_cors_origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.include_router(api_router, prefix="/api")
+
+app.mount("/_app", StaticFiles(directory=settings.PATH_WEB_BUILD))
+app.mount("/static", StaticFiles(directory=settings.PATH_WEB_STATIC))
+
+
+@app.get("/{catchall:path}")
+async def index(catchall: str):
+    return FileResponse(settings.PATH_WEB_INDEX)
