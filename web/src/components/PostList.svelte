@@ -97,7 +97,7 @@
 							<div class="w-full min-w-0 flex-col ps-1">
 								<div class="font-base flex items-center text-base">
 									{#if post.favorite}
-										<span class="pe-1"><StarSolid size="xs" class="ms-1" /></span>
+										<span class="pe-1"><StarSolid size="xs" /></span>
 									{/if}
 									<span class="truncate">
 										{#if post.title}
