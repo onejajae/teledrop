@@ -39,13 +39,13 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             headers={"WWW-Authenticate": "Bearer"},
-            detail="Token has been expired or revoked"
+            detail="Token has been expired or revoked",
         )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             headers={"WWW-Authenticate": "Bearer"},
-            detail="Invalid Token"
+            detail="Invalid Token",
         )
 
     user_id = payload.get("user_id")

@@ -35,5 +35,5 @@
 		</div>
 	</object>
 {:else}
-	기타
+	<div></div>
 {/if}

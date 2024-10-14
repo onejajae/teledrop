@@ -39,7 +39,11 @@ async def register(
     hashed_password = hashpw(password.encode("utf-8"), gensalt())
     hashed_password = hashed_password.decode("utf-8")
 
-    new_user = User(username=username, password=hashed_password, created_at=datetime.now(timezone.utc))
+    new_user = User(
+        username=username,
+        password=hashed_password,
+        created_at=datetime.now(timezone.utc),
+    )
     session.add(new_user)
 
     try:

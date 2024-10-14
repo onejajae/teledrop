@@ -10,7 +10,9 @@ from api.config import Settings
 
 
 def create_access_token(
-    user: User, settings: Settings, expires_delta: timedelta | None = timedelta(minutes=15)
+    user: User,
+    settings: Settings,
+    expires_delta: timedelta | None = timedelta(minutes=15),
 ):
     payload = {
         "user_id": user.id,
