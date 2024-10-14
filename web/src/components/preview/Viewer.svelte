@@ -12,7 +12,7 @@
 	<Img {src} />
 {:else if post.filetype.startsWith('video/')}
 	<video class="w-full" controls>
-		<source {src} type={post.filetype} />
+		<source src={`${src}#t=0.001`} type={post.filetype} />
 		<track kind="captions" />
 		이 브라우저에서는 미리보기가 지원되지 않습니다.
 	</video>
