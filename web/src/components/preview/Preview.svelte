@@ -116,7 +116,7 @@
 				{/if}
 			</div>
 			<div slot="content" class="space-y-2">
-				<div class="flex max-h-svh justify-center">
+				<div class="flex justify-center">
 					<Viewer {post} />
 				</div>
 
