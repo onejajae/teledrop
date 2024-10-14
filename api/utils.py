@@ -1,7 +1,7 @@
 import jwt
 from typing import BinaryIO
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlmodel import Session, select
 
@@ -14,11 +14,11 @@ def create_access_token(
 ):
     if expires_delta is None:
         expires_delta = timedelta(minutes=15)
-
+    
     payload = {
         "user_id": user.id,
         "username": user.username,
-        "exp": datetime.now() + expires_delta,
+        "exp": datetime.now(tz=timezone.utc) + expires_delta,
     }
 
     return jwt.encode(

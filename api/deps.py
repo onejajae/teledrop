@@ -35,10 +35,17 @@ async def get_current_user(
         payload = jwt.decode(
             token, key=settings.JWT_SECRET, algorithms=settings.JWT_ALGORITHM
         )
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            headers={"WWW-Authenticate": "Bearer"},
+            detail="Token has been expired or revoked"
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             headers={"WWW-Authenticate": "Bearer"},
+            detail="Invalid Token"
         )
 
     user_id = payload.get("user_id")
