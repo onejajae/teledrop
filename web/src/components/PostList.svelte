@@ -13,7 +13,9 @@
 	import dayjs from 'dayjs';
 	import 'dayjs/locale/ko';
 	import relativeTime from 'dayjs/plugin/relativeTime';
+	import utc from 'dayjs/plugin/utc';
 	dayjs.extend(relativeTime);
+	dayjs.extend(utc);
 	dayjs.locale('ko');
 
 	const sortBys = [
@@ -113,7 +115,7 @@
 									{#if post.is_user_only}
 										<span> • 사용자 전용</span>
 									{/if}
-									<span> • {dayjs(post.created_at).fromNow()}</span>
+									<span> • {dayjs.utc(post.created_at).local().fromNow()}</span>
 								</div>
 							</div>
 							{#if post.required_password}

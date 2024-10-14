@@ -3,7 +3,7 @@ import os
 import io
 from urllib import parse
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter
 from fastapi import Form, UploadFile, File, Header
@@ -188,7 +188,7 @@ async def upload(
         is_user_only=is_user_only,
         title=title,
         description=description,
-        created_at=datetime.now(),
+        created_at=datetime.now(timezone.utc),
         password=password,
         filename=file.filename,
         filetype=file.content_type,
@@ -230,7 +230,7 @@ async def update(
 
     new_post = new_post.model_dump(exclude_unset=True)
     post.sqlmodel_update(new_post)
-    post.updated_at = datetime.now()
+    post.updated_at = datetime.now(timezone.utc)
 
     session.add(post)
     session.commit()

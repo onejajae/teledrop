@@ -15,7 +15,7 @@ class UserPublic(SQLModel):
 
     username: str
 
-    created_at: datetime | None = datetime.now()
+    created_at: datetime
 
 
 class UserMinimal(SQLModel):

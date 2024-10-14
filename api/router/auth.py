@@ -3,7 +3,7 @@ from fastapi import HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from bcrypt import hashpw, gensalt, checkpw
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
@@ -39,7 +39,7 @@ async def register(
     hashed_password = hashpw(password.encode("utf-8"), gensalt())
     hashed_password = hashed_password.decode("utf-8")
 
-    new_user = User(username=username, password=hashed_password)
+    new_user = User(username=username, password=hashed_password, created_at=datetime.now(timezone.utc))
     session.add(new_user)
 
     try:
