@@ -11,13 +11,13 @@ from fastapi import HTTPException, status
 from fastapi.responses import StreamingResponse
 
 from typing import Literal
-from sqlmodel import Session, select, col
-from sqlalchemy.sql.functions import coalesce
+from sqlmodel import Session, select
+from sqlalchemy import func
 
 from api.db.model import Post, User
 from api.schema import (
     PostPublic,
-    PostListElement,
+    PostList,
     PostUpdate,
     PostMinimal,
     PostFavoriteUpdate,
@@ -31,7 +31,7 @@ from api.config import Settings
 router = APIRouter()
 
 
-@router.get("/list", response_model=list[PostListElement])
+@router.get("/list", response_model=PostList)
 async def list(
     sortby: Literal["created_at", "title", "filesize"] | None = "created_at",
     orderby: Literal["asc", "desc"] | None = "desc",
@@ -43,17 +43,26 @@ async def list(
 
     sort_column = getattr(Post, sortby)
     if sortby == "title":
-        sort_column = coalesce(Post.title, Post.filename)
+        sort_column = func.coalesce(Post.title, Post.filename)
 
     if orderby == "asc":
         sort_column = sort_column.asc()
     else:
         sort_column = sort_column.desc()
 
-    statement = select(Post).where(Post.user_id == user.id).order_by(sort_column)
-    posts = session.exec(statement).all()
+    statement_posts = select(Post).where(Post.user_id == user.id).order_by(sort_column)
+    posts = session.exec(statement_posts).fetchall()
+    if not posts:
+        return PostList(posts=[])
 
-    return posts
+    statement_usage = (
+        select(func.sum(Post.filesize), func.count())
+        .select_from(Post)
+        .where(Post.user_id == user.id)
+    )
+    used_capacity, num_posts = session.exec(statement_usage).fetchall()[0]
+
+    return PostList(posts=posts, num_posts=num_posts, used_capacity=used_capacity)
 
 
 @router.get("/preview/{key}", response_model=PostPublic)

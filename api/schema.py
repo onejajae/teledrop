@@ -117,6 +117,13 @@ class PostListElement(SQLModel):
         return bool(self.password)
 
 
+class PostList(SQLModel):
+    posts: list[PostListElement]
+    num_posts: int | None = 0
+    used_capacity: int | None = 0
+    max_capacity: int = 1024 * 1024 * 1024 * 10
+
+
 class Token(SQLModel):
     access_token: str
     token_type: str

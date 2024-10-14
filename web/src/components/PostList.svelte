@@ -1,11 +1,18 @@
 <script>
-	import { Listgroup, ListgroupItem, Tooltip, Select } from 'flowbite-svelte';
+	import { Listgroup, ListgroupItem, Tooltip, Select, Progressbar, P } from 'flowbite-svelte';
 	import { RefreshOutline, LockSolid, LockOpenSolid, StarSolid } from 'flowbite-svelte-icons';
 	import Section from './Section.svelte';
 	import FileIcon from './FileIcon.svelte';
 
 	import { API } from '$lib/api.js';
-	import { postList, postPasswords, sortBy, orderBy } from '$lib/store.js';
+	import {
+		postList,
+		postPasswords,
+		sortBy,
+		orderBy,
+		usedCapacity,
+		maxCapacity
+	} from '$lib/store.js';
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 
@@ -33,6 +40,7 @@
 	}
 
 	onMount(async () => {
+		console.log();
 		// try {
 		// 	await API.getPostList();
 		// } catch (error) {
@@ -130,5 +138,19 @@
 				{/each}
 			</Listgroup>
 		{/key}
+	</div>
+	<div slot="footer" class="flex justify-center">
+		<div class="mt-2 w-full max-w-52 space-y-1">
+			<Progressbar
+				size="h-1.5"
+				class="bg-gray-300 dark:bg-gray-500"
+				progress={Math.min(Math.floor(($usedCapacity / $maxCapacity) * 100), 100)}
+			/>
+			<P class="text-center text-sm font-semibold"
+				>{filesize($usedCapacity, { standard: 'jedec' })} / {filesize($maxCapacity, {
+					standard: 'jedec'
+				})}</P
+			>
+		</div>
 	</div>
 </Section>

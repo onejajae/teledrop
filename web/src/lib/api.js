@@ -8,7 +8,10 @@ import {
 	uploadProgress,
 	postPasswords,
 	sortBy,
-	orderBy
+	orderBy,
+	numPosts,
+	usedCapacity,
+	maxCapacity
 } from '$lib/store.js';
 
 export class API {
@@ -42,7 +45,11 @@ export class API {
 				authorization: `Bearer ${get(accessToken)}`
 			}
 		});
-		postList.set(res.data);
+		postList.set(res.data.posts);
+		numPosts.set(res.data.num_posts);
+		usedCapacity.set(res.data.used_capacity);
+		maxCapacity.set(res.data.max_capacity);
+
 		return res.data;
 	}
 
@@ -79,8 +86,7 @@ export class API {
 				);
 			}
 		});
-
-		postList.set(await this.getPostList());
+		await this.getPostList();
 		return res.data;
 	}
 
@@ -90,7 +96,7 @@ export class API {
 			headers: { authorization: `Bearer ${get(accessToken)}` }
 		});
 
-		postList.set(await this.getPostList());
+		await this.getPostList();
 		postPasswords.update((passwords) => {
 			delete passwords[key];
 			return passwords;
@@ -107,7 +113,7 @@ export class API {
 			delete passwords[key];
 			return passwords;
 		});
-		postList.set(await this.getPostList());
+		await this.getPostList();
 		return res.data;
 	}
 
@@ -120,7 +126,7 @@ export class API {
 		const res = await this.instance.patch(`/update/${key}/favorite`, formData, {
 			headers: { authorization: `Bearer ${get(accessToken)}` }
 		});
-		postList.set(await this.getPostList());
+		await this.getPostList();
 		return res.data;
 	}
 
