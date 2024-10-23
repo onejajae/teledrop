@@ -19,6 +19,7 @@
 
 	import { postPasswords, username, accessToken, postList } from '$lib/store.js';
 	import { API } from '$lib/api.js';
+	import { onMount } from 'svelte';
 
 	export let key;
 
@@ -58,14 +59,10 @@
 		passwordCorrect = true;
 	}
 
-	// import { onMount } from 'svelte';
-	// onMount(async () => {
-	// 	try {
-	// 		await API.getUserInfo();
-	// 	} catch (error) {
-	// 		await API.logout();
-	// 	}
-	// });
+	onMount(async () => {
+		// detect token time out
+		if ($accessToken) await API.getUserInfo();
+	});
 </script>
 
 {#if !deleted}
