@@ -9,8 +9,8 @@ const persist_storage = (key, initValue) => {
 	return store;
 };
 
-export const accessToken = persist_storage('accessToken', "");
-export const username = persist_storage('username', "");
+export const accessToken = persist_storage('accessToken', '');
+export const username = persist_storage('username', '');
 export const postList = writable([]);
 export const numPosts = writable(0);
 export const usedCapacity = writable(0);
