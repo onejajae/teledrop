@@ -40,7 +40,7 @@
 			<div class="mb-2">
 				<button
 					on:click={() => (passwordResetModal = !passwordResetModal)}
-					class="rounded-lg p-1.5 px-2.5 font-light text-gray-600 hover:bg-gray-200 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500"
+					class="rounded-lg p-1.5 px-2.5 font-medium text-gray-600 hover:bg-gray-200 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500"
 				>
 					비밀번호 초기화
 				</button>
