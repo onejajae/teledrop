@@ -27,15 +27,15 @@ export class API {
 			accessToken.set(token.access_token);
 			username.set(token.username);
 		} catch (error) {
-			accessToken.set(null);
-			username.set(null);
+			accessToken.set("");
+			username.set("");
 			throw error;
 		}
 	}
 
 	static async logout() {
-		accessToken.set(null);
-		username.set(null);
+		accessToken.set("");
+		username.set("");
 	}
 
 	static async getPostList() {
