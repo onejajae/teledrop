@@ -139,7 +139,7 @@
 			</Listgroup>
 		{/key}
 	</div>
-	<div slot="footer" class="flex justify-center">
+	<!-- <div slot="footer" class="flex justify-center">
 		<div class="mt-2 w-full max-w-52 space-y-1">
 			<Progressbar
 				size="h-1.5"
@@ -152,5 +152,5 @@
 				})}</P
 			>
 		</div>
-	</div>
+	</div> -->
 </Section>

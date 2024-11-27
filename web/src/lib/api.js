@@ -46,9 +46,9 @@ export class API {
 			}
 		});
 		postList.set(res.data.posts);
-		numPosts.set(res.data.num_posts);
-		usedCapacity.set(res.data.used_capacity);
-		maxCapacity.set(res.data.max_capacity);
+		// numPosts.set(res.data.num_posts);
+		// usedCapacity.set(res.data.used_capacity);
+		// maxCapacity.set(res.data.max_capacity);
 
 		return res.data;
 	}

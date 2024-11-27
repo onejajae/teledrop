@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from api.db.init import init_db
-from api.router import api_router
+from api.routers import api_router
 from api.config import get_settings
 
 
@@ -25,6 +25,7 @@ async def lifespan(app: FastAPI):
     yield
 
     # after app shutdown
+    print("server is shutting down")
 
 
 def make_app() -> FastAPI:
