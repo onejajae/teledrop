@@ -24,8 +24,8 @@ class Settings(BaseSettings):
     PATH_WEB_INDEX: str = "web/build/index.html"
     PATH_WEB_STATIC: str = "web/build/static"
 
-    WEB_USERNAME: str = "1"
-    WEB_PASSWORD: str = "1"
+    WEB_USERNAME: str = "admin"
+    WEB_PASSWORD: str = "password"
 
 
 @lru_cache

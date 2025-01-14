@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - HOST_DOMAIN=localhost   # edit here to your domain or ip to serve
+        - HOST_DOMAIN=localhost # edit here to your domain or ip to serve
     container_name: teledrop
     restart: unless-stopped
     ports:
@@ -13,3 +13,5 @@ services:
       - ./share:/teledrop/share
     environment:
       - TZ=Asia/Seoul
+      - WEB_USERNAME=admin
+      - WEB_PASSWORD=password
