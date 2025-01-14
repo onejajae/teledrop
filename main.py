@@ -49,13 +49,6 @@ def make_app() -> FastAPI:
 
 app = make_app()
 app.include_router(api_router, prefix=settings.PREFIX_API_BASE)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 app.mount("/_app", StaticFiles(directory=settings.PATH_WEB_BUILD))
 app.mount("/static", StaticFiles(directory=settings.PATH_WEB_STATIC))

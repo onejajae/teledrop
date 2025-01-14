@@ -5,22 +5,22 @@
 
 	export let post;
 
-	const src = `${API.baseURL}/download/${post.key}?preview=true&${$accessToken ? `access_token=${$accessToken}` : ''}${$postPasswords[post.key] ? `&password=${$postPasswords[post.key]}` : ''}`;
+	const src = `${API.baseURL}/content/${post.key}?preview=true&${$accessToken ? `access_token=${$accessToken}` : ''}${$postPasswords[post.key] ? `&password=${$postPasswords[post.key]}` : ''}`;
 </script>
 
-{#if post.filetype.startsWith('image/')}
+{#if post.file_type.startsWith('image/')}
 	<Img {src} />
-{:else if post.filetype.startsWith('video/')}
+{:else if post.file_type.startsWith('video/')}
 	<video class="w-full" controls>
-		<source src={`${src}#t=0.001`} type={post.filetype} />
+		<source src={`${src}#t=0.001`} type={post.file_type} />
 		<track kind="captions" />
 		이 브라우저에서는 미리보기가 지원되지 않습니다.
 	</video>
-{:else if post.filetype.startsWith('audio/')}
+{:else if post.file_type.startsWith('audio/')}
 	<audio class="my-5 w-full px-2" controls>
-		<source {src} type={post.filetype} />
+		<source {src} type={post.file_type} />
 	</audio>
-{:else if post.filetype.startsWith('application/pdf')}
+{:else if post.file_type.startsWith('application/pdf')}
 	<object
 		class="w-full"
 		height="350vh"

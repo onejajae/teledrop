@@ -6,47 +6,75 @@ from sqlmodel import Session
 from api.db.core import get_session
 from api.config import Settings, get_settings
 
-from api.services.user_service import UserService
-from api.repositories.user_repository import SQLAlchemyUserRepository
+from api.services.content_service import ContentService
+from api.services.auth_service import AuthService
+from api.repositories.content_repository import SQLAlchemyContentRepository
 
-from api.services.post_service import PostService
-from api.repositories.post_repository import SQLAlchemyPostRepository
-
-from api.exceptions.user_exceptions import TokenExpiredError, TokenInvalidError
+from api.exceptions import TokenExpiredError, TokenInvalidError
 
 
-def get_user_service(
+def get_auth_service(settings: Settings = Depends(get_settings)) -> AuthService:
+    return AuthService(settings=settings)
+
+
+def get_content_service(
     db: Session = Depends(get_session), settings: Settings = Depends(get_settings)
-) -> UserService:
-    return UserService(user_repository=SQLAlchemyUserRepository(db), settings=settings)
+) -> ContentService:
+    return ContentService(
+        content_repository=SQLAlchemyContentRepository(db), settings=settings
+    )
 
 
-def get_current_user_id(
-    token: str = Depends(OAuth2PasswordBearer(tokenUrl="/api/login", auto_error=False)),
-    user_service: UserService = Depends(get_user_service),
-) -> int:
-    if token is None:
-        return None
-
+def authenticate(
+    token: str = Depends(OAuth2PasswordBearer(tokenUrl="/api/auth/login")),
+    auth_service: AuthService = Depends(get_auth_service),
+    settings: Settings = Depends(get_settings),
+):
     try:
-        payload = user_service.verify_token(token)
-    except TokenExpiredError as e:
+        payload = auth_service.verify_token(token)
+    except TokenExpiredError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             headers={"WWW-Authenticate": "Bearer"},
             detail="Token has been expired or revoked",
         )
-    except TokenInvalidError as e:
+    except TokenInvalidError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             headers={"WWW-Authenticate": "Bearer"},
             detail="Invalid Token",
         )
 
-    return payload.user_id
+    if payload.username != settings.WEB_USERNAME:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
 
-def get_post_service(
-    db: Session = Depends(get_session), settings: Settings = Depends(get_settings)
-) -> PostService:
-    return PostService(post_repository=SQLAlchemyPostRepository(db), settings=settings)
+def authenticate_optional(
+    token: str = Depends(
+        OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
+    ),
+    auth_service: AuthService = Depends(get_auth_service),
+    settings: Settings = Depends(get_settings),
+):
+    if token is None:
+        return None
+
+    try:
+        payload = auth_service.verify_token(token)
+    except TokenExpiredError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            headers={"WWW-Authenticate": "Bearer"},
+            detail="Token has been expired or revoked",
+        )
+    except TokenInvalidError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            headers={"WWW-Authenticate": "Bearer"},
+            detail="Invalid Token",
+        )
+
+    if payload.username != settings.WEB_USERNAME:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+
+    return payload.username
