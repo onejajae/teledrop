@@ -1,5 +1,5 @@
 # teledrop
-A lightweight, private platform for instant file sharing between devices, designed for personal servers.
+Private file sharing platform for self-hosted servers, powered by REST API.
 ## Installation
 ### 1. Prerequisites
 * Docker
