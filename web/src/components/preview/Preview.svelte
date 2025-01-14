@@ -187,7 +187,7 @@
 			<div slot="footer">
 				<div class="mb-1 flex justify-center">
 					<Button
-						href={`${API.baseURL}/download/${key}?${$accessToken ? `access_token=${$accessToken}` : ''}${$postPasswords[key] ? `&password=${$postPasswords[key]}` : ''}`}
+						href={`${API.baseURL}/content/${key}?${$accessToken ? `access_token=${$accessToken}` : ''}${$postPasswords[key] ? `&password=${$postPasswords[key]}` : ''}`}
 						size="sm"
 						class="mx-2 px-5"
 						color="light"
