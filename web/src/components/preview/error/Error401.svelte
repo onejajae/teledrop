@@ -1,5 +1,6 @@
 <script>
 	import { Heading, Label, Input, Helper, Button, Modal } from 'flowbite-svelte';
+	import { accessToken } from '$lib/store.js';
 	import Section from '../../Section.svelte';
 
 	export let passwordCorrect = true;
@@ -36,7 +37,7 @@
 		</form>
 	</div>
 	<div slot="footer" class="text-center">
-		{#if resetAvailable && !passwordCorrect}
+		{#if resetAvailable && !passwordCorrect && Boolean($accessToken)}
 			<div class="mb-2">
 				<button
 					on:click={() => (updatePasswordModal = !updatePasswordModal)}
