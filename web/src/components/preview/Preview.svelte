@@ -9,8 +9,7 @@
 		LockOpenSolid,
 		StarSolid,
 		UserCircleSolid,
-		GlobeSolid,
-		InfoCircleOutline
+		GlobeSolid
 	} from 'flowbite-svelte-icons';
 
 	import Section from '../Section.svelte';
@@ -35,19 +34,11 @@
 
 	let updateDetailModal = false;
 	let updatePasswordModal = false;
-	let resetPasswordModal = false;
 
 	async function handlePasswordSubmit(event) {
 		const formData = new FormData(event.target);
 		postLoading = API.getPostPreview({ key, password: formData.get('file-password') });
 		passwordCorrect = false;
-	}
-
-	async function handlePasswordReset(event) {
-		const formData = new FormData(event.target);
-		await API.resetPostPassword({ key, formData });
-		updatePasswordModal = false;
-		passwordCorrect = true;
 	}
 
 	async function handleDelete() {
@@ -91,84 +82,92 @@
 				{/if}
 			</span>
 			<div slot="control">
-				<button
-					on:click={async () => {
-						await API.updatePostPermission({
-							key,
-							password: $postPasswords[key],
-							user_only: !post.user_only
-						});
-						post.user_only = !post.user_only;
-					}}
-					class="rounded-lg p-1.5 text-xs text-gray-600 hover:bg-gray-200 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500"
-				>
+				{#if $accessToken}
+					<button
+						on:click={async () => {
+							await API.updatePostPermission({
+								key,
+								password: $postPasswords[key],
+								user_only: !post.user_only
+							});
+							post.user_only = !post.user_only;
+						}}
+						class="rounded-lg p-1.5 text-xs text-gray-600 hover:bg-gray-200 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500"
+					>
+						{#if post.user_only}
+							<UserCircleSolid />
+						{:else}
+							<GlobeSolid />
+						{/if}
+					</button>
 					{#if post.user_only}
-						<UserCircleSolid />
 						<Tooltip type="light">전체 보기로 변경</Tooltip>
 					{:else}
-						<GlobeSolid />
 						<Tooltip type="light">나만 보기로 변경</Tooltip>
 					{/if}
-				</button>
-				{#if post.required_password}
-					<button
-						on:click={async () => {
-							if (confirm('비밀번호 설정을 해제하시겠습니까?')) {
-								await API.resetPostPassword({ key, password: $postPasswords[key] });
-								alert('비밀번호가 해제되었습니다.');
-							}
-							post.required_password = false;
-						}}
-						class="rounded-lg p-1.5 text-xs text-gray-600 hover:bg-gray-200 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500"
-					>
-						<LockSolid />
+					{#if post.required_password}
+						<button
+							on:click={async () => {
+								if (confirm('비밀번호 설정을 해제하시겠습니까?')) {
+									await API.resetPostPassword({ key, password: $postPasswords[key] });
+									alert('비밀번호가 해제되었습니다.');
+								}
+								post.required_password = false;
+							}}
+							class="rounded-lg p-1.5 text-xs text-gray-600 hover:bg-gray-200 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500"
+						>
+							<LockSolid />
+						</button>
 						<Tooltip type="light">비밀번호 해제</Tooltip>
-					</button>
-				{:else}
+					{:else}
+						<button
+							on:click={async () => {
+								updatePasswordModal = true;
+							}}
+							class="rounded-lg p-1.5 text-xs text-gray-600 hover:bg-gray-200 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500"
+						>
+							<LockOpenSolid />
+						</button>
+						<Tooltip type="light">비밀번호 등록</Tooltip>
+					{/if}
+
 					<button
 						on:click={async () => {
-							updatePasswordModal = true;
+							await API.updatePostFavorite({
+								key,
+								password: $postPasswords[key],
+								favorite: !post.favorite
+							});
+							post.favorite = !post.favorite;
 						}}
-						class="rounded-lg p-1.5 text-xs text-gray-600 hover:bg-gray-200 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500"
+						class="rounded-lg p-1.5 text-xs text-gray-600 hover:bg-gray-200 hover:text-amber-300 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500 dark:hover:text-yellow-300"
 					>
-						<LockOpenSolid />
-						<Tooltip type="light">비밀번호 등록</Tooltip>
+						{#if post.favorite}
+							<StarSolid />
+						{:else}
+							<StarOutline />
+						{/if}
 					</button>
-				{/if}
-
-				<button
-					on:click={async () => {
-						await API.updatePostFavorite({
-							key,
-							password: $postPasswords[key],
-							favorite: !post.favorite
-						});
-						post.favorite = !post.favorite;
-					}}
-					class="rounded-lg p-1.5 text-xs text-gray-600 hover:bg-gray-200 hover:text-amber-300 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500 dark:hover:text-yellow-300"
-				>
 					{#if post.favorite}
-						<StarSolid />
 						<Tooltip type="light">즐겨찾기 해제</Tooltip>
 					{:else}
-						<StarOutline />
 						<Tooltip type="light">즐겨찾기 설정</Tooltip>
 					{/if}
-				</button>
-				<button
-					on:click={() => (updateDetailModal = true)}
-					class="rounded-lg p-1.5 text-xs text-gray-600 hover:bg-gray-200 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500"
-				>
-					<PenOutline />
-				</button>
-				<Tooltip type="light">수정</Tooltip>
-				<button
-					class="rounded-lg p-1.5 text-sm text-gray-600 hover:bg-gray-200 hover:text-red-500 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500 dark:hover:text-rose-500"
-					on:click={handleDelete}
-				>
-					<TrashBinOutline />
-				</button>
-				<Tooltip type="light">삭제</Tooltip>
+					<button
+						on:click={() => (updateDetailModal = true)}
+						class="rounded-lg p-1.5 text-xs text-gray-600 hover:bg-gray-200 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500"
+					>
+						<PenOutline />
+					</button>
+					<Tooltip type="light">수정</Tooltip>
+					<button
+						class="rounded-lg p-1.5 text-sm text-gray-600 hover:bg-gray-200 hover:text-red-500 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500 dark:hover:text-rose-500"
+						on:click={handleDelete}
+					>
+						<TrashBinOutline />
+					</button>
+					<Tooltip type="light">삭제</Tooltip>
+				{/if}
 			</div>
 			<div slot="content" class="space-y-2">
 				<div class="flex justify-center">
