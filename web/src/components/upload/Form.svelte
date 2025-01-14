@@ -154,7 +154,7 @@
 		{/if}
 	</Label>
 
-	<Checkbox name="is_user_only">나만 보기</Checkbox>
+	<Checkbox name="user_only" checked>나만 보기</Checkbox>
 	<Checkbox bind:checked={usePassword}>비밀번호 사용</Checkbox>
 
 	{#if usePassword}
@@ -206,11 +206,10 @@
 
 	<div class="mb-2 mt-5 text-center">
 		<Button
-			class="px-8"
+			class="my-1 px-8"
 			size="sm"
 			color="green"
 			outline
-			pill
 			type="submit"
 			disabled={!(
 				Boolean(file) &&

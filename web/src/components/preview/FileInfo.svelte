@@ -1,5 +1,6 @@
 <script>
-	import { P } from 'flowbite-svelte';
+	import { P, Tooltip } from 'flowbite-svelte';
+	import { InfoCircleOutline } from 'flowbite-svelte-icons';
 
 	import FileIcon from '../FileIcon.svelte';
 
@@ -16,10 +17,27 @@
 </script>
 
 <div class="flex items-center justify-center">
-	<P><FileIcon filetype={post.filetype} iconClass="size-20" /></P>
+	<P><FileIcon file_type={post.file_type} iconClass="size-20" /></P>
 	<div class="min-w-0 flex-col">
-		<P size="md" class="truncate" weight="semibold">{post.filename}</P>
-		<P size="sm">{filesize(post.filesize, { standard: 'jedec' })}</P>
-		<P size="xs">{dayjs.utc(post.created_at).local().format('YYYY-MM-DD (dd) HH:mm:ss')}</P>
+		<P size="lg" class="truncate" weight="semibold">{post.file_name}</P>
+		<P size="base">
+			<div class="flex items-center">
+				<span class="me-1">{filesize(post.file_size, { standard: 'jedec' })} </span>
+			</div>
+		</P>
+
+		<P size="sm">
+			<div class="flex items-center">
+				<span class="me-1">
+					{dayjs.utc(post.created_at).local().format('YYYY-MM-DD (dd) HH:mm:ss')} 에 업로드</span
+				>
+				{#if post.updated_at}
+					<span><InfoCircleOutline size="sm" /></span>
+					<Tooltip type="light"
+						>{dayjs.utc(post.updated_at).local().format('YYYY-MM-DD (dd) HH:mm:ss')} 에 수정됨</Tooltip
+					>
+				{/if}
+			</div>
+		</P>
 	</div>
 </div>

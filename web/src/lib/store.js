@@ -10,11 +10,7 @@ const persist_storage = (key, initValue) => {
 };
 
 export const accessToken = persist_storage('accessToken', '');
-export const username = persist_storage('username', '');
 export const postList = writable([]);
-export const numPosts = writable(0);
-export const usedCapacity = writable(0);
-export const maxCapacity = writable(0);
 export const uploadProgress = writable(0);
 export const postPasswords = writable({});
 export const sortBy = writable('created_at');

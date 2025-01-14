@@ -1,9 +1,12 @@
 <script>
 	import { DarkMode, A, Dropdown, P } from 'flowbite-svelte';
 	import { LanguageOutline, GithubSolid } from 'flowbite-svelte-icons';
+	import UserInfoModal from './UserInfoModal.svelte';
 	import { API } from '$lib/api.js';
 	import { accessToken } from '$lib/store.js';
 	import Logo from './Logo.svelte';
+
+	// let userInfoModal = false;
 </script>
 
 <div class="flex justify-between">
@@ -15,6 +18,9 @@
 				class="mx-2 font-semibold hover:underline"
 				color="dark:text-white text-gray-700">로그아웃</A
 			>
+			<!-- <button on:click={() => (userInfoModal = true)} class="mx-2 hover:underline dark:text-white">
+				<P class="font-semibold text-gray-700">내 정보</P>
+			</button> -->
 		{/if}
 	</div>
 	<div class="flex">
@@ -43,3 +49,4 @@
 		<a href="/"><Logo></Logo></a>
 	</div>
 </div>
+<!-- <UserInfoModal bind:open={userInfoModal} /> -->

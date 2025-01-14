@@ -5,7 +5,12 @@
 		TrashBinOutline,
 		PenOutline,
 		StarOutline,
-		StarSolid
+		LockSolid,
+		LockOpenSolid,
+		StarSolid,
+		UserCircleSolid,
+		GlobeSolid,
+		InfoCircleOutline
 	} from 'flowbite-svelte-icons';
 
 	import Section from '../Section.svelte';
@@ -15,9 +20,10 @@
 	import Error403 from './error/Error403.svelte';
 	import Error404 from './error/Error404.svelte';
 	import DeleteFinish from './DeleteFinish.svelte';
-	import UpdateModal from './UpdateModal.svelte';
+	import UpdatDetailModal from './UpdateDetailModal.svelte';
+	import UpdatePasswordModal from './UpdatePasswordModal.svelte';
 
-	import { postPasswords, username, accessToken, postList } from '$lib/store.js';
+	import { postPasswords, accessToken, postList } from '$lib/store.js';
 	import { API } from '$lib/api.js';
 	import { onMount } from 'svelte';
 
@@ -27,8 +33,9 @@
 	let passwordCorrect = true;
 	let deleted = false;
 
-	let updateModal = false;
-	let passwordResetModal = false;
+	let updateDetailModal = false;
+	let updatePasswordModal = false;
+	let resetPasswordModal = false;
 
 	async function handlePasswordSubmit(event) {
 		const formData = new FormData(event.target);
@@ -39,7 +46,7 @@
 	async function handlePasswordReset(event) {
 		const formData = new FormData(event.target);
 		await API.resetPostPassword({ key, formData });
-		passwordResetModal = false;
+		updatePasswordModal = false;
 		passwordCorrect = true;
 	}
 
@@ -51,11 +58,19 @@
 		}
 	}
 
-	async function handleUpdate(event) {
+	async function handleUpdatePassword(event) {
 		const formData = new FormData(event.target);
-		await API.updatePost({ key, password: $postPasswords[key], formData });
-		postLoading = API.getPostPreview({ key });
-		updateModal = false;
+		await API.updatePostPassword({ key, formData });
+		postLoading = API.getPostPreview({ key, password: $postPasswords[key] });
+		updatePasswordModal = false;
+		passwordCorrect = true;
+	}
+
+	async function handleUpdateDetail(event) {
+		const formData = new FormData(event.target);
+		await API.updatePostDetail({ key, password: $postPasswords[key], formData });
+		postLoading = API.getPostPreview({ key, password: $postPasswords[key] });
+		updateDetailModal = false;
 		passwordCorrect = true;
 	}
 
@@ -76,41 +91,84 @@
 				{/if}
 			</span>
 			<div slot="control">
-				{#if post.user.username === $username}
+				<button
+					on:click={async () => {
+						await API.updatePostPermission({
+							key,
+							password: $postPasswords[key],
+							user_only: !post.user_only
+						});
+						post.user_only = !post.user_only;
+					}}
+					class="rounded-lg p-1.5 text-xs text-gray-600 hover:bg-gray-200 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500"
+				>
+					{#if post.user_only}
+						<UserCircleSolid />
+						<Tooltip type="light">전체 보기로 변경</Tooltip>
+					{:else}
+						<GlobeSolid />
+						<Tooltip type="light">나만 보기로 변경</Tooltip>
+					{/if}
+				</button>
+				{#if post.required_password}
 					<button
 						on:click={async () => {
-							await API.updatePostFavorite({
-								key,
-								password: $postPasswords[key],
-								favorite: !post.favorite
-							});
-							post.favorite = !post.favorite;
+							if (confirm('비밀번호 설정을 해제하시겠습니까?')) {
+								await API.resetPostPassword({ key, password: $postPasswords[key] });
+								alert('비밀번호가 해제되었습니다.');
+							}
+							post.required_password = false;
 						}}
 						class="rounded-lg p-1.5 text-xs text-gray-600 hover:bg-gray-200 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500"
 					>
-						{#if post.favorite}
-							<StarSolid />
-							<Tooltip type="light">즐겨찾기 해제</Tooltip>
-						{:else}
-							<StarOutline />
-							<Tooltip type="light">즐겨찾기 등록</Tooltip>
-						{/if}
+						<LockSolid />
+						<Tooltip type="light">비밀번호 해제</Tooltip>
 					</button>
+				{:else}
 					<button
-						on:click={() => (updateModal = true)}
+						on:click={async () => {
+							updatePasswordModal = true;
+						}}
 						class="rounded-lg p-1.5 text-xs text-gray-600 hover:bg-gray-200 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500"
 					>
-						<PenOutline />
+						<LockOpenSolid />
+						<Tooltip type="light">비밀번호 등록</Tooltip>
 					</button>
-					<Tooltip type="light">수정</Tooltip>
-					<button
-						class="rounded-lg p-1.5 text-sm text-gray-600 hover:bg-gray-200 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500"
-						on:click={handleDelete}
-					>
-						<TrashBinOutline />
-					</button>
-					<Tooltip type="light">삭제</Tooltip>
 				{/if}
+
+				<button
+					on:click={async () => {
+						await API.updatePostFavorite({
+							key,
+							password: $postPasswords[key],
+							favorite: !post.favorite
+						});
+						post.favorite = !post.favorite;
+					}}
+					class="rounded-lg p-1.5 text-xs text-gray-600 hover:bg-gray-200 hover:text-amber-300 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500 dark:hover:text-yellow-300"
+				>
+					{#if post.favorite}
+						<StarSolid />
+						<Tooltip type="light">즐겨찾기 해제</Tooltip>
+					{:else}
+						<StarOutline />
+						<Tooltip type="light">즐겨찾기 설정</Tooltip>
+					{/if}
+				</button>
+				<button
+					on:click={() => (updateDetailModal = true)}
+					class="rounded-lg p-1.5 text-xs text-gray-600 hover:bg-gray-200 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500"
+				>
+					<PenOutline />
+				</button>
+				<Tooltip type="light">수정</Tooltip>
+				<button
+					class="rounded-lg p-1.5 text-sm text-gray-600 hover:bg-gray-200 hover:text-red-500 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500 dark:hover:text-rose-500"
+					on:click={handleDelete}
+				>
+					<TrashBinOutline />
+				</button>
+				<Tooltip type="light">삭제</Tooltip>
 			</div>
 			<div slot="content" class="space-y-2">
 				<div class="flex justify-center">
@@ -128,27 +186,27 @@
 				</div>
 			</div>
 			<div slot="footer">
-				<div class="flex justify-center">
+				<div class="mb-1 flex justify-center">
 					<Button
 						href={`${API.baseURL}/download/${key}?${$accessToken ? `access_token=${$accessToken}` : ''}${$postPasswords[key] ? `&password=${$postPasswords[key]}` : ''}`}
 						size="sm"
 						class="mx-2 px-5"
-						pill
-						outline
+						color="light"
 					>
 						<DownloadOutline class="me-3" />다운로드
 					</Button>
 				</div>
 			</div>
 		</Section>
-		<UpdateModal bind:open={updateModal} {post} {handleUpdate} />
+		<UpdatDetailModal bind:open={updateDetailModal} {post} {handleUpdateDetail} />
+		<UpdatePasswordModal bind:open={updatePasswordModal} {handleUpdatePassword} />
 	{:catch error}
 		{#if error.response.status === 401}
 			<Error401
-				{handlePasswordReset}
+				{handleUpdatePassword}
 				{handlePasswordSubmit}
 				{passwordCorrect}
-				bind:passwordResetModal
+				bind:updatePasswordModal
 				resetAvailable={(function () {
 					for (const post of $postList) {
 						if (post.key === key) {

@@ -16,9 +16,6 @@ class Settings(BaseSettings):
     JWT_EXP_MINUTES: int = 15
     JWT_ALGORITHM: str = "HS256"
 
-    ALLOW_REGISTER: bool = True
-    REGISTER_CODE: str | None = None
-
     SHARE_DIRECTORY: str = "share"
     PREFIX_API_BASE: str = "/api"
     HOST_DOMAIN: str = "localhost"
@@ -26,6 +23,9 @@ class Settings(BaseSettings):
     PATH_WEB_BUILD: str = "web/build/_app"
     PATH_WEB_INDEX: str = "web/build/index.html"
     PATH_WEB_STATIC: str = "web/build/static"
+
+    WEB_USERNAME: str = "1"
+    WEB_PASSWORD: str = "1"
 
 
 @lru_cache

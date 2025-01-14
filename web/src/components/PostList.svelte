@@ -1,18 +1,11 @@
 <script>
-	import { Listgroup, ListgroupItem, Tooltip, Select, Progressbar, P } from 'flowbite-svelte';
+	import { Listgroup, ListgroupItem, Tooltip, Select } from 'flowbite-svelte';
 	import { RefreshOutline, LockSolid, LockOpenSolid, StarSolid } from 'flowbite-svelte-icons';
 	import Section from './Section.svelte';
 	import FileIcon from './FileIcon.svelte';
 
 	import { API } from '$lib/api.js';
-	import {
-		postList,
-		postPasswords,
-		sortBy,
-		orderBy,
-		usedCapacity,
-		maxCapacity
-	} from '$lib/store.js';
+	import { postList, postPasswords, sortBy, orderBy } from '$lib/store.js';
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 
@@ -28,7 +21,7 @@
 	const sortBys = [
 		{ value: 'created_at', name: '날짜' },
 		{ value: 'title', name: '제목' },
-		{ value: 'filesize', name: '크기' }
+		{ value: 'file_size', name: '크기' }
 	];
 
 	async function reloadList() {
@@ -101,7 +94,7 @@
 					>
 						<div class="flex items-center">
 							<div class="p-1.5">
-								<p class="text-xl"><FileIcon filetype={post.filetype} size="xl" /></p>
+								<p class="text-xl"><FileIcon file_type={post.file_type} size="xl" /></p>
 							</div>
 
 							<div class="w-full min-w-0 flex-col ps-1">
@@ -113,15 +106,15 @@
 										{#if post.title}
 											{post.title}
 										{:else}
-											{post.filename}
+											{post.file_name}
 										{/if}
 									</span>
 								</div>
 
-								<div class="flex items-center truncate text-sm font-normal">
-									<span>{filesize(post.filesize, { standard: 'jedec' })}</span>
-									{#if post.is_user_only}
-										<span> • 사용자 전용</span>
+								<div class="flex items-center space-x-1 truncate text-sm font-normal">
+									<span>{filesize(post.file_size, { standard: 'jedec' })}</span>
+									{#if !post.user_only}
+										<span> • 전체 공개</span>
 									{/if}
 									<span> • {dayjs.utc(post.created_at).local().fromNow()}</span>
 								</div>
@@ -139,7 +132,7 @@
 			</Listgroup>
 		{/key}
 	</div>
-	<div slot="footer" class="flex justify-center">
+	<!-- <div slot="footer" class="flex justify-center">
 		<div class="mt-2 w-full max-w-52 space-y-1">
 			<Progressbar
 				size="h-1.5"
@@ -152,5 +145,5 @@
 				})}</P
 			>
 		</div>
-	</div>
+	</div> -->
 </Section>

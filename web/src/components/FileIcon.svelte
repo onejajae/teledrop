@@ -7,18 +7,18 @@
 		FilePdfOutline
 	} from 'flowbite-svelte-icons';
 
-	export let filetype;
+	export let file_type;
 	export let size = 'md';
 	export let iconClass = '';
 </script>
 
-{#if filetype.startsWith('image/')}
+{#if file_type.startsWith('image/')}
 	<FileImageOutline {size} class={iconClass} />
-{:else if filetype.startsWith('video/')}
+{:else if file_type.startsWith('video/')}
 	<FileVideoOutline {size} class={iconClass} />
-{:else if filetype.startsWith('audio/')}
+{:else if file_type.startsWith('audio/')}
 	<FileMusicOutline {size} class={iconClass} />
-{:else if filetype.startsWith('application/pdf')}
+{:else if file_type.startsWith('application/pdf')}
 	<FilePdfOutline {size} class={iconClass} />
 {:else}
 	<FileOutline {size} class={iconClass} />

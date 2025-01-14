@@ -3,10 +3,10 @@
 	import Section from '../../Section.svelte';
 
 	export let passwordCorrect = true;
-	export let passwordResetModal = false;
+	export let updatePasswordModal = false;
 	export let resetAvailable = false;
 	export let handlePasswordSubmit;
-	export let handlePasswordReset;
+	export let handleUpdatePassword;
 
 	let password1;
 	let password2;
@@ -22,7 +22,7 @@
 					type="password"
 					name="file-password"
 					id="file-password"
-					placeholder="••••••"
+					placeholder={!passwordCorrect ? '' : '••••••'}
 					color={!passwordCorrect ? 'red' : 'base'}
 					autocomplete="off"
 				/>
@@ -39,7 +39,7 @@
 		{#if resetAvailable && !passwordCorrect}
 			<div class="mb-2">
 				<button
-					on:click={() => (passwordResetModal = !passwordResetModal)}
+					on:click={() => (updatePasswordModal = !updatePasswordModal)}
 					class="rounded-lg p-1.5 px-2.5 font-medium text-gray-600 hover:bg-gray-200 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500"
 				>
 					비밀번호 초기화
@@ -48,8 +48,8 @@
 		{/if}
 	</div>
 </Section>
-<Modal title="비밀번호 초기화" size="xs" bind:open={passwordResetModal} outsideclose>
-	<form on:submit|preventDefault={handlePasswordReset} class="flex flex-col space-y-4">
+<Modal title="비밀번호 초기화" size="xs" bind:open={updatePasswordModal} outsideclose>
+	<form on:submit|preventDefault={handleUpdatePassword} class="flex flex-col space-y-4">
 		<Label class="space-y-2">
 			<span>새 비밀번호</span>
 			<Input
