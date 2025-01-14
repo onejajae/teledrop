@@ -13,5 +13,5 @@ services:
       - ./share:/teledrop/share
     environment:
       - TZ=Asia/Seoul
-      - WEB_USERNAME=admin
-      - WEB_PASSWORD=password
+      - WEB_USERNAME=
+      - WEB_PASSWORD=

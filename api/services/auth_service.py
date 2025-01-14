@@ -1,25 +1,30 @@
 import jwt
+from argon2 import PasswordHasher
+from typing import Literal
 from datetime import datetime, timedelta, timezone
 
 from api.config import Settings
 
 from api.models import AccessToken, TokenPayload
 
-from api.exceptions import TokenExpiredError, TokenInvalidError
+from api.exceptions import TokenExpired, TokenInvalid, LoginInvalid
 
 
 class AuthService:
     def __init__(self, settings: Settings):
         self.settings = settings
+        self.ph = PasswordHasher()
 
-    def authenticate(self, username: str, password: str) -> bool:
+    def authenticate(self, username: str, password: str) -> Literal[True]:
         if username != self.settings.WEB_USERNAME:
-            return False
+            raise LoginInvalid
 
-        if password != self.settings.WEB_PASSWORD:
-            return False
+        try:
+            result = self.ph.verify(hash=self.settings.WEB_PASSWORD, password=password)
+        except:
+            raise LoginInvalid
 
-        return True
+        return result
 
     def create_token(self, payload=TokenPayload):
         payload.exp = datetime.now(tz=timezone.utc) + timedelta(
@@ -43,6 +48,6 @@ class AuthService:
             )
             return TokenPayload(**payload)
         except jwt.ExpiredSignatureError:
-            raise TokenExpiredError()
+            raise TokenExpired()
         except Exception as e:
-            raise TokenInvalidError()
+            raise TokenInvalid()

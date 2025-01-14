@@ -12,9 +12,13 @@ class ContentPasswordInvalid(Exception):
 
 
 # Auth
-class TokenExpiredError(Exception):
+class LoginInvalid(Exception):
     pass
 
 
-class TokenInvalidError(Exception):
+class TokenExpired(Exception):
+    pass
+
+
+class TokenInvalid(Exception):
     pass

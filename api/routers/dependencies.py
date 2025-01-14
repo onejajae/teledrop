@@ -10,7 +10,7 @@ from api.services.content_service import ContentService
 from api.services.auth_service import AuthService
 from api.repositories.content_repository import SQLAlchemyContentRepository
 
-from api.exceptions import TokenExpiredError, TokenInvalidError
+from api.exceptions import TokenExpired, TokenInvalid
 
 
 def get_auth_service(settings: Settings = Depends(get_settings)) -> AuthService:
@@ -32,13 +32,13 @@ def authenticate(
 ):
     try:
         payload = auth_service.verify_token(token)
-    except TokenExpiredError:
+    except TokenExpired:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             headers={"WWW-Authenticate": "Bearer"},
             detail="Token has been expired or revoked",
         )
-    except TokenInvalidError:
+    except TokenInvalid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             headers={"WWW-Authenticate": "Bearer"},
@@ -61,13 +61,13 @@ def authenticate_optional(
 
     try:
         payload = auth_service.verify_token(token)
-    except TokenExpiredError:
+    except TokenExpired:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             headers={"WWW-Authenticate": "Bearer"},
             detail="Token has been expired or revoked",
         )
-    except TokenInvalidError:
+    except TokenInvalid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             headers={"WWW-Authenticate": "Bearer"},
