@@ -1,7 +1,7 @@
 import secrets
 from typing import Literal
 from functools import lru_cache
-
+from argon2 import PasswordHasher
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,9 +25,7 @@ class Settings(BaseSettings):
     PATH_WEB_STATIC: str = "web/build/static"
 
     WEB_USERNAME: str = "admin"
-    WEB_PASSWORD: str = (
-        "$argon2id$v=19$m=65536,t=3,p=4$j8m3+90hpeO8APpMC5Y/fw$KXJTdzZHY6QFpn7tq4HUmppzyRP90N0thq6mD5Wxuqk"
-    )
+    WEB_PASSWORD: str = PasswordHasher().hash("password")
 
 
 @lru_cache
