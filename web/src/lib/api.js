@@ -10,13 +10,12 @@ import {
 	orderBy
 } from '$lib/store.js';
 
-export class API {
-	static baseURL = `//${import.meta.env.VITE_API_HOST}${import.meta.env.VITE_API_BASE}`;
-	static instance = axios.create({ baseURL: this.baseURL });
-
-	static async login({ formData }) {
+const API_BASE_URL = import.meta.env.DEV ? `//${window.location.hostname}:8000/api` : `//${window.location.host}/api`;
+const instance = axios.create({ baseURL: API_BASE_URL });
+const API = {
+	async login({ formData }) {
 		try {
-			const res = await this.instance.post(`/auth/login`, formData, {
+			const res = await instance.post(`/auth/login`, formData, {
 				headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
 			});
 			const token = res.data;
@@ -25,14 +24,14 @@ export class API {
 			accessToken.set('');
 			throw error;
 		}
-	}
+	},
 
-	static async logout() {
+	async logout() {
 		accessToken.set('');
-	}
+	},
 
-	static async getPostList() {
-		const res = await this.instance.get(`/content`, {
+	async getPostList() {
+		const res = await instance.get(`/content`, {
 			params: { sortby: get(sortBy), orderby: get(orderBy) },
 			headers: {
 				authorization: `Bearer ${get(accessToken)}`
@@ -41,11 +40,11 @@ export class API {
 		postList.set(res.data.contents);
 
 		return res.data;
-	}
+	},
 
-	static async getUserInfo() {
+	async getUserInfo() {
 		try {
-			const res = await this.instance.get(`/auth/me`, {
+			const res = await instance.get(`/auth/me`, {
 				headers: { authorization: `Bearer ${get(accessToken)}` }
 			});
 			return res.data;
@@ -53,20 +52,20 @@ export class API {
 			await this.logout();
 			throw error;
 		}
-	}
+	},
 
-	static async getKeyExist({ key }) {
-		const res = await this.instance.get(`/content/keycheck/${key}`, {
+	async getKeyExist({ key }) {
+		const res = await instance.get(`/content/keycheck/${key}`, {
 			headers: { authorization: `Bearer ${get(accessToken)}` }
 		});
 		return res.data;
-	}
+	},
 
-	static async uploadPost({ formData }) {
+	async uploadPost({ formData }) {
 		if (!Boolean(formData.get('key'))) formData.delete('key');
 
 		uploadProgress.set(0);
-		const res = await this.instance.post(`/content`, formData, {
+		const res = await instance.post(`/content`, formData, {
 			headers: { authorization: `Bearer ${get(accessToken)}` },
 			onUploadProgress: (progressEvent) => {
 				uploadProgress.update((percentage) =>
@@ -76,10 +75,10 @@ export class API {
 		});
 		await this.getPostList();
 		return res.data;
-	}
+	},
 
-	static async deletePost({ key, password }) {
-		const res = await this.instance.delete(`/content/${key}`, {
+	async deletePost({ key, password }) {
+		const res = await instance.delete(`/content/${key}`, {
 			params: { password },
 			headers: { authorization: `Bearer ${get(accessToken)}` }
 		});
@@ -90,45 +89,45 @@ export class API {
 			return passwords;
 		});
 		return res.data;
-	}
+	},
 
-	static async updatePostDetail({ key, password, formData }) {
+	async updatePostDetail({ key, password, formData }) {
 		if (password) formData.set('password', password);
-		const res = await this.instance.patch(`/content/${key}/detail`, formData, {
+		const res = await instance.patch(`/content/${key}/detail`, formData, {
 			headers: { authorization: `Bearer ${get(accessToken)}` }
 		});
 		await this.getPostList();
 		return res.data;
-	}
+	},
 
-	static async updatePostFavorite({ key, password, favorite }) {
+	async updatePostFavorite({ key, password, favorite }) {
 		const formData = new FormData();
 
 		if (password) formData.set('password', password);
 		formData.set('favorite', favorite);
 
-		const res = await this.instance.patch(`/content/${key}/favorite`, formData, {
+		const res = await instance.patch(`/content/${key}/favorite`, formData, {
 			headers: { authorization: `Bearer ${get(accessToken)}` }
 		});
 		await this.getPostList();
 		return res.data;
-	}
+	},
 
-	static async updatePostPermission({ key, password, user_only }) {
+	async updatePostPermission({ key, password, user_only }) {
 		const formData = new FormData();
 
 		if (password) formData.set('password', password);
 		formData.set('user_only', user_only);
 
-		const res = await this.instance.patch(`/content/${key}/permission`, formData, {
+		const res = await instance.patch(`/content/${key}/permission`, formData, {
 			headers: { authorization: `Bearer ${get(accessToken)}` }
 		});
 		await this.getPostList();
 		return res.data;
-	}
+	},
 
-	static async updatePostPassword({ key, formData }) {
-		const res = await this.instance.patch(`/content/${key}/password`, formData, {
+	async updatePostPassword({ key, formData }) {
+		const res = await instance.patch(`/content/${key}/password`, formData, {
 			headers: { authorization: `Bearer ${get(accessToken)}` }
 		});
 		await this.getPostList();
@@ -137,12 +136,12 @@ export class API {
 			return passwords;
 		});
 		return res.data;
-	}
+	},
 
-	static async resetPostPassword({ key, password }) {
+	async resetPostPassword({ key, password }) {
 		const formData = new FormData();
 		if (password) formData.set('password', password);
-		const res = await this.instance.patch(`/content/${key}/reset`, formData, {
+		const res = await instance.patch(`/content/${key}/reset`, formData, {
 			headers: { authorization: `Bearer ${get(accessToken)}` }
 		});
 		await this.getPostList();
@@ -151,10 +150,10 @@ export class API {
 			return passwords;
 		});
 		return res.data;
-	}
+	},
 
-	static async getPostPreview({ key, password }) {
-		const res = await this.instance.get(`/content/${key}/preview`, {
+	async getPostPreview({ key, password }) {
+		const res = await instance.get(`/content/${key}/preview`, {
 			params: { password },
 			headers: get(accessToken) ? { authorization: `Bearer ${get(accessToken)}` } : null
 		});
@@ -164,5 +163,7 @@ export class API {
 		});
 
 		return res.data;
-	}
-}
+	},
+};
+
+export { API, API_BASE_URL };

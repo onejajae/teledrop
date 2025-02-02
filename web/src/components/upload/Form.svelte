@@ -131,9 +131,7 @@
 	<Label for="url-key" class="space-y-1">
 		<span>접근 URL</span>
 		<div class="flex">
-			<Button class="rounded-e-none px-3" color="light" disabled
-				>{import.meta.env.VITE_API_HOST}/</Button
-			>
+			<Button class="rounded-e-none px-3" color="light" disabled>{window.location.host}/</Button>
 			<Input
 				clearable
 				type="text"

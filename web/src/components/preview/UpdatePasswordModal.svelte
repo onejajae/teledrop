@@ -1,5 +1,5 @@
 <script>
-	import { Button, Modal, Label, Input, Textarea, Checkbox, Helper } from 'flowbite-svelte';
+	import { Button, Modal, Label, Input, Helper } from 'flowbite-svelte';
 
 	export let open;
 	export let handleUpdatePassword;
