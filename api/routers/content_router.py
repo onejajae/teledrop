@@ -6,17 +6,11 @@ from fastapi.responses import StreamingResponse
 from typing import Literal
 from urllib import parse
 
-from api.services.content_service import ContentService
-from api.services.auth_service import AuthService
 from api.models import *
-
-from api.routers.dependencies import (
-    get_content_service,
-    get_auth_service,
-    Authenticator,
-)
 from api.exceptions import *
-from api.config import Settings, get_settings
+from api.routers.dependencies import get_content_service, Authenticator
+from api.services.content_service import ContentService
+
 
 router = APIRouter()
 

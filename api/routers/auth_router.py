@@ -2,13 +2,10 @@ from fastapi import APIRouter, Depends, Response
 from fastapi import HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from api.models import TokenPayload, AccessToken
-
-from api.services.auth_service import AuthService
-
-from api.routers.dependencies import get_auth_service, Authenticator
-
+from api.models import TokenPayload
 from api.exceptions import LoginInvalid
+from api.routers.dependencies import get_auth_service, Authenticator
+from api.services.auth_service import AuthService
 
 
 router = APIRouter()
@@ -28,7 +25,12 @@ async def login(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
     token = auth_service.create_token(TokenPayload(username=form_data.username))
-    response.set_cookie(key="access_token", value=f"Bearer {token.access_token}")
+    response.set_cookie(
+        key="access_token",
+        value=f"Bearer {token.access_token}",
+        httponly=True,
+        samesite="strict",
+    )
 
 
 @router.get("/me")
