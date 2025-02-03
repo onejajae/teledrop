@@ -11,13 +11,6 @@ RUN npm install
 # copy web sources
 COPY ./web ./
 
-# set arguments and env variables for vite
-ARG HOST_DOMAIN=localhost
-ARG PREFIX_API_BASE=/api
-
-ENV VITE_API_HOST=$HOST_DOMAIN
-ENV VITE_API_BASE=$PREFIX_API_BASE
-
 # build
 RUN npm run build
 
@@ -39,5 +32,7 @@ COPY ./api ./api
 
 # copy builded web
 COPY --from=builder /web/build ./web/build
+
+# run
 EXPOSE 8000/tcp
 CMD ["fastapi", "run"]

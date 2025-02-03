@@ -10,7 +10,8 @@ import {
 	orderBy
 } from '$lib/store.js';
 
-const API_BASE_URL = import.meta.env.DEV ? `//${window.location.hostname}:8000/api` : `//${window.location.host}/api`;
+// const API_BASE_URL = import.meta.env.DEV ? `//${import.meta.env.VITE_API_HOST_DEVELOPMENT}/api` : `//${window.location.host}/api`;
+const API_BASE_URL = "/api";
 const instance = axios.create({ baseURL: API_BASE_URL });
 const API = {
 	async login({ formData }) {
