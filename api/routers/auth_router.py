@@ -38,12 +38,10 @@ async def get_user_info(
 ):
     if username is None:
         response.delete_cookie(key="access_token")
-        e = HTTPException(
+        raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             headers={"set-cookie": response.headers["set-cookie"]},
         )
-        print(e.headers)
-        raise e
 
 
 @router.get("/logout")
