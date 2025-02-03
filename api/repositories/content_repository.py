@@ -78,8 +78,8 @@ class SQLAlchemyContentRepository(ContentRepositoryInterface):
             select(Content)
             .where(*filter)
             .order_by(sort_column)
-            .limit(limit)
-            .offset(offset)
+            # .limit(limit)
+            # .offset(offset)
         )
 
         return self.db.exec(query).fetchall()

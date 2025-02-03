@@ -13,8 +13,7 @@ from api.models import *
 from api.routers.dependencies import (
     get_content_service,
     get_auth_service,
-    authenticate,
-    authenticate_optional,
+    Authenticator,
 )
 from api.exceptions import *
 from api.config import Settings, get_settings
@@ -23,7 +22,9 @@ router = APIRouter()
 
 
 @router.get(
-    path="", response_model=ContentsPublic, dependencies=[Depends(authenticate)]
+    path="",
+    response_model=ContentsPublic,
+    dependencies=[Depends(Authenticator(auto_error=True))],
 )
 async def list(
     page: int = 1,
@@ -43,7 +44,7 @@ async def list(
 async def preview(
     key: str,
     password: str | None = None,
-    username: str | None = Depends(authenticate_optional),
+    username: str | None = Depends(Authenticator(auto_error=False)),
     content_service: ContentService = Depends(get_content_service),
 ):
     try:
@@ -63,19 +64,11 @@ async def preview(
 async def download(
     key: str,
     preview: bool | None = False,
-    access_token: str | None = None,
     password: str | None = None,
-    username: str | None = Depends(authenticate_optional),
+    username: str | None = Depends(Authenticator(auto_error=False)),
     range: str | None = Header(None),
     content_service: ContentService = Depends(get_content_service),
-    auth_service: AuthService = Depends(get_auth_service),
-    settings: Settings = Depends(get_settings),
 ):
-    if access_token is not None:
-        username = authenticate_optional(
-            token=access_token, auth_service=auth_service, settings=settings
-        )
-
     try:
         content = content_service.get_by_key(key=key, password=password)
     except ContentNotExist:
@@ -130,7 +123,7 @@ async def download(
     )
 
 
-@router.post("", response_model=ContentPublic, dependencies=[Depends(authenticate)])
+@router.post("", response_model=ContentPublic, dependencies=[Depends(Authenticator())])
 async def upload(
     file: UploadFile = File(),
     key: str = Form(default=None),
@@ -163,7 +156,9 @@ async def upload(
 
 
 @router.patch(
-    "/{key}/detail", response_model=ContentPublic, dependencies=[Depends(authenticate)]
+    "/{key}/detail",
+    response_model=ContentPublic,
+    dependencies=[Depends(Authenticator())],
 )
 async def update_detail(
     key: str,
@@ -188,7 +183,7 @@ async def update_detail(
 @router.patch(
     "/{key}/permission",
     response_model=ContentPublic,
-    dependencies=[Depends(authenticate)],
+    dependencies=[Depends(Authenticator())],
 )
 async def update_permission(
     key: str,
@@ -212,7 +207,7 @@ async def update_permission(
 @router.patch(
     "/{key}/password",
     response_model=ContentPublic,
-    dependencies=[Depends(authenticate)],
+    dependencies=[Depends(Authenticator())],
 )
 async def update_password(
     key: str,
@@ -231,7 +226,9 @@ async def update_password(
 
 
 @router.patch(
-    "/{key}/reset", response_model=ContentPublic, dependencies=[Depends(authenticate)]
+    "/{key}/reset",
+    response_model=ContentPublic,
+    dependencies=[Depends(Authenticator())],
 )
 async def delete_password(
     key: str,
@@ -249,7 +246,7 @@ async def delete_password(
 @router.patch(
     "/{key}/favorite",
     response_model=ContentPublic,
-    dependencies=[Depends(authenticate)],
+    dependencies=[Depends(Authenticator())],
 )
 async def update_favorite(
     key: str,
@@ -268,7 +265,7 @@ async def update_favorite(
     return updated_content
 
 
-@router.delete("/{key}", dependencies=[Depends(authenticate)])
+@router.delete("/{key}", dependencies=[Depends(Authenticator())])
 async def delete(
     key: str,
     password: str = None,
@@ -283,7 +280,7 @@ async def delete(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
 
-@router.get("/keycheck/{key}", dependencies=[Depends(authenticate)])
+@router.get("/keycheck/{key}", dependencies=[Depends(Authenticator())])
 async def get_key_exist(
     key: str,
     content_service: ContentService = Depends(get_content_service),

@@ -1,11 +1,11 @@
 <script>
 	import { Img, P } from 'flowbite-svelte';
 	import { API_BASE_URL } from '$lib/api.js';
-	import { postPasswords, accessToken } from '$lib/store.js';
+	import { postPasswords } from '$lib/store.js';
 
 	export let post;
 
-	const src = `${API_BASE_URL}/content/${post.key}?preview=true&${$accessToken ? `access_token=${$accessToken}` : ''}${$postPasswords[post.key] ? `&password=${$postPasswords[post.key]}` : ''}`;
+	const src = `${API_BASE_URL}/content/${post.key}?preview=true${$postPasswords[post.key] ? `&password=${$postPasswords[post.key]}` : ''}`;
 </script>
 
 {#if post.file_type.startsWith('image/')}

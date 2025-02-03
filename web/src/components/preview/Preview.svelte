@@ -22,8 +22,8 @@
 	import UpdatDetailModal from './UpdateDetailModal.svelte';
 	import UpdatePasswordModal from './UpdatePasswordModal.svelte';
 
-	import { postPasswords, accessToken, postList } from '$lib/store.js';
-	import { API } from '$lib/api.js';
+	import { postPasswords, postList, isLogin } from '$lib/store.js';
+	import { API, API_BASE_URL } from '$lib/api.js';
 	import { onMount } from 'svelte';
 
 	export let key;
@@ -67,7 +67,7 @@
 
 	onMount(async () => {
 		// detect token time out
-		if ($accessToken) await API.getUserInfo();
+		if ($isLogin) await API.getUserInfo();
 	});
 </script>
 
@@ -82,7 +82,7 @@
 				{/if}
 			</span>
 			<div slot="control">
-				{#if $accessToken}
+				{#if $isLogin}
 					<button
 						on:click={async () => {
 							await API.updatePostPermission({
@@ -187,7 +187,8 @@
 			<div slot="footer">
 				<div class="mb-1 flex justify-center">
 					<Button
-						href={`${API.baseURL}/content/${key}?${$accessToken ? `access_token=${$accessToken}` : ''}${$postPasswords[key] ? `&password=${$postPasswords[key]}` : ''}`}
+						rel="external"
+						href={`${API_BASE_URL}/content/${key}${$postPasswords[key] ? `?password=${$postPasswords[key]}` : ''}`}
 						size="sm"
 						class="mx-2 px-5"
 						color="light"

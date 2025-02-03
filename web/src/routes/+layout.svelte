@@ -4,7 +4,7 @@
 	import Header from '../components/Header.svelte';
 	import PostList from '../components/PostList.svelte';
 
-	import { accessToken } from '$lib/store.js';
+	import { isLogin } from '$lib/store.js';
 </script>
 
 <svelte:head>
@@ -16,11 +16,11 @@
 			<Header></Header>
 		</header>
 		<main>
-			{#key $accessToken}
+			{#key $isLogin}
 				<slot />
 			{/key}
 		</main>
-		{#if $accessToken}
+		{#if $isLogin}
 			<PostList></PostList>
 		{/if}
 		<footer></footer>

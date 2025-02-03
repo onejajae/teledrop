@@ -9,7 +9,7 @@ const persist_storage = (key, initValue) => {
 	return store;
 };
 
-export const accessToken = persist_storage('accessToken', '');
+export const isLogin = persist_storage('login', false);
 export const postList = writable([]);
 export const uploadProgress = writable(0);
 export const postPasswords = writable({});

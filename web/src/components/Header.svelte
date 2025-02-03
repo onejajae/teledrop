@@ -3,7 +3,7 @@
 	import { LanguageOutline, GithubSolid } from 'flowbite-svelte-icons';
 	import UserInfoModal from './UserInfoModal.svelte';
 	import { API } from '$lib/api.js';
-	import { accessToken } from '$lib/store.js';
+	import { isLogin } from '$lib/store.js';
 	import Logo from './Logo.svelte';
 
 	// let userInfoModal = false;
@@ -11,7 +11,7 @@
 
 <div class="flex justify-between">
 	<div class="flex">
-		{#if $accessToken}
+		{#if $isLogin}
 			<A
 				href="/"
 				on:click={API.logout}
