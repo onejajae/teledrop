@@ -64,7 +64,7 @@ docker run --detach \
 > ``` 
 
 * Running multiple worker processes
-> To run multiple worker processes simultaneously, add the --workers option to the command:
+> To improve performance, specify the number of worker processes using the `--workers` option:
 > ```yaml
 > # docker-compose.yml
 > services:
@@ -73,6 +73,16 @@ docker run --detach \
 >     command: "--workers <NUMBER_OF_PROCESSES>"
 >     ...
 > ```
+> Set the `JWT_SECRET` environment variable to ensure token validation across worker processes:  
+> ```yaml
+> environment:
+>   - JWT_SECRET=<YOUR_SECURE_RANDOM_SECRET>
+> ```
+> Example: Using OpenSSL to generate a secret key
+> ```bash
+> openssl rand -hex 32
+> ```
+> ***The generated key should be at least 32 bytes (256 bits) long. For enhanced security, you may use a longer key.***
 
 ## Build Docker image
 Instead of using a pre-built Docker image, you can build your own:
