@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Response
 
 from sqlmodel import Session
 
@@ -24,28 +24,6 @@ def get_content_service(
     )
 
 
-def validate_token(token: str, auth_service: AuthService, settings: Settings):
-    try:
-        payload = auth_service.verify_token(token)
-    except TokenExpired:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            headers={"WWW-Authenticate": "Bearer"},
-            detail="Token has been expired or revoked",
-        )
-    except TokenInvalid:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            headers={"WWW-Authenticate": "Bearer"},
-            detail="Invalid Token",
-        )
-
-    if payload.username != settings.WEB_USERNAME:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
-
-    return payload
-
-
 class Authenticator:
     def __init__(self, auto_error: bool = True, web_only: bool = False):
         self.auto_error = auto_error
@@ -53,6 +31,7 @@ class Authenticator:
 
     def __call__(
         self,
+        response: Response,
         access_token: str = Depends(
             OAuth2PasswordBearerWithCookie(
                 name="access_token", tokenUrl="/api/auth/login", auto_error=False
@@ -62,15 +41,50 @@ class Authenticator:
         settings: Settings = Depends(get_settings),
     ):
         if access_token:
-            payload = validate_token(
-                token=access_token, auth_service=auth_service, settings=settings
-            )
+            try:
+                payload = auth_service.verify_token(access_token)
+            except TokenExpired:
+                response.delete_cookie("access_token")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    headers={
+                        "WWW-Authenticate": "Bearer",
+                        "set-cookie": response.headers["set-cookie"],
+                    },
+                    detail="Token has been expired or revoked",
+                )
+            except TokenInvalid:
+                response.delete_cookie("access_token")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    headers={
+                        "WWW-Authenticate": "Bearer",
+                        "set-cookie": response.headers["set-cookie"],
+                    },
+                    detail="Invalid Token",
+                )
+
+            if payload.username != settings.WEB_USERNAME:
+                response.delete_cookie("access_token")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    headers={
+                        "WWW-Authenticate": "Bearer",
+                        "set-cookie": response.headers["set-cookie"],
+                    },
+                    detail="Invalid User",
+                )
 
             return payload.username
 
         if self.auto_error:
+            response.delete_cookie("access_token")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
+                headers={
+                    "WWW-Authenticate": "Bearer",
+                    "set-cookie": response.headers["set-cookie"],
+                },
                 detail="Authentication credentials were not provided or are invalid.",
             )
 

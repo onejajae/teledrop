@@ -97,6 +97,7 @@ class Content(ContentBase, table=True):
 # Auth Models
 class AccessToken(SQLModel):
     access_token: str
+    exp: datetime
     type: str = "Bearer"
 
 

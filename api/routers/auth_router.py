@@ -36,14 +36,18 @@ async def login(
 @router.get("/me")
 async def get_user_info(
     response: Response,
-    username: str = Depends(Authenticator(auto_error=False, web_only=True)),
+    username: str = Depends(Authenticator(web_only=True)),
+    auth_service: AuthService = Depends(get_auth_service),
 ):
-    if username is None:
-        response.delete_cookie(key="access_token")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            headers={"set-cookie": response.headers["set-cookie"]},
-        )
+    token = auth_service.create_token(TokenPayload(username=username))
+    response.set_cookie(
+        key="access_token",
+        value=f"Bearer {token.access_token}",
+        httponly=True,
+        samesite="strict",
+    )
+
+    return username
 
 
 @router.get("/logout")

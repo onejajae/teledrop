@@ -36,7 +36,8 @@ class AuthService:
                 payload.model_dump(),
                 key=self.settings.JWT_SECRET,
                 algorithm=self.settings.JWT_ALGORITHM,
-            )
+            ),
+            exp=payload.exp,
         )
 
     def verify_token(self, token: str) -> TokenPayload:
