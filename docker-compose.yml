@@ -1,8 +1,6 @@
 services:
   teledrop:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/onejajae/teledrop:main
     container_name: teledrop
     restart: unless-stopped
     ports:
