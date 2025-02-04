@@ -34,4 +34,4 @@ COPY --from=builder /web/build ./web/build
 
 # run
 EXPOSE 8000/tcp
-CMD ["fastapi", "run"]
+ENTRYPOINT ["uvicorn", "main:app", "--host", "0.0.0.0"]
