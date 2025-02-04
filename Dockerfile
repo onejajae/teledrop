@@ -5,7 +5,7 @@ FROM node:20-alpine AS builder
 WORKDIR /web
 
 # install packages
-COPY ./web/package.json ./
+COPY ./web/package*.json ./
 RUN npm install
 
 # copy web sources
