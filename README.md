@@ -1,8 +1,10 @@
 # teledrop
 Private file sharing platform for self-hosted servers, powered by REST API.
 
-## Installation
+## About
+> _teledrop is a private file-sharing platform designed for self-hosted servers, providing secure and direct access to personal files from anywhere. Unlike cloud storage services such as Google Drive or Dropbox, teledrop eliminates the need to log in with sensitive accounts in potentially insecure environments._
 
+## Installation
 ### 1. Prerequisites
 * Docker
 
