@@ -3,8 +3,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        - HOST_DOMAIN=localhost # edit here to your domain or ip to serve
     container_name: teledrop
     restart: unless-stopped
     ports:

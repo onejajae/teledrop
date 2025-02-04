@@ -5,8 +5,7 @@ Private file sharing platform for self-hosted servers, powered by REST API.
 * Docker
 ### 2. Configure Build Environment
 1. Open the `docker-compose.yml` file.
-2. Set the `HOST_DOMAIN` argument to your desired host domain.
-3. Mount your docker volume or directory to `/teledrop/share`.
+2. Mount your docker volume or directory to `/teledrop/share`.
 ### 3. Set Up User Account
 1. Open the `docker-compose.yml` file.
 2. Set the `WEB_USERNAME` environment variable to your desired username.

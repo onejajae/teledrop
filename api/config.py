@@ -18,7 +18,6 @@ class Settings(BaseSettings):
 
     SHARE_DIRECTORY: str = "share"
     PREFIX_API_BASE: str = "/api"
-    HOST_DOMAIN: str = "localhost"
 
     PATH_WEB_BUILD: str = "web/build/_app"
     PATH_WEB_INDEX: str = "web/build/index.html"

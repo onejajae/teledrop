@@ -14,7 +14,6 @@ COPY ./web ./
 # build
 RUN npm run build
 
-
 # 2. run server
 FROM python:3.12-alpine
 ENV PYTHONUNBUFFERED=1
