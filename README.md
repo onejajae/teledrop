@@ -1,3 +1,5 @@
+[한국어](README.ko.md) | [English](README.md)
+
 # teledrop
 Private file sharing platform for self-hosted servers, powered by REST API.
 
