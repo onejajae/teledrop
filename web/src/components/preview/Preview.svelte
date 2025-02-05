@@ -67,7 +67,13 @@
 
 	onMount(async () => {
 		// detect token time out
-		if ($isLogin) await API.getUserInfo();
+		if ($isLogin) {
+			try {
+				await API.getUserInfo();
+			} catch (error) {
+				await API.logout();
+			}
+		}
 	});
 </script>
 

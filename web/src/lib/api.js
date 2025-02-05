@@ -39,6 +39,7 @@ const API = {
 	async getUserInfo() {
 		try {
 			const res = await instance.get(`/auth/me`);
+			isLogin.set(true);
 			return res.data;
 		} catch (error) {
 			isLogin.set(false);
