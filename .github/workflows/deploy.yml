@@ -29,8 +29,8 @@ jobs:
       uses: docker/metadata-action@v5
       with:
         images: ghcr.io/${{ github.repository }}
-      tags: |
-        type=raw,value=latest
+        tags: |
+          type=raw,value=latest
 
     - name: Set up QEMU for multiplatform build
       uses: docker/setup-qemu-action@v3
