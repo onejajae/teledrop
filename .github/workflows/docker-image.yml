@@ -16,8 +16,6 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      with:
-        ref: production
 
     - name: Login to GitHub 
       uses: docker/login-action@v3
