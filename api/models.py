@@ -104,3 +104,7 @@ class AccessToken(SQLModel):
 class TokenPayload(SQLModel):
     username: str
     exp: datetime = None
+
+
+class AuthData(SQLModel):
+    username: str | None

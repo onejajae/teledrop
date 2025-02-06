@@ -13,7 +13,7 @@ from api.config import Settings
 
 from api.repositories.content_repository import ContentRepositoryInterface
 
-from api.models import ContentCreate, ContentUpdate
+from api.models import ContentCreate, ContentUpdate, AuthData
 from api.exceptions import *
 
 
@@ -90,6 +90,17 @@ class ContentService:
 
         if content.password != password:
             raise ContentPasswordInvalid()
+
+        return content
+
+    def check_access_permission_by_key(self, key: str, auth_data: AuthData):
+        content = self.content_repository.get_by_key(key)
+        if content is None:
+            raise ContentNotExist()
+
+        if content.user_only:
+            if auth_data.username is None:
+                raise ContentNeedLogin
 
         return content
 

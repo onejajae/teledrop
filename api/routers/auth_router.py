@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Response
 from fastapi import HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from api.models import TokenPayload
+from api.models import TokenPayload, AuthData
 from api.exceptions import LoginInvalid
 from api.routers.dependencies import get_auth_service, Authenticator
 from api.services.auth_service import AuthService
@@ -36,10 +36,10 @@ async def login(
 @router.get("/me")
 async def get_user_info(
     response: Response,
-    username: str = Depends(Authenticator(web_only=True)),
+    auth_data: AuthData = Depends(Authenticator(web_only=True)),
     auth_service: AuthService = Depends(get_auth_service),
 ):
-    token = auth_service.create_token(TokenPayload(username=username))
+    token = auth_service.create_token(TokenPayload(username=auth_data.username))
     response.set_cookie(
         key="access_token",
         value=f"Bearer {token.access_token}",
@@ -47,12 +47,12 @@ async def get_user_info(
         samesite="strict",
     )
 
-    return username
+    return auth_data.username
 
 
 @router.get("/logout")
 async def logout(
     response: Response,
-    username: str = Depends(Authenticator(auto_error=False, web_only=True)),
+    auth_data: AuthData = Depends(Authenticator(auto_error=False, web_only=True)),
 ):
     response.delete_cookie(key="access_token")

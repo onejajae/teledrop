@@ -5,6 +5,7 @@ from sqlmodel import Session
 from api.db.core import get_session
 from api.config import Settings, get_settings
 
+from api.models import AuthData
 from api.security import OAuth2PasswordBearerWithCookie
 from api.services.content_service import ContentService
 from api.services.auth_service import AuthService
@@ -39,7 +40,7 @@ class Authenticator:
         ),
         auth_service: AuthService = Depends(get_auth_service),
         settings: Settings = Depends(get_settings),
-    ):
+    ) -> AuthData:
         if access_token:
             try:
                 payload = auth_service.verify_token(access_token)
@@ -75,7 +76,7 @@ class Authenticator:
                     detail="Invalid User",
                 )
 
-            return payload.username
+            return AuthData(username=payload.username)
 
         if self.auto_error:
             response.delete_cookie("access_token")
@@ -88,4 +89,4 @@ class Authenticator:
                 detail="Authentication credentials were not provided or are invalid.",
             )
 
-        return None
+        return AuthData(username=None)

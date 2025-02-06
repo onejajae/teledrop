@@ -38,18 +38,22 @@ async def list(
 async def preview(
     key: str,
     password: str | None = None,
-    username: str | None = Depends(Authenticator(auto_error=False)),
+    auth_data: AuthData | None = Depends(Authenticator(auto_error=False)),
     content_service: ContentService = Depends(get_content_service),
 ):
+    try:
+        content = content_service.check_access_permission_by_key(
+            key=key, auth_data=auth_data
+        )
+    except (ContentNotExist, ContentNeedLogin):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+
     try:
         content = content_service.get_by_key(key=key, password=password)
     except ContentNotExist:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     except ContentPasswordInvalid:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
-
-    if content.user_only and username is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
     return content
 
@@ -59,19 +63,23 @@ async def download(
     key: str,
     preview: bool | None = False,
     password: str | None = None,
-    username: str | None = Depends(Authenticator(auto_error=False)),
+    auth_data: AuthData | None = Depends(Authenticator(auto_error=False)),
     range: str | None = Header(None),
     content_service: ContentService = Depends(get_content_service),
 ):
+    try:
+        content = content_service.check_access_permission_by_key(
+            key=key, auth_data=auth_data
+        )
+    except (ContentNotExist, ContentNeedLogin):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+
     try:
         content = content_service.get_by_key(key=key, password=password)
     except ContentNotExist:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     except ContentPasswordInvalid:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
-
-    if content.user_only and username is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
     if preview:
         content_disposition_type = "inline"
