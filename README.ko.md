@@ -26,7 +26,7 @@ REST API를 기반으로 하는 개인용 파일 공유 플랫폼
 ```yaml
 services:
   teledrop:
-    image: ghcr.io/onejajae/teledrop:main
+    image: ghcr.io/onejajae/teledrop:latest
     container_name: teledrop
     restart: unless-stopped
     ports:
@@ -51,7 +51,7 @@ docker run --detach \
    --env WEB_PASSWORD=<해시된_로그인_비밀번호> \
    --restart unless-stopped \
    --volume <공유할_볼륨_또는_디렉토리>:/teledrop/share \
-   ghcr.io/onejajae/teledrop:main
+   ghcr.io/onejajae/teledrop:latest
 ```
 
 ### 4. 옵션 

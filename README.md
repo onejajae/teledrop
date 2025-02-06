@@ -25,7 +25,7 @@ Private file sharing platform for self-hosted servers, powered by REST API.
 ```yaml
 services:
   teledrop:
-    image: ghcr.io/onejajae/teledrop:main
+    image: ghcr.io/onejajae/teledrop:latest
     container_name: teledrop
     restart: unless-stopped
     ports:
@@ -50,7 +50,7 @@ docker run --detach \
    --env WEB_PASSWORD=<YOUR_HASHED_LOGIN_PASSWORD> \
    --restart unless-stopped \
    --volume <YOUR_SHARE_DIRECTORY_OR_DOCKER_VOLUME>:/teledrop/share \
-   ghcr.io/onejajae/teledrop:main
+   ghcr.io/onejajae/teledrop:latest
 ```
 
 ### 4. Options
