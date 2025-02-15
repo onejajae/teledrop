@@ -13,7 +13,6 @@
 	<div class="flex">
 		{#if $isLogin}
 			<A
-				href="/"
 				on:click={API.logout}
 				class="mx-2 font-semibold hover:underline"
 				color="dark:text-white text-gray-700">로그아웃</A
