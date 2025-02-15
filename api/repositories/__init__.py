@@ -1,4 +1,2 @@
-from api.repositories.content_repository import (
-    ContentRepositoryInterface,
-    SQLAlchemyContentRepository,
-)
+from .content_repository import ContentRepositoryInterface, SQLAlchemyContentRepository
+from .api_key_repository import APIKeyRepositoryInterface, SQLAlchemyAPIKeyRepository

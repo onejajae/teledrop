@@ -22,3 +22,16 @@ class TokenExpired(Exception):
 
 class TokenInvalid(Exception):
     pass
+
+
+# API Key
+class APIKeyInvalid(Exception):
+    pass
+
+
+class APIKeyNotExist(APIKeyInvalid):
+    pass
+
+
+class APIKeyNotActive(APIKeyInvalid):
+    pass

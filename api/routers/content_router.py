@@ -10,7 +10,7 @@ from api.models import *
 from api.exceptions import *
 from api.services import ContentService
 
-from .dependencies import get_content_service, Authenticator
+from .dependencies import get_content_service, PermissionChecker, ContentAccessChecker
 
 router = APIRouter()
 
@@ -18,7 +18,7 @@ router = APIRouter()
 @router.get(
     path="",
     response_model=ContentsPublic,
-    dependencies=[Depends(Authenticator(auto_error=True))],
+    dependencies=[Depends(PermissionChecker(read_required=True))],
 )
 async def list(
     page: int = 1,
@@ -35,52 +35,19 @@ async def list(
 
 
 @router.get("/{key}/preview", response_model=ContentPublic)
-async def preview(
-    key: str,
-    password: str | None = None,
-    auth_data: AuthData | None = Depends(Authenticator(auto_error=False)),
-    content_service: ContentService = Depends(get_content_service),
-):
-    try:
-        content = content_service.check_access_permission_by_key(
-            key=key, auth_data=auth_data
-        )
-    except (ContentNotExist, ContentNeedLogin):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-
-    try:
-        content = content_service.get_by_key(key=key, password=password)
-    except ContentNotExist:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    except ContentPasswordInvalid:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
-
+async def preview(content: ContentRead = Depends(ContentAccessChecker())):
     return content
 
 
 @router.get("/{key}")
 async def download(
     key: str,
-    preview: bool | None = False,
     password: str | None = None,
-    auth_data: AuthData | None = Depends(Authenticator(auto_error=False)),
+    preview: bool | None = False,
     range: str | None = Header(None),
+    content: ContentRead = Depends(ContentAccessChecker()),
     content_service: ContentService = Depends(get_content_service),
 ):
-    try:
-        content = content_service.check_access_permission_by_key(
-            key=key, auth_data=auth_data
-        )
-    except (ContentNotExist, ContentNeedLogin):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-
-    try:
-        content = content_service.get_by_key(key=key, password=password)
-    except ContentNotExist:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    except ContentPasswordInvalid:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
-
     if preview:
         content_disposition_type = "inline"
     else:
@@ -125,7 +92,11 @@ async def download(
     )
 
 
-@router.post("", response_model=ContentPublic, dependencies=[Depends(Authenticator())])
+@router.post(
+    "",
+    response_model=ContentPublic,
+    dependencies=[Depends(PermissionChecker(write_required=True))],
+)
 async def upload(
     file: UploadFile = File(),
     key: str = Form(default=None),
@@ -160,7 +131,7 @@ async def upload(
 @router.patch(
     "/{key}/detail",
     response_model=ContentPublic,
-    dependencies=[Depends(Authenticator())],
+    dependencies=[Depends(PermissionChecker(write_required=True))],
 )
 async def update_detail(
     key: str,
@@ -185,7 +156,7 @@ async def update_detail(
 @router.patch(
     "/{key}/permission",
     response_model=ContentPublic,
-    dependencies=[Depends(Authenticator())],
+    dependencies=[Depends(PermissionChecker(write_required=True))],
 )
 async def update_permission(
     key: str,
@@ -209,7 +180,7 @@ async def update_permission(
 @router.patch(
     "/{key}/password",
     response_model=ContentPublic,
-    dependencies=[Depends(Authenticator())],
+    dependencies=[Depends(PermissionChecker(write_required=True))],
 )
 async def update_password(
     key: str,
@@ -230,7 +201,7 @@ async def update_password(
 @router.patch(
     "/{key}/reset",
     response_model=ContentPublic,
-    dependencies=[Depends(Authenticator())],
+    dependencies=[Depends(PermissionChecker(write_required=True))],
 )
 async def delete_password(
     key: str,
@@ -248,7 +219,7 @@ async def delete_password(
 @router.patch(
     "/{key}/favorite",
     response_model=ContentPublic,
-    dependencies=[Depends(Authenticator())],
+    dependencies=[Depends(PermissionChecker(write_required=True))],
 )
 async def update_favorite(
     key: str,
@@ -267,7 +238,10 @@ async def update_favorite(
     return updated_content
 
 
-@router.delete("/{key}", dependencies=[Depends(Authenticator())])
+@router.delete(
+    "/{key}",
+    dependencies=[Depends(PermissionChecker(read_required=True, write_required=True))],
+)
 async def delete(
     key: str,
     password: str = None,
@@ -282,7 +256,7 @@ async def delete(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
 
-@router.get("/keycheck/{key}", dependencies=[Depends(Authenticator())])
+@router.get("/keycheck/{key}", dependencies=[Depends(PermissionChecker())])
 async def get_key_exist(
     key: str,
     content_service: ContentService = Depends(get_content_service),

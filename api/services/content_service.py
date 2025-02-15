@@ -98,9 +98,8 @@ class ContentService:
         if content is None:
             raise ContentNotExist()
 
-        if content.user_only:
-            if auth_data.username is None:
-                raise ContentNeedLogin
+        if content.user_only and auth_data is None:
+            raise ContentNeedLogin
 
         return content
 

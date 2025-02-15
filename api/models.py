@@ -108,3 +108,70 @@ class TokenPayload(SQLModel):
 
 class AuthData(SQLModel):
     username: str | None
+
+    read_permission: bool | None = False
+    write_permission: bool | None = False
+
+
+# APIKey Models
+class APIKeyBase(SQLModel):
+    key: str = Field(index=True, unique=True)
+
+    description: str | None = None
+
+    read_permission: bool
+    write_permission: bool
+
+    active: bool
+    created_at: datetime
+    updated_at: datetime | None = None
+
+
+class APIKeyRead(APIKeyBase):
+    pass
+
+
+class APIKeyPublic(APIKeyRead):
+    id: uuid.UUID = Field(exclude=True)
+
+
+class APIKeysPublic(SQLModel):
+    api_keys: list[APIKeyPublic]
+
+
+class APIKeyCreate(APIKeyBase):
+    pass
+
+
+class APIKeyCreateRequest(SQLModel):
+    description: str | None = None
+    read_permission: bool | None = True
+    write_permission: bool | None = None
+
+
+class APIKeyUpdate(SQLModel):
+    description: str | None = None
+    read_permission: bool | None = None
+    write_permission: bool | None = None
+    active: bool | None = None
+    updated_at: datetime
+
+
+class APIKeyUpdatePermissions(SQLModel):
+    key: str
+    read_permission: bool
+    write_permission: bool
+
+
+class APIKeyUpdateDescription(SQLModel):
+    key: str
+    description: str
+
+
+class APIKeyUpdateActive(SQLModel):
+    key: str
+    active: bool
+
+
+class APIKey(APIKeyBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
