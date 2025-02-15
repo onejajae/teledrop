@@ -1,6 +1,6 @@
 services:
   teledrop:
-    image: ghcr.io/onejajae/teledrop:main
+    image: ghcr.io/onejajae/teledrop:latest
     container_name: teledrop
     restart: unless-stopped
     ports:
