@@ -8,9 +8,9 @@ from urllib import parse
 
 from api.models import *
 from api.exceptions import *
-from api.routers.dependencies import get_content_service, Authenticator
-from api.services.content_service import ContentService
+from api.services import ContentService
 
+from .dependencies import get_content_service, Authenticator
 
 router = APIRouter()
 

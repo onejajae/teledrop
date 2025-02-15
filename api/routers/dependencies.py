@@ -6,11 +6,10 @@ from api.db.core import get_session
 from api.config import Settings, get_settings
 
 from api.models import AuthData
-from api.security import OAuth2PasswordBearerWithCookie
-from api.services.content_service import ContentService
-from api.services.auth_service import AuthService
-from api.repositories.content_repository import SQLAlchemyContentRepository
 from api.exceptions import TokenExpired, TokenInvalid
+from api.services import AuthService, ContentService
+from api.repositories import SQLAlchemyContentRepository
+from api.security import OAuth2PasswordBearerWithCookie
 
 
 def get_auth_service(settings: Settings = Depends(get_settings)) -> AuthService:

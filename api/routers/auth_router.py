@@ -4,8 +4,9 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from api.models import TokenPayload, AuthData
 from api.exceptions import LoginInvalid
-from api.routers.dependencies import get_auth_service, Authenticator
-from api.services.auth_service import AuthService
+from api.services import AuthService
+
+from .dependencies import get_auth_service, Authenticator
 
 
 router = APIRouter()

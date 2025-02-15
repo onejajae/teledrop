@@ -11,7 +11,7 @@ from typing import BinaryIO
 
 from api.config import Settings
 
-from api.repositories.content_repository import ContentRepositoryInterface
+from api.repositories import ContentRepositoryInterface
 
 from api.models import ContentCreate, ContentUpdate, AuthData
 from api.exceptions import *
