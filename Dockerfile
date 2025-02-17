@@ -37,4 +37,4 @@ COPY --from=builder /web/build ./web/build
 
 # run
 EXPOSE 8000/tcp
-ENTRYPOINT ["uvicorn", "main:app", "--host", "0.0.0.0"]
+ENTRYPOINT ["uvicorn", "main:app", "--host", "0.0.0.0", "--no-server-header"]
