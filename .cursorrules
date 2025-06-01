@@ -1,0 +1,355 @@
+# Teledrop Project - Cursor AI Rules
+
+## Project Overview
+This is teledrop, a private file-sharing platform for self-hosted servers built with FastAPI (backend) and SvelteKit (frontend). The project follows a clean Handler-based architecture pattern with clear separation of concerns between API routes, business logic, and data access layers.
+
+## Technology Stack
+- **Backend**: Python 3.12+, FastAPI, SQLModel, Uvicorn
+- **Frontend**: SvelteKit, TypeScript, TailwindCSS, Flowbite
+- **Database**: SQLite with SQLModel ORM
+- **Authentication**: JWT tokens, API Keys, Argon2 password hashing
+- **Storage**: Local filesystem with pluggable storage interface
+- **Package Management**: uv (Python), npm (Node.js)
+- **Deployment**: Docker, Docker Compose
+
+## Architecture Overview
+
+### Handler Pattern
+The application uses a Handler-based architecture where:
+- **Routers** handle HTTP requests/responses and validation
+- **Handlers** contain business logic and orchestrate operations
+- **Models** define data structures and database queries
+- **Infrastructure** provides database and storage abstractions
+
+### Core Principles
+- Single Responsibility: Each handler has one specific purpose
+- Dependency Injection: All dependencies are injected through FastAPI
+- Type Safety: Comprehensive type hints throughout the codebase
+- Error Handling: Structured exception hierarchy with proper HTTP mapping
+- Logging: Structured logging with contextual information
+
+## Code Style and Standards
+
+### Python (Backend)
+- Follow PEP 8 style guidelines
+- Use type hints for all function parameters and return values
+- Use async/await for all I/O operations
+- Use SQLModel for database models and queries
+- Follow FastAPI best practices for dependency injection
+- Use structured logging with appropriate log levels
+- Handle exceptions gracefully with custom exception classes
+- Use environment variables for configuration through pydantic-settings
+- **Use uv for all Python dependency management and code execution**
+  - Install dependencies: `uv add <package>`
+  - Run Python scripts: `uv run <script>`
+  - Run development server: `uv run uvicorn app.main:app --reload`
+  - Sync dependencies: `uv sync`
+
+### JavaScript/TypeScript (Frontend)
+- Use TypeScript for type safety
+- Follow Svelte/SvelteKit conventions and best practices
+- Use TailwindCSS for styling with Flowbite components
+- Use async/await for API calls with proper error handling
+- Follow semantic versioning for dependencies
+- Use ESLint and Prettier for code formatting
+- Prefer composition over inheritance in Svelte components
+
+### File Organization
+```
+├── app/                    # Backend application code
+│   ├── main.py            # FastAPI application entry point
+│   ├── core/              # Core functionality
+│   │   ├── config.py      # Application configuration
+│   │   ├── __init__.py    # Core module exports
+│   │   └── exceptions.py  # Custom exception classes
+│   ├── handlers/          # Business logic handlers
+│   │   ├── base.py        # Base handler and mixins
+│   │   ├── auth_handlers.py    # Authentication handlers
+│   │   ├── __init__.py    # Handler exports
+│   │   ├── drop/          # Drop management handlers
+│   │   │   ├── __init__.py     # Drop handler exports
+│   │   │   ├── create.py       # Drop creation logic
+│   │   │   ├── read.py         # Drop retrieval logic
+│   │   │   ├── update.py       # Drop update logic
+│   │   │   ├── delete.py       # Drop deletion logic
+│   │   │   └── access.py       # Drop access control
+│   │   ├── file/          # File operation handlers
+│   │   │   ├── __init__.py     # File handler exports
+│   │   │   ├── download.py     # File download logic
+│   │   │   └── stream.py       # File streaming logic
+│   │   └── api_key/       # API key management handlers
+│   │       ├── __init__.py     # API key handler exports
+│   │       ├── create.py       # API key creation 
+│   │       ├── read.py         # API key retrieval
+│   │       ├── update.py       # API key update
+│   │       ├── delete.py       # API key deletion
+│   │       └── validate.py     # API key validation
+│   ├── dependencies/      # Dependency injection
+│   │   ├── __init__.py    # Dependency exports
+│   │   ├── auth.py        # Authentication dependencies
+│   │   ├── base.py        # Base infrastructure dependencies
+│   │   ├── types.py       # Type aliases for dependencies
+│   │   └── handlers/      # Handler factories
+│   │       ├── __init__.py     # Handler factory exports
+│   │       ├── auth.py         # Auth handler factories
+│   │       ├── api_key.py      # API key handler factories
+│   │       ├── drop.py         # Drop handler factories
+│   │       └── file.py         # File handler factories
+│   ├── infrastructure/    # Infrastructure layer
+│   │   ├── __init__.py    # Infrastructure exports
+│   │   ├── database/      # Database connection and setup
+│   │   │   ├── __init__.py     # Database module exports
+│   │   │   └── connection.py   # Database connection management
+│   │   └── storage/       # Storage interface and implementations
+│   │       ├── __init__.py     # Storage module exports
+│   │       ├── base.py         # Storage interface definition
+│   │       ├── local.py        # Local filesystem implementation
+│   │       ├── s3.py           # S3 storage implementation
+│   │       └── factory.py      # Storage factory
+│   ├── models/           # SQLModel database models
+│   │   ├── __init__.py   # Model exports
+│   │   ├── auth.py       # Authentication models
+│   │   ├── drop.py       # Drop models
+│   │   ├── file.py       # File models
+│   │   └── api_key.py    # API key models
+│   ├── routers/          # FastAPI route handlers
+│   │   ├── __init__.py   # Router exports
+│   │   ├── api/          # API routers
+│   │   │   ├── __init__.py     # API router exports
+│   │   │   ├── auth_router.py  # Authentication endpoints
+│   │   │   ├── drop_router.py  # Drop management endpoints
+│   │   │   └── api_key_router.py # API key endpoints
+│   │   └── web/          # Web interface routers (future SSR)
+│   └── utils/            # Utility functions
+├── web/                  # Frontend SvelteKit application
+│   ├── src/             # Source code
+│   │   ├── lib/         # Shared libraries
+│   │   ├── routes/      # SvelteKit routes
+│   │   ├── components/  # Reusable components
+│   │   ├── app.html     # HTML template
+│   │   └── app.css      # Global styles
+│   ├── static/          # Static assets
+│   ├── package.json     # Frontend dependencies
+│   ├── svelte.config.js # Svelte configuration
+│   ├── tailwind.config.cjs # Tailwind configuration
+│   └── vite.config.js   # Vite bundler configuration
+├── docs/                # Documentation
+│   └── architecture/    # Architecture documentation
+├── share/               # Shared files storage directory
+├── pyproject.toml       # Python project configuration
+├── docker-compose.yml   # Docker deployment configuration
+├── Dockerfile           # Container definition
+└── README.md           # Project documentation
+```
+
+## Development Guidelines
+
+### Handler Development
+- Each handler should inherit from `BaseHandler` and appropriate mixins
+- Use dependency injection for all external dependencies (session, storage, settings)
+- Implement proper error handling with custom exceptions
+- Use structured logging with contextual information
+- Follow the single responsibility principle
+- Use type hints for all parameters and return values
+
+### Handler Mixins
+- `LoggingMixin`: Provides structured logging capabilities
+- `ValidationMixin`: Common validation logic for drops, files, API keys
+- `HashingMixin`: Password and API key hashing utilities
+- `TimestampMixin`: Timestamp management for created/updated fields
+- `TransactionMixin`: Database transaction management
+- `PaginationMixin`: Pagination logic for list endpoints
+
+### Python Development with uv
+- Use `uv` as the primary package manager for Python dependencies
+- Always use `uv run` prefix when executing Python commands or scripts
+- Use `uv add` to add new dependencies instead of pip install
+- Use `uv remove` to remove dependencies
+- Keep `uv.lock` file committed to version control for reproducible builds
+- Use `uv sync` to install dependencies from lock file in new environments
+- Use `uv python install <version>` to manage Python versions if needed
+
+### API Development
+- Use dependency injection for database sessions, storage, and configuration
+- Implement proper HTTP status codes (200, 201, 400, 401, 403, 404, 500)
+- Use Pydantic models for request/response validation
+- Implement comprehensive error handling with meaningful error messages
+- Use SQLModel for database operations with proper transaction handling
+- Follow RESTful API conventions for endpoint naming
+- Implement proper authentication middleware using JWT tokens and API keys
+
+### Database Operations
+- Use SQLModel with proper session handling
+- Implement query methods as class methods on model classes
+- Use proper relationship loading (selectinload, joinedload)
+- Handle transactions properly with rollback on errors
+- Use database indexes for frequently queried fields
+
+### Frontend Development
+- Use SvelteKit's file-based routing system
+- Implement proper loading states and error handling for API calls
+- Use reactive statements ($:) appropriately for derived values
+- Implement proper form validation with user-friendly error messages
+- Use stores for shared state management
+- Implement proper accessibility features (ARIA labels, keyboard navigation)
+- Use TailwindCSS utilities and Flowbite components for consistent UI
+
+### Security Considerations
+- Never commit sensitive data (passwords, API keys, secrets) to version control
+- Use environment variables for all configuration
+- Implement proper input validation and sanitization
+- Use HTTPS in production environments
+- Implement proper CORS policies
+- Use secure JWT token handling with appropriate expiration times
+- Hash passwords using Argon2 algorithm
+- Implement API key authentication for programmatic access
+
+### Testing
+- Write unit tests for business logic in handlers
+- Implement integration tests for API endpoints
+- Use pytest for Python testing with proper fixtures
+- Test error conditions and edge cases
+- Mock external dependencies (storage, database) in unit tests
+- Implement frontend component testing where appropriate
+
+### Performance
+- Use async/await patterns consistently
+- Implement proper database indexing
+- Use connection pooling for database connections
+- Implement file streaming for large file uploads/downloads
+- Use proper caching strategies where appropriate
+- Optimize bundle sizes and implement code splitting in frontend
+- Use pagination for large data sets
+
+### Documentation
+- Document all API endpoints with proper OpenAPI/Swagger documentation
+- Write clear commit messages following conventional commit format
+- Include inline comments for complex business logic
+- Keep README files updated with setup and deployment instructions
+- Document environment variables and configuration options
+- Document handler interfaces and expected behaviors
+
+## Common Patterns
+
+### Handler Implementation
+```python
+@dataclass
+class ExampleHandler(BaseHandler, LoggingMixin, ValidationMixin):
+    """Example handler demonstrating the pattern"""
+    
+    session: Session
+    storage_service: StorageInterface
+    settings: Settings
+    
+    async def execute(self, data: ExampleData, auth_data: Optional[Dict[str, Any]] = None) -> ExampleResult:
+        """Execute the handler logic"""
+        self.log_info("Starting example operation", data_id=data.id)
+        
+        try:
+            # Validation
+            self.validate_input(data)
+            
+            # Business logic
+            result = await self._process_data(data)
+            
+            self.log_info("Example operation completed", result_id=result.id)
+            return result
+            
+        except Exception as e:
+            self.log_error("Example operation failed", error=str(e))
+            raise
+```
+
+### Error Handling
+```python
+# Backend
+from app.core.exceptions import DropNotFoundError, ValidationError
+from fastapi import HTTPException, status
+
+try:
+    result = await handler.execute(data)
+    return result
+except DropNotFoundError:
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Drop not found")
+except ValidationError as e:
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+```
+
+```javascript
+// Frontend
+try {
+    const response = await api.getDrop(dropKey);
+    return response.data;
+} catch (error) {
+    if (error.response?.status === 404) {
+        throw new Error('Drop not found');
+    }
+    throw new Error('Failed to fetch drop');
+}
+```
+
+### Authentication
+- Use JWT tokens for web interface authentication
+- Use API keys for programmatic access
+- Implement token refresh mechanism
+- Store tokens securely in httpOnly cookies when possible
+- Implement proper logout functionality that invalidates tokens
+
+### Database Operations
+```python
+# Use SQLModel with proper session handling and relationships
+@classmethod
+def get_by_key(cls, session: Session, key: str, include_file: bool = True) -> Optional["Drop"]:
+    statement = select(cls).where(cls.key == key)
+    if include_file:
+        statement = statement.options(selectinload(cls.file))
+    
+    result = session.exec(statement)
+    return result.first()
+```
+
+### Dependency Injection
+```python
+# Handler factory pattern for dependency injection
+def get_drop_create_handler():
+    def _get_handler(
+        session: DatabaseDep,
+        storage: StorageDep,
+        settings: SettingsDep
+    ) -> DropCreateHandler:
+        return DropCreateHandler(session=session, storage_service=storage, settings=settings)
+    
+    return _get_handler
+```
+
+## Docker and Deployment
+- Use multi-stage Docker builds for optimization
+- Include proper health checks in Docker containers
+- Use environment variables for configuration in containers
+- Implement proper logging for containerized applications
+- Use docker-compose for local development and testing
+- Entry point: `uvicorn app.main:app --host 0.0.0.0`
+
+## Data Models
+
+### Core Entities
+- **Drop**: Main content entity with metadata and 1:1 file relationship
+- **File**: Physical file storage with metadata
+- **ApiKey**: API authentication keys with permissions and expiration
+- **User**: Authentication information (currently single admin user)
+
+### Relationships
+- Drop ↔ File: One-to-one relationship (every drop has exactly one file)
+- ApiKey → User: Many-to-one relationship (future enhancement)
+
+When suggesting code changes or new features:
+1. Follow the Handler pattern for business logic
+2. Use appropriate mixins for common functionality
+3. Ensure proper dependency injection
+4. Implement comprehensive error handling
+5. Follow the established naming conventions
+6. Include appropriate tests and documentation
+7. Consider security implications
+8. Optimize for performance and maintainability
+9. Use structured logging for observability
+10. Maintain type safety throughout the codebase 

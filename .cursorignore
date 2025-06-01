@@ -1,0 +1,61 @@
+# Lock files - these are large generated files that don't need AI analysis
+uv.lock
+web/package-lock.json
+
+# Python virtual environment and cache
+.venv/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.Python
+
+# Node.js dependencies and build artifacts
+web/node_modules/
+web/.svelte-kit/
+web/build/
+web/dist/
+
+# Database files
+*.sqlite
+*.sqlite3
+*.db
+
+# Log files
+*.log
+logs/
+
+# Environment files (contain sensitive data)
+# .env
+# .env.*
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*Zone.identifier
+
+# Docker volumes and data
+share/
+
+# Git directory
+.git/
+
+# Large generated documentation
+docs/_build/
+site/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/ 

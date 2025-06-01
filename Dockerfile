@@ -43,13 +43,12 @@ COPY --from=dependency_builder /teledrop ./
 # copy built web
 COPY --from=web_builder /web/build ./web/build
 
-# copy teledrop sources 
-COPY ./main.py .
-COPY ./api ./api
+# copy teledrop sources (새로운 app 구조)
+COPY ./app ./app
 
 # set path
 ENV PATH="/teledrop/.venv/bin:$PATH"
 
-# run
+# run (새로운 진입점)
 EXPOSE 8000/tcp
-ENTRYPOINT ["uvicorn", "main:app", "--host", "0.0.0.0", "--no-server-header"]
+ENTRYPOINT ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--no-server-header"]
