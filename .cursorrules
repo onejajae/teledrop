@@ -61,10 +61,10 @@ The application uses a Handler-based architecture where:
 │   ├── core/              # Core functionality
 │   │   ├── config.py      # Application configuration
 │   │   ├── __init__.py    # Core module exports
-│   │   └── exceptions.py  # Custom exception classes
+│   │   ├── exceptions.py  # Custom exception classes
+│   │   └── dependencies.py # FastAPI 의존성 주입 (설정, 세션, 스토리지)
 │   ├── handlers/          # Business logic handlers
 │   │   ├── base.py        # Base handler and mixins
-│   │   ├── auth_handlers.py    # Authentication handlers
 │   │   ├── __init__.py    # Handler exports
 │   │   ├── drop/          # Drop management handlers
 │   │   │   ├── __init__.py     # Drop handler exports
@@ -75,26 +75,11 @@ The application uses a Handler-based architecture where:
 │   │   │   └── access.py       # Drop access control
 │   │   ├── file/          # File operation handlers
 │   │   │   ├── __init__.py     # File handler exports
-│   │   │   ├── download.py     # File download logic
 │   │   │   └── stream.py       # File streaming logic
-│   │   └── api_key/       # API key management handlers
-│   │       ├── __init__.py     # API key handler exports
-│   │       ├── create.py       # API key creation 
-│   │       ├── read.py         # API key retrieval
-│   │       ├── update.py       # API key update
-│   │       ├── delete.py       # API key deletion
-│   │       └── validate.py     # API key validation
-│   ├── dependencies/      # Dependency injection
-│   │   ├── __init__.py    # Dependency exports
-│   │   ├── auth.py        # Authentication dependencies
-│   │   ├── base.py        # Base infrastructure dependencies
-│   │   ├── types.py       # Type aliases for dependencies
-│   │   └── handlers/      # Handler factories
-│   │       ├── __init__.py     # Handler factory exports
-│   │       ├── auth.py         # Auth handler factories
-│   │       ├── api_key.py      # API key handler factories
-│   │       ├── drop.py         # Drop handler factories
-│   │       └── file.py         # File handler factories
+│   │   └── auth/          # Authentication handlers
+│   │       ├── user.py         # User authentication logic
+│   │       ├── token.py        # Token management logic
+│   │       └── login.py        # Login logic
 │   ├── infrastructure/    # Infrastructure layer
 │   │   ├── __init__.py    # Infrastructure exports
 │   │   ├── database/      # Database connection and setup
@@ -111,14 +96,13 @@ The application uses a Handler-based architecture where:
 │   │   ├── auth.py       # Authentication models
 │   │   ├── drop.py       # Drop models
 │   │   ├── file.py       # File models
-│   │   └── api_key.py    # API key models
+│   │   └── api_key.py    # API key models (DB 테이블만, 비즈니스 로직 없음)
 │   ├── routers/          # FastAPI route handlers
 │   │   ├── __init__.py   # Router exports
 │   │   ├── api/          # API routers
 │   │   │   ├── __init__.py     # API router exports
 │   │   │   ├── auth_router.py  # Authentication endpoints
 │   │   │   ├── drop_router.py  # Drop management endpoints
-│   │   │   └── api_key_router.py # API key endpoints
 │   │   └── web/          # Web interface routers (future SSR)
 │   └── utils/            # Utility functions
 ├── web/                  # Frontend SvelteKit application
@@ -154,8 +138,8 @@ The application uses a Handler-based architecture where:
 
 ### Handler Mixins
 - `LoggingMixin`: Provides structured logging capabilities
-- `ValidationMixin`: Common validation logic for drops, files, API keys
-- `HashingMixin`: Password and API key hashing utilities
+- `ValidationMixin`: Common validation logic for drops, files
+- `HashingMixin`: Password hashing utilities
 - `TimestampMixin`: Timestamp management for created/updated fields
 - `TransactionMixin`: Database transaction management
 - `PaginationMixin`: Pagination logic for list endpoints
@@ -176,7 +160,7 @@ The application uses a Handler-based architecture where:
 - Implement comprehensive error handling with meaningful error messages
 - Use SQLModel for database operations with proper transaction handling
 - Follow RESTful API conventions for endpoint naming
-- Implement proper authentication middleware using JWT tokens and API keys
+- Implement proper authentication middleware using JWT tokens
 
 ### Database Operations
 - Use SQLModel with proper session handling

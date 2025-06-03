@@ -7,21 +7,9 @@ Drop 관련 RESTful API 엔드포인트를 제공합니다.
 
 from typing import Optional, Dict, Any, Literal
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Form, UploadFile, File, Header
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 from urllib import parse
 
-from app.dependencies import (
-    get_drop_list_handler,
-    get_drop_detail_handler,
-    get_drop_create_handler,
-    get_drop_update_handler,
-    get_drop_delete_handler,
-    get_drop_access_handler,
-    get_file_download_handler,
-    get_file_range_handler,
-    CurrentUserDep,
-    CurrentUserOptionalDep
-)
 from app.handlers.drop import (
     DropListHandler,
     DropDetailHandler,
@@ -30,10 +18,8 @@ from app.handlers.drop import (
     DropDeleteHandler,
     DropAccessHandler
 )
-from app.handlers.file import (
-    FileDownloadHandler,
-    FileRangeHandler
-)
+from app.handlers.auth.user import CurrentUserHandler
+from app.handlers.file.stream import FileStreamHandler
 from app.models.drop import DropCreate, DropUpdate, DropListElement
 from app.core.exceptions import (
     DropNotFoundError,
@@ -43,20 +29,21 @@ from app.core.exceptions import (
     DropFileNotFoundError,
     DropKeyAlreadyExistsError
 )
+from app.handlers.drop.keycheck import DropKeyCheckHandler
 
 router = APIRouter(prefix="/content")
 
 
 @router.get("", response_model=Dict[str, Any])
 async def list_drops(
-    current_user: CurrentUserDep,  # 기존 API는 인증 필수
+    user_handler: CurrentUserHandler = Depends(CurrentUserHandler),  # 기존 API는 인증 필수
     page: int = Query(1, ge=1, description="페이지 번호"),
     page_size: int = Query(10, ge=1, le=100, description="페이지 크기"),
     user_only: Optional[bool] = Query(None, description="사용자 전용 여부"),
     favorite: Optional[bool] = Query(None, description="즐겨찾기 여부"),
     sortby: Optional[Literal["created_at", "title", "file_size"]] = Query("created_at", description="정렬 기준"),
     orderby: Optional[Literal["asc", "desc"]] = Query("desc", description="정렬 순서"),
-    handler: DropListHandler = Depends(get_drop_list_handler())
+    handler: DropListHandler = Depends(DropListHandler)
 ):
     """
     Drop 목록을 조회합니다. (기존 content API 호환)
@@ -68,10 +55,17 @@ async def list_drops(
     
     인증이 필요합니다.
     """
+    current_user = user_handler.execute()
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="인증이 필요합니다",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     try:
         result = await handler.execute(
             user_only=user_only,  # 모든 Drop 조회 (공개 + 비공개)
-            include_files=True,
             page=page,
             page_size=page_size,
             sortby=sortby,
@@ -94,8 +88,8 @@ async def list_drops(
 async def get_drop_preview(
     key: str,
     password: Optional[str] = Query(None, description="Drop 패스워드"),
-    current_user: CurrentUserOptionalDep = None,
-    handler: DropDetailHandler = Depends(get_drop_detail_handler())
+    user_handler: CurrentUserHandler = Depends(CurrentUserHandler),
+    handler: DropDetailHandler = Depends(DropDetailHandler)
 ):
     """
     Drop 미리보기 정보를 조회합니다. (기존 content API 호환)
@@ -103,6 +97,8 @@ async def get_drop_preview(
     - **key**: Drop 고유 키
     - **password**: Drop 패스워드 (필요한 경우)
     """
+    current_user = user_handler.execute()
+    
     try:
         drop = handler.execute(
             drop_key=key,
@@ -119,16 +115,13 @@ async def get_drop_preview(
             "description": drop.description,
             "created_at": drop.created_at.isoformat(),
             "updated_at": drop.updated_at.isoformat() if drop.updated_at else None,
-            "required_password": bool(drop.password)
-        }
-        
-        # 파일 정보 추가 (모든 Drop은 file을 가짐)
-        response.update({
+            "required_password": bool(drop.password),
             "file_name": drop.file.original_filename,
             "file_hash": drop.file.file_hash,
             "file_type": drop.file.file_type,
             "file_size": drop.file.file_size
-        })
+        }
+        
         
         return response
         
@@ -143,9 +136,10 @@ async def get_drop_preview(
             detail="Invalid password"
         )
     except DropAccessDeniedError:
+        # 보안 상의 이유로 404 반환
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Drop not found"
         )
 
 
@@ -155,47 +149,69 @@ async def download_or_stream_file(
     preview: Optional[bool] = Query(False, description="미리보기 모드"),
     password: Optional[str] = Query(None, description="Drop 패스워드"),
     range: Optional[str] = Header(None, alias="Range"),
-    current_user: CurrentUserOptionalDep = None,
-    download_handler: FileDownloadHandler = Depends(get_file_download_handler()),
-    range_handler: FileRangeHandler = Depends(get_file_range_handler())
+    user_handler: CurrentUserHandler = Depends(CurrentUserHandler),
+    file_stream_handler: FileStreamHandler = Depends(FileStreamHandler)
 ):
-    """
-    Drop의 파일을 다운로드하거나 스트리밍합니다. (기존 content API 호환)
     
-    - **key**: Drop 고유 키
-    - **preview**: 미리보기 모드 (inline vs attachment)
-    - **password**: Drop 패스워드 (필요한 경우)
-    - **Range**: HTTP Range 헤더 (부분 다운로드용)
     """
+    Drop의 파일을 다운로드하거나 스트리밍합니다. (Range/전체 통합)
+    """
+
+    current_user = user_handler.execute()
+
     try:
-        # Range 요청이 있으면 Range Handler 사용
+        # Range 헤더 파싱
         if range:
-            response, file_obj = await range_handler.execute(
-                drop_key=key,
-                range_header=range,
-                password=password,
-                auth_data=current_user
-            )
+            # 예: 'bytes=0-499' 또는 'bytes=500-999'
+            try:
+                start_str, end_str = range.strip().lower().replace("bytes=", "").split("-")
+                start = int(start_str) if start_str else 0
+                end = int(end_str) if end_str else start + 1024 * 1024 * 4 - 1
+            except Exception:
+                raise HTTPException(status_code=416, detail="Invalid Range header")
         else:
-            # 일반 다운로드
-            as_attachment = not preview  # preview=True면 inline, False면 attachment
-            response, file_obj = await download_handler.execute(
-                drop_key=key,
-                password=password,
-                auth_data=current_user,
-                as_attachment=as_attachment
-            )
-        
-        # 기존 API와 동일한 추가 헤더 설정 (Content-Disposition은 Handler에서 설정됨)
-        response.headers["accept-ranges"] = "bytes"
-        response.headers["content-encoding"] = "identity"
-        response.headers["access-control-expose-headers"] = (
-            "content-type, accept-ranges, content-length, "
-            "content-range, content-encoding"
+            start = 0
+            end = None
+
+        # 핸들러 호출
+        async_file_streamer, file_obj, real_start, real_end, file_size = await file_stream_handler.execute(
+            drop_key=key,
+            start=start,
+            end=end,
+            password=password,
+            auth_data=current_user
         )
-        
+
+        # 헤더 생성
+        disposition_type = "inline" if preview else "attachment"
+        content_length = real_end - real_start + 1
+        headers = {
+            "Content-Disposition": f"{disposition_type}; filename*=UTF-8''{parse.quote(file_obj.original_filename)}",
+            "Content-Length": f"{content_length}",
+            "Content-Type": file_obj.file_type,
+            "Accept-Ranges": "bytes",
+            "Content-Encoding": "identity",
+            "Access-Control-Expose-Headers": "Content-Type, Accept-Ranges, Content-length, Content-Range, Content-Encoding"
+        }
+
+        # 상태코드 결정
+        if real_start > 0 or (real_end is not None and real_end < file_size - 1):
+            status_code = status.HTTP_206_PARTIAL_CONTENT
+            headers["Content-Range"] = f"bytes {real_start}-{real_end}/{file_obj.file_size}"
+        else:
+            status_code = status.HTTP_200_OK
+
+        # StreamingResponse 생성
+        response = StreamingResponse(
+            async_file_streamer,
+            status_code=status_code,
+            media_type=file_obj.file_type,
+            headers=headers
+        )
+        print(response.headers.get("Content-Range"), response.headers.get("Content-Length"))
+
         return response
-        
+    
     except DropNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -220,7 +236,7 @@ async def download_or_stream_file(
 
 @router.post("", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
 async def create_drop(
-    current_user: CurrentUserDep,
+    user_handler: CurrentUserHandler = Depends(CurrentUserHandler),
     file: UploadFile = File(..., description="업로드할 파일 (필수)"),
     key: Optional[str] = Form(None, description="Drop 키 (없으면 자동 생성)"),
     title: Optional[str] = Form(None, description="Drop 제목"),
@@ -228,7 +244,7 @@ async def create_drop(
     password: Optional[str] = Form(None, description="Drop 패스워드"),
     user_only: bool = Form(False, description="사용자 전용 여부"),
     favorite: bool = Form(False, description="즐겨찾기 여부"),
-    handler: DropCreateHandler = Depends(get_drop_create_handler())
+    handler: DropCreateHandler = Depends(DropCreateHandler)
 ):
     """
     파일과 함께 Drop을 생성합니다. (모든 Drop은 반드시 파일을 가져야 함)
@@ -243,6 +259,14 @@ async def create_drop(
     
     인증이 필요합니다.
     """
+    current_user = user_handler.execute()
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="인증이 필요합니다",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     try:
         # Drop 생성 데이터 구성
         drop_data = DropCreate(
@@ -299,16 +323,24 @@ async def create_drop(
 @router.patch("/{key}/detail", response_model=Dict[str, Any])
 async def update_drop_detail(
     key: str,
-    current_user: CurrentUserDep,
+    user_handler: CurrentUserHandler = Depends(CurrentUserHandler),
     title: Optional[str] = Form(None, description="새 제목"),
     description: Optional[str] = Form(None, description="새 설명"),
     password: Optional[str] = Form(None, description="현재 패스워드"),
-    handler: DropUpdateHandler = Depends(get_drop_update_handler()),
-    access_handler: DropAccessHandler = Depends(get_drop_access_handler())
+    handler: DropUpdateHandler = Depends(DropUpdateHandler),
+    access_handler: DropAccessHandler = Depends(DropAccessHandler)
 ):
     """
     Drop 상세정보를 수정합니다. (기존 content API 호환)
     """
+    current_user = user_handler.execute()
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="인증이 필요합니다",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     try:
         # 통합 접근 권한 검증 (인증 + 패스워드 + 권한)
         access_handler.validate_access(
@@ -353,15 +385,23 @@ async def update_drop_detail(
 @router.patch("/{key}/permission", response_model=Dict[str, Any])
 async def update_drop_permission(
     key: str,
-    current_user: CurrentUserDep,
+    user_handler: CurrentUserHandler = Depends(CurrentUserHandler),
     user_only: bool = Form(..., description="사용자 전용 여부"),
     password: Optional[str] = Form(None, description="현재 패스워드"),
-    handler: DropUpdateHandler = Depends(get_drop_update_handler()),
-    access_handler: DropAccessHandler = Depends(get_drop_access_handler())
+    handler: DropUpdateHandler = Depends(DropUpdateHandler),
+    access_handler: DropAccessHandler = Depends(DropAccessHandler)
 ):
     """
     Drop 권한을 수정합니다. (기존 content API 호환)
     """
+    current_user = user_handler.execute()
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="인증이 필요합니다",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     try:
         # 통합 접근 권한 검증 (인증 + 패스워드 + 권한)
         access_handler.validate_access(
@@ -400,13 +440,21 @@ async def update_drop_permission(
 @router.patch("/{key}/password", response_model=Dict[str, Any])
 async def update_drop_password(
     key: str,
-    current_user: CurrentUserDep,
+    user_handler: CurrentUserHandler = Depends(CurrentUserHandler),
     new_password: str = Form(..., description="새 패스워드"),
-    handler: DropUpdateHandler = Depends(get_drop_update_handler())
+    handler: DropUpdateHandler = Depends(DropUpdateHandler)
 ):
     """
     Drop 패스워드를 설정/변경합니다. (기존 content API 호환)
     """
+    current_user = user_handler.execute()
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="인증이 필요합니다",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     try:
         update_data = DropUpdate(password=new_password)
         updated_drop = handler.execute(
@@ -427,14 +475,22 @@ async def update_drop_password(
 @router.patch("/{key}/reset", response_model=Dict[str, Any])
 async def reset_drop_password(
     key: str,
-    current_user: CurrentUserDep,
+    user_handler: CurrentUserHandler = Depends(CurrentUserHandler),
     password: str = Form(..., description="현재 패스워드"),
-    handler: DropUpdateHandler = Depends(get_drop_update_handler()),
-    access_handler: DropAccessHandler = Depends(get_drop_access_handler())
+    handler: DropUpdateHandler = Depends(DropUpdateHandler),
+    access_handler: DropAccessHandler = Depends(DropAccessHandler)
 ):
     """
     Drop 패스워드를 제거합니다. (기존 content API 호환)
     """
+    current_user = user_handler.execute()
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="인증이 필요합니다",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     try:
         # 통합 접근 권한 검증 (인증 + 패스워드 + 권한)
         access_handler.validate_access(
@@ -473,15 +529,23 @@ async def reset_drop_password(
 @router.patch("/{key}/favorite", response_model=Dict[str, Any])
 async def update_drop_favorite(
     key: str,
-    current_user: CurrentUserDep,
+    user_handler: CurrentUserHandler = Depends(CurrentUserHandler),
     favorite: bool = Form(..., description="즐겨찾기 여부"),
     password: Optional[str] = Form(None, description="현재 패스워드"),
-    handler: DropUpdateHandler = Depends(get_drop_update_handler()),
-    access_handler: DropAccessHandler = Depends(get_drop_access_handler())
+    handler: DropUpdateHandler = Depends(DropUpdateHandler),
+    access_handler: DropAccessHandler = Depends(DropAccessHandler)
 ):
     """
     Drop 즐겨찾기를 토글합니다. (기존 content API 호환)
     """
+    current_user = user_handler.execute()
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="인증이 필요합니다",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     try:
         # 통합 접근 권한 검증 (인증 + 패스워드 + 권한)
         access_handler.validate_access(
@@ -520,16 +584,24 @@ async def update_drop_favorite(
 @router.delete("/{key}")
 async def delete_drop(
     key: str,
-    current_user: CurrentUserDep,
+    user_handler: CurrentUserHandler = Depends(CurrentUserHandler),
     password: Optional[str] = Query(None, description="Drop 패스워드"),
-    handler: DropDeleteHandler = Depends(get_drop_delete_handler()),
-    access_handler: DropAccessHandler = Depends(get_drop_access_handler())
+    handler: DropDeleteHandler = Depends(DropDeleteHandler),
+    access_handler: DropAccessHandler = Depends(DropAccessHandler)
 ):
     """
     Drop을 삭제합니다. (기존 content API 호환)
     
     연관된 파일도 함께 삭제됩니다.
     """
+    current_user = user_handler.execute()
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="인증이 필요합니다",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     try:
         # 통합 접근 권한 검증 (인증 + 패스워드 + 권한)
         access_handler.validate_access(
@@ -566,25 +638,24 @@ async def delete_drop(
 @router.get("/keycheck/{key}")
 async def check_key_availability(
     key: str,
-    current_user: CurrentUserDep
+    user_handler: CurrentUserHandler = Depends(CurrentUserHandler),
+    handler: DropKeyCheckHandler = Depends(DropKeyCheckHandler)
 ):
     """
     키 사용 가능 여부를 확인합니다. (기존 content API 호환)
-    
     Returns:
         bool: 키가 사용 중이면 True, 사용 중이지 않으면 False
     """
+    current_user = user_handler.execute()
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="인증이 필요합니다",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     try:
-        from app.models import Drop
-        from app.dependencies import get_db_session
-        
-        # 예약어 체크
-        if key in ["api", ""]:
-            return False
-        
-        session = next(get_db_session())
-        existing_drop = Drop.get_by_key(session, key, include_file=False)
-        return existing_drop is not None 
-            
+        return handler.execute(key)
     except Exception:
-        return False 
+        # 예외 발생 시 키 사용 불가능으로 처리
+        return True 

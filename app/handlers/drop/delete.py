@@ -8,23 +8,28 @@ from dataclasses import dataclass
 from typing import Optional, Dict, Any
 
 from sqlmodel import Session
+from fastapi import Depends
 
 from app.models import Drop
 from app.handlers.base import BaseHandler, TransactionMixin
 from app.infrastructure.storage.base import StorageInterface
 from app.core.config import Settings
-from app.core.exceptions import (
-    DropNotFoundError,
-)
+from app.core.exceptions import DropNotFoundError
+from app.core.dependencies import get_session, get_storage, get_settings
 
 
-@dataclass
 class DropDeleteHandler(BaseHandler, TransactionMixin):
     """Drop 삭제 Handler"""
     
-    session: Session
-    storage_service: StorageInterface
-    settings: Settings
+    def __init__(
+        self,
+        session: Session = Depends(get_session),
+        storage_service: StorageInterface = Depends(get_storage),
+        settings: Settings = Depends(get_settings)
+    ):
+        self.session = session
+        self.storage_service = storage_service
+        self.settings = settings
     
     def execute(
         self,
@@ -48,7 +53,7 @@ class DropDeleteHandler(BaseHandler, TransactionMixin):
         
         try:
             # Drop 조회 (파일 정보 포함, 라우터에서 이미 존재 여부 검증됨)
-            drop = Drop.get_by_key(self.session, drop_key, include_file=True)
+            drop = Drop.get_by_key(self.session, drop_key)
             if not drop:
                 raise DropNotFoundError(f"Drop not found: {drop_key}")
             

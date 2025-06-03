@@ -5,11 +5,9 @@
 """
 
 from typing import Optional
-from functools import lru_cache
 
 from .base import StorageInterface
 from .local import LocalStorage
-from app.dependencies.settings import get_settings
 
 
 class StorageFactory:

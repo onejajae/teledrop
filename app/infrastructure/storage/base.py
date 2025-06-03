@@ -6,7 +6,6 @@
 
 from abc import ABC, abstractmethod
 from typing import AsyncGenerator, BinaryIO, Tuple, Callable, Awaitable
-from pathlib import Path
 
 
 class StorageInterface(ABC):

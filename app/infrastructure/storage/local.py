@@ -7,7 +7,6 @@
 import os
 import anyio
 import anyio.to_thread
-import tempfile
 from pathlib import Path
 from typing import AsyncGenerator, BinaryIO, Tuple, Callable, Awaitable
 

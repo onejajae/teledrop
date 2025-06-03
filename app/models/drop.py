@@ -2,7 +2,6 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from sqlmodel import SQLModel, Field, Relationship, Session, select
-from sqlalchemy.orm import selectinload
 from pydantic import computed_field
 import asyncio
 
@@ -113,13 +112,9 @@ class Drop(DropBase, table=True):
         cls, 
         session: Session, 
         key: str, 
-        include_file: bool = True
     ) -> Optional["Drop"]:
         """키로 Drop 조회 - 가장 자주 사용되는 패턴"""
         statement = select(cls).where(cls.key == key)
-        if include_file:
-            statement = statement.options(selectinload(cls.file))
-        
         result = session.exec(statement)
         return result.first()
     
@@ -128,12 +123,9 @@ class Drop(DropBase, table=True):
         cls, 
         session: Session, 
         drop_id: uuid.UUID, 
-        include_file: bool = True
     ) -> Optional["Drop"]:
         """ID로 Drop 조회"""
         statement = select(cls).where(cls.id == drop_id)
-        if include_file:
-            statement = statement.options(selectinload(cls.file))
         
         result = session.exec(statement)
         return result.first()
@@ -144,7 +136,6 @@ class Drop(DropBase, table=True):
         session: Session,
         user_only: Optional[bool] = None,
         favorites_only: bool = False,
-        include_files: bool = True,
         limit: Optional[int] = None,
         offset: int = 0,
         sortby: Optional[str] = "created_at",
@@ -186,9 +177,6 @@ class Drop(DropBase, table=True):
         if offset:
             statement = statement.offset(offset)
         
-        # 파일 정보 포함 시 selectinload 사용
-        if include_files:
-            statement = statement.options(selectinload(cls.file))
         
         result = session.exec(statement)
         return result.all()
@@ -218,15 +206,12 @@ class Drop(DropBase, table=True):
         cls,
         session: Session,
         query: str,
-        include_files: bool = True
     ) -> list["Drop"]:
         """제목으로 Drop 검색"""
         statement = select(cls).where(
             cls.title.ilike(f"%{query}%")
         ).order_by(cls.created_at.desc())
         
-        if include_files:
-            statement = statement.options(selectinload(cls.file))
         
         result = session.exec(statement)
         return result.all()
@@ -235,12 +220,9 @@ class Drop(DropBase, table=True):
     def get_favorites(
         cls,
         session: Session,
-        include_files: bool = True
     ) -> list["Drop"]:
         """즐겨찾기 Drop 목록 조회"""
         statement = select(cls).where(cls.favorite == True)
-        if include_files:
-            statement = statement.options(selectinload(cls.file))
         
         statement = statement.order_by(cls.created_at.desc())
         
@@ -253,7 +235,6 @@ class Drop(DropBase, table=True):
         session: Session,
         user_only: Optional[bool] = None,
         favorites_only: bool = False,
-        include_files: bool = True,
         limit: Optional[int] = None,
         offset: int = 0,
         sortby: Optional[str] = "created_at",
@@ -266,7 +247,6 @@ class Drop(DropBase, table=True):
             session=session,
             user_only=user_only,
             favorites_only=favorites_only,
-            include_files=include_files,
             limit=limit,
             offset=offset,
             sortby=sortby,

@@ -4,36 +4,36 @@ Drop 조회 Handler들
 Drop의 상세 조회, 목록 조회 등의 읽기 관련 비즈니스 로직을 처리합니다.
 """
 
-from dataclasses import dataclass
-from typing import List, Optional, Dict, Any
-
+from typing import Optional, Dict, Any
 from sqlmodel import Session
+from fastapi import Depends
 
 from app.models import Drop
 from app.handlers.base import BaseHandler, PaginationMixin
 from app.infrastructure.storage.base import StorageInterface
 from app.models.drop import DropListElement
 from app.core.config import Settings
-from app.core.exceptions import (
-    DropNotFoundError,
-    DropPasswordInvalidError,
-    DropAccessDeniedError,
-)
+from app.core.exceptions import DropNotFoundError
+from app.core.dependencies import get_session, get_storage, get_settings
 
 
-@dataclass
 class DropListHandler(BaseHandler, PaginationMixin):
     """Drop 목록 조회 Handler"""
     
-    session: Session
-    storage_service: StorageInterface
-    settings: Settings
+    def __init__(
+        self,
+        session: Session = Depends(get_session),
+        storage_service: StorageInterface = Depends(get_storage),
+        settings: Settings = Depends(get_settings)
+    ):
+        self.session = session
+        self.storage_service = storage_service
+        self.settings = settings
     
     async def execute(
         self,
         auth_data: Dict[str, Any],
         user_only: Optional[bool] = None,
-        include_files: bool = True,
         page: int = 1,
         page_size: Optional[int] = None,
         sortby: Optional[str] = "created_at",
@@ -45,7 +45,6 @@ class DropListHandler(BaseHandler, PaginationMixin):
         Args:
             auth_data: 인증 정보 (필수)
             user_only: 사용자 전용 Drop만 조회할지 여부
-            include_files: 파일 정보 포함 여부
             page: 페이지 번호
             page_size: 페이지 크기 (None이면 설정값 사용)
             sortby: 정렬 기준 (created_at, title, file_size)
@@ -65,7 +64,6 @@ class DropListHandler(BaseHandler, PaginationMixin):
         drops, total_count = await Drop.list_with_count(
             session=self.session,
             user_only=user_only,
-            include_files=include_files,
             limit=page_size,
             offset=offset,
             sortby=sortby,
@@ -106,13 +104,18 @@ class DropListHandler(BaseHandler, PaginationMixin):
         return result
 
 
-@dataclass
 class DropDetailHandler(BaseHandler):
     """Drop 상세 조회 Handler"""
-    
-    session: Session
-    storage_service: StorageInterface
-    settings: Settings
+
+    def __init__(
+        self,
+        session: Session = Depends(get_session),
+        storage_service: StorageInterface = Depends(get_storage),
+        settings: Settings = Depends(get_settings)
+    ):
+        self.session = session
+        self.storage_service = storage_service
+        self.settings = settings
     
     def execute(
         self,
@@ -139,7 +142,7 @@ class DropDetailHandler(BaseHandler):
         self.log_info("Fetching drop detail", drop_key=drop_key)
         
         # Drop 조회
-        drop = Drop.get_by_key(self.session, drop_key, include_file=True)
+        drop = Drop.get_by_key(self.session, drop_key)
         if not drop:
             raise DropNotFoundError(f"Drop not found: {drop_key}")
         

@@ -6,17 +6,15 @@ Handler 패턴을 사용하여 비즈니스 로직을 분리합니다.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Response
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
-from sqlmodel import Session
+from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 
-from app.handlers.auth_handlers import LoginHandler, TokenValidateHandler, TokenRefreshHandler, OAuth2PasswordBearerWithCookie
-from app.core.config import Settings
-from app.dependencies.settings import get_settings
-from app.dependencies.db import get_session
+# from app.handlers.auth_handlers import LoginHandler, TokenValidateHandler, TokenRefreshHandler
+from app.handlers.auth.login import LoginHandler
+from app.handlers.auth.token import TokenValidateHandler
 from app.core.exceptions import AuthenticationError
 from app.models import AccessToken, TokenPayload
-from app.dependencies import get_current_user
+from app.handlers.auth.user import CurrentUserHandler
 
 
 router = APIRouter(prefix="/auth")
@@ -32,8 +30,7 @@ class TokenValidationRequest(BaseModel):
 async def login(
     response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
-    session: Session = Depends(get_session),
-    settings: Settings = Depends(get_settings)
+    handler: LoginHandler = Depends(LoginHandler)
 ):
     """사용자 로그인 엔드포인트
     
@@ -42,8 +39,7 @@ async def login(
     
     Args:
         form_data: OAuth2 패스워드 폼 (username, password)
-        session: 데이터베이스 세션 (현재는 사용하지 않음)
-        settings: 애플리케이션 설정
+        handler: LoginHandler 인스턴스
         
     Returns:
         AccessToken: 액세스 토큰과 리프레시 토큰
@@ -52,11 +48,7 @@ async def login(
         HTTPException: 인증 실패 시 401 에러
     """
     try:
-        # LoginHandler 인스턴스 생성 (의존성 주입)
-        login_handler = LoginHandler(session=session, settings=settings)
-        
-        # Handler의 execute 메서드 호출
-        token_result = await login_handler.execute(
+        token_result = await handler.execute(
             username=form_data.username,
             password=form_data.password
         )
@@ -97,52 +89,48 @@ async def login(
         )
 
 
-@router.post("/refresh", response_model=AccessToken)
-async def refresh_token(
-    refresh_token: str,
-    settings: Settings = Depends(get_settings)
-):
-    """토큰 갱신 엔드포인트
+# @router.post("/refresh", response_model=AccessToken)
+# async def refresh_token(
+#     refresh_token: str,
+#     handler: TokenRefreshHandler = Depends(TokenRefreshHandler)
+# ):
+#     """토큰 갱신 엔드포인트
     
-    TokenRefreshHandler를 사용하여 리프레시 토큰으로 새 액세스 토큰을 발급합니다.
+#     TokenRefreshHandler를 사용하여 리프레시 토큰으로 새 액세스 토큰을 발급합니다.
     
-    Args:
-        refresh_token: 리프레시 토큰
-        settings: 애플리케이션 설정
+#     Args:
+#         refresh_token: 리프레시 토큰
+#         handler: TokenRefreshHandler 인스턴스
         
-    Returns:
-        AccessToken: 새로운 액세스 토큰
+#     Returns:
+#         AccessToken: 새로운 액세스 토큰
         
-    Raises:
-        HTTPException: 토큰이 유효하지 않을 시 401 에러
-    """
-    try:
-        # TokenRefreshHandler 인스턴스 생성
-        refresh_handler = TokenRefreshHandler(session=None, settings=settings)
+#     Raises:
+#         HTTPException: 토큰이 유효하지 않을 시 401 에러
+#     """
+#     try:
+#         token_result = await handler.execute(refresh_token)
         
-        # Handler의 execute 메서드 호출
-        token_result = await refresh_handler.execute(refresh_token)
+#         return token_result
         
-        return token_result
-        
-    except AuthenticationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired refresh token",
-            headers={"WWW-Authenticate": "Bearer"}
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error"
-        )
+#     except AuthenticationError as e:
+#         raise HTTPException(
+#             status_code=status.HTTP_401_UNAUTHORIZED,
+#             detail="Invalid or expired refresh token",
+#             headers={"WWW-Authenticate": "Bearer"}
+#         )
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             detail="Internal server error"
+#         )
 
 
 @router.post("/validate", response_model=TokenPayload)
 async def validate_token(
     request: TokenValidationRequest,
-    current_user: dict = Depends(get_current_user),
-    settings: Settings = Depends(get_settings)
+    user_handler: CurrentUserHandler = Depends(CurrentUserHandler),
+    handler: TokenValidateHandler = Depends(TokenValidateHandler)
 ):
     """토큰 검증 엔드포인트
     
@@ -153,7 +141,7 @@ async def validate_token(
     Args:
         request: 토큰 검증 요청 데이터
         current_user: 현재 인증된 사용자 정보 (인증 필수)
-        settings: 애플리케이션 설정
+        handler: TokenValidateHandler 인스턴스
         
     Returns:
         TokenPayload: 토큰 페이로드 정보
@@ -161,12 +149,16 @@ async def validate_token(
     Raises:
         HTTPException: 인증 실패 또는 토큰이 유효하지 않을 시 401 에러
     """
+    current_user = user_handler.execute()
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="인증이 필요합니다",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     try:
-        # TokenValidateHandler 인스턴스 생성
-        validate_handler = TokenValidateHandler(session=None, settings=settings)
-        
-        # Handler의 execute 메서드 호출
-        payload = await validate_handler.execute(request.token)
+        payload = await handler.execute(request.token)
         
         return payload
         
@@ -186,7 +178,7 @@ async def validate_token(
 @router.get("/logout")
 async def logout(
     response: Response,
-    current_user: dict = Depends(get_current_user)
+    user_handler: CurrentUserHandler = Depends(CurrentUserHandler),
 ):
     """로그아웃 엔드포인트
     
@@ -201,6 +193,14 @@ async def logout(
     Returns:
         dict: 로그아웃 성공 메시지
     """
+    current_user = user_handler.execute()
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="인증이 필요합니다",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+        
     try:
         # HttpOnly 쿠키에서 토큰들 제거
         response.delete_cookie(key="access_token")
@@ -218,53 +218,10 @@ async def logout(
         )
 
 
-# 의존성 함수들 (다른 라우터에서도 사용 가능)
-async def get_current_user_from_token(
-    token: str = Depends(OAuth2PasswordBearerWithCookie(
-                name="access_token", tokenUrl="/api/auth/login", auto_error=False
-            )),
-    settings: Settings = Depends(get_settings)
-) -> TokenPayload:
-    """토큰에서 현재 사용자 정보를 추출하는 의존성 함수
-    
-    다른 라우터에서 인증이 필요한 엔드포인트에서 사용할 수 있습니다.
-    
-    Args:
-        token: JWT 토큰 (OAuth2PasswordBearer를 통해 자동 추출)
-        settings: 애플리케이션 설정
-        
-    Returns:
-        TokenPayload: 사용자 정보가 포함된 토큰 페이로드
-        
-    Raises:
-        HTTPException: 토큰이 유효하지 않을 시 401 에러
-    """
-    try:
-        validate_handler = TokenValidateHandler(session=None, settings=settings)
-        payload = await validate_handler.execute(token)
-        
-        # access 토큰만 허용
-        if payload.token_type != "access":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token type",
-                headers={"WWW-Authenticate": "Bearer"}
-            )
-            
-        return payload
-        
-    except AuthenticationError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"}
-        )
-
-
 # Handler 패턴의 장점을 보여주는 예시 엔드포인트
 @router.get("/me", response_model=dict)
 async def get_current_user_info(
-    current_user: dict = Depends(get_current_user)
+    user_handler: CurrentUserHandler = Depends(CurrentUserHandler),
 ):
     """현재 사용자 정보 조회 엔드포인트
     
@@ -277,6 +234,15 @@ async def get_current_user_info(
     Returns:
         dict: 사용자 정보
     """
+
+    current_user = user_handler.execute()
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="인증이 필요합니다",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     if current_user["type"] == "jwt":
         payload = current_user["payload"]
         return {

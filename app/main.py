@@ -11,12 +11,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.security import OAuth2PasswordBearer
 
 # 마이그레이션된 코드 사용
 from app.infrastructure.database import init_db
 from app.routers import api_router
-from app.dependencies.settings import get_settings
+from app.core.dependencies import get_settings
 
 
 # 설정 인스턴스 생성

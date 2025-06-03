@@ -5,29 +5,30 @@ Drop의 접근 권한 검증 관련 비즈니스 로직을 처리합니다.
 보안과 관련된 횡단 관심사를 담당합니다.
 """
 
-from dataclasses import dataclass
 from typing import Optional, Dict, Any
 
 from sqlmodel import Session
+from fastapi import Depends
 
-from app.models import Drop
+from app.core.config import Settings
+from app.core.dependencies import get_session, get_storage, get_settings
+from app.core.exceptions import DropNotFoundError, DropPasswordInvalidError, DropAccessDeniedError
 from app.handlers.base import BaseHandler
 from app.infrastructure.storage.base import StorageInterface
-from app.core.config import Settings
-from app.core.exceptions import (
-    DropNotFoundError,
-    DropPasswordInvalidError,
-    DropAccessDeniedError,
-)
+from app.models import Drop
 
-
-@dataclass
 class DropAccessHandler(BaseHandler):
     """Drop 접근 권한 검증 Handler"""
     
-    session: Session
-    storage_service: StorageInterface
-    settings: Settings
+    def __init__(
+        self,
+        session: Session = Depends(get_session),
+        storage_service: StorageInterface = Depends(get_storage),
+        settings: Settings = Depends(get_settings)
+    ):
+        self.session = session
+        self.storage_service = storage_service
+        self.settings = settings
     
     def execute(
         self,
@@ -141,7 +142,7 @@ class DropAccessHandler(BaseHandler):
     
     def _get_drop(self, drop_key: str) -> Drop:
         """Drop을 조회합니다."""
-        drop = Drop.get_by_key(self.session, drop_key, include_file=False)
+        drop = Drop.get_by_key(self.session, drop_key)
         if not drop:
             raise DropNotFoundError(f"Drop not found: {drop_key}")
         return drop

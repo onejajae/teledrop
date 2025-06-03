@@ -40,12 +40,12 @@ except ImportError as e:
     logger.warning(f"Failed to import drop_router: {e}")
     drop_router = None
 
-try:
-    from .api_key_router import router as api_key_router
-    logger.info("Successfully imported api_key_router")
-except ImportError as e:
-    logger.warning(f"Failed to import api_key_router: {e}")
-    api_key_router = None
+# try:
+#     from .api_key_router import router as api_key_router
+#     logger.info("Successfully imported api_key_router")
+# except ImportError as e:
+#     logger.warning(f"Failed to import api_key_router: {e}")
+#     api_key_router = None
 
 # 성공적으로 임포트된 라우터들만 __all__에 포함
 __all__ = []
@@ -53,8 +53,8 @@ if auth_router is not None:
     __all__.append("auth_router")
 if drop_router is not None:
     __all__.append("drop_router")
-if api_key_router is not None:
-    __all__.append("api_key_router")
+# if api_key_router is not None:
+#     __all__.append("api_key_router")
 
 
 def get_all_api_routers():
@@ -69,8 +69,8 @@ def get_all_api_routers():
         routers.append(auth_router)
     if drop_router is not None:
         routers.append(drop_router)
-    if api_key_router is not None:
-        routers.append(api_key_router)
+    # if api_key_router is not None:
+    #     routers.append(api_key_router)
     
     logger.info(f"Returning {len(routers)} API routers")
     return routers
@@ -85,6 +85,6 @@ def get_router_info():
     return {
         "auth_router": auth_router is not None,
         "drop_router": drop_router is not None,
-        "api_key_router": api_key_router is not None,
+        # "api_key_router": api_key_router is not None,
         "total_routers": len(__all__)
     } 

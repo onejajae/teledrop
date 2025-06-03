@@ -5,36 +5,35 @@ Drop 생성 Handler
 트랜잭션과 보상 트랜잭션 패턴을 사용하여 데이터 일관성을 보장합니다.
 """
 
-from dataclasses import dataclass
 from typing import Optional, Dict, Any, Tuple
 import io
 import hashlib
 import uuid
 
 from sqlmodel import Session
-from fastapi import UploadFile
+from fastapi import UploadFile, Depends
 
 from app.models import Drop, File
-from app.handlers.base import BaseHandler, HashingMixin, TransactionMixin
+from app.handlers.base import BaseHandler, TransactionMixin
 from app.infrastructure.storage.base import StorageInterface
-from app.models.drop import DropCreate
 from app.core.config import Settings
-from app.core.exceptions import (
-    ValidationError,
-    StorageError,
-    DropKeyAlreadyExistsError
-)
-from app.handlers.auth_handlers import generate_drop_key
-from app.utils.file_utils import sanitize_filename, get_file_type, get_file_extension
+from app.core.exceptions import ValidationError, StorageError, DropKeyAlreadyExistsError
+from app.utils.file_utils import sanitize_filename, get_file_type
+from app.core.dependencies import get_session, get_storage, get_settings
+from app.models.drop import DropCreate
 
-
-@dataclass
-class DropCreateHandler(BaseHandler, HashingMixin, TransactionMixin):
+class DropCreateHandler(BaseHandler, TransactionMixin):
     """Drop 생성 Handler - 파일과 함께 생성"""
     
-    session: Session
-    storage_service: StorageInterface
-    settings: Settings
+    def __init__(
+        self,
+        session: Session = Depends(get_session),
+        storage_service: StorageInterface = Depends(get_storage),
+        settings: Settings = Depends(get_settings)
+    ):
+        self.session = session
+        self.storage_service = storage_service
+        self.settings = settings
     
     async def execute(
         self,
@@ -101,7 +100,7 @@ class DropCreateHandler(BaseHandler, HashingMixin, TransactionMixin):
                 key = self._generate_unique_drop_key()
             else:
                 # 중복 체크
-                existing = Drop.get_by_key(self.session, key, include_file=False)
+                existing = Drop.get_by_key(self.session, key)
                 if existing:
                     raise DropKeyAlreadyExistsError(f"Drop key already exists: {key}")
 
@@ -144,7 +143,7 @@ class DropCreateHandler(BaseHandler, HashingMixin, TransactionMixin):
             )
 
         temp_file_identifier = f"temp_{str(uuid.uuid4())}"
-        temp_storage_path = self.generate_file_path(temp_file_identifier)
+        temp_storage_path = self._generate_file_path(temp_file_identifier)
         self.log_info("Created temporary storage path", temp_path=temp_storage_path, filename=safe_filename)
         
         write_chunk, finalize = await self.storage_service.save_file_streaming(temp_storage_path)
@@ -186,7 +185,7 @@ class DropCreateHandler(BaseHandler, HashingMixin, TransactionMixin):
             
             calculated_file_hash = file_hash_obj.hexdigest()
             final_file_identifier = str(uuid.uuid4())
-            final_storage_path = self.generate_file_path(final_file_identifier)
+            final_storage_path = self._generate_file_path(final_file_identifier)
             
             if temp_storage_path != final_storage_path:
                 try:
@@ -231,8 +230,8 @@ class DropCreateHandler(BaseHandler, HashingMixin, TransactionMixin):
         max_attempts = 10  # 무한 루프 방지
         
         for _ in range(max_attempts):
-            key = generate_drop_key(length=self.settings.DROP_KEY_LENGTH)
-            existing = Drop.get_by_key(self.session, key, include_file=False)
+            key = str(uuid.uuid4())
+            existing = Drop.get_by_key(self.session, key)
             if not existing:
                 return key
         
@@ -250,3 +249,12 @@ class DropCreateHandler(BaseHandler, HashingMixin, TransactionMixin):
         self.session.flush()  # Drop ID 생성을 위해 flush
         
         return drop 
+    
+    def _generate_file_path(self, identifier: str, extension: Optional[str] = None) -> str:
+        """식별자(해시 또는 UUID)를 기반으로 저장 경로를 생성합니다.
+        확장자가 제공되면 파일명에 포함됩니다.
+        파일은 스토리지 루트에 바로 저장됩니다 (하위 디렉토리 없음).
+        """
+        # 확장자가 있으면 파일명에 추가
+        filename = f"{identifier}.{extension}" if extension else identifier
+        return filename

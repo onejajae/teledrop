@@ -5,43 +5,15 @@
 """
 
 import logging
-import hashlib
-from typing import Optional, Any, Dict, List, Type, TypeVar, Union
+from typing import Optional, TypeVar
 from datetime import datetime, timezone
-from dataclasses import dataclass
 from pathlib import Path
-import os
 import re
 
-from sqlmodel import Session, SQLModel, select, delete
-from sqlalchemy.exc import SQLAlchemyError
+from sqlmodel import Session, SQLModel
 
 from app.core.config import Settings
-from app.core.exceptions import (
-    AccessDeniedError,
-    ApiKeyExpiredError,
-    ApiKeyInvalidError,
-    ApiKeyNotFoundError,
-    AuthenticationError,
-    DropAccessDeniedError,
-    DropNotFoundError,
-    DropPasswordInvalidError,
-    DropFileNotFoundError,
-    FileSizeExceededError,
-    FileUploadError,
-    LoginInvalidError,
-    NotFoundError,
-    PermissionDeniedError,
-    StorageAccessError,
-    StorageError,
-    StorageNotFoundError,
-    TeledropError,
-    TokenExpiredError,
-    TokenInvalidError,
-    ValidationError,
-)
-
-from app.models import Drop, File, ApiKey
+from app.core.exceptions import DropAccessDeniedError, DropPasswordInvalidError, FileSizeExceededError
 
 T = TypeVar('T', bound=SQLModel)
 
@@ -144,21 +116,21 @@ class ValidationMixin:
         return len(description) <= self.settings.MAX_DROP_DESCRIPTION_LENGTH
 
 
-class HashingMixin:
-    """해시 관련 기능을 제공하는 믹스인"""
+# class HashingMixin:
+#     """해시 관련 기능을 제공하는 믹스인"""
     
-    def calculate_file_hash(self, content: bytes) -> str:
-        """파일 내용의 SHA256 해시를 계산합니다."""
-        return hashlib.sha256(content).hexdigest()
+#     def calculate_file_hash(self, content: bytes) -> str:
+#         """파일 내용의 SHA256 해시를 계산합니다."""
+#         return hashlib.sha256(content).hexdigest()
     
-    def generate_file_path(self, identifier: str, extension: Optional[str] = None) -> str:
-        """식별자(해시 또는 UUID)를 기반으로 저장 경로를 생성합니다.
-        확장자가 제공되면 파일명에 포함됩니다.
-        파일은 스토리지 루트에 바로 저장됩니다 (하위 디렉토리 없음).
-        """
-        # 확장자가 있으면 파일명에 추가
-        filename = f"{identifier}.{extension}" if extension else identifier
-        return filename
+#     def generate_file_path(self, identifier: str, extension: Optional[str] = None) -> str:
+#         """식별자(해시 또는 UUID)를 기반으로 저장 경로를 생성합니다.
+#         확장자가 제공되면 파일명에 포함됩니다.
+#         파일은 스토리지 루트에 바로 저장됩니다 (하위 디렉토리 없음).
+#         """
+#         # 확장자가 있으면 파일명에 추가
+#         filename = f"{identifier}.{extension}" if extension else identifier
+#         return filename
 
 
 class TimestampMixin:
@@ -301,42 +273,42 @@ class PaginationMixin:
         return page, page_size
 
 
-class FileMixin:
-    """파일 관련 기능을 제공하는 믹스인"""
+# class FileMixin:
+#     """파일 관련 기능을 제공하는 믹스인"""
     
-    settings: Settings  # Settings 주입 필요
+#     settings: Settings  # Settings 주입 필요
     
-    def file_streamer(self, file_stream, chunk_size: Optional[int] = None):
-        """파일 스트림을 청크 단위로 읽어서 제공합니다."""
-        chunk_size = chunk_size or self.settings.CHUNK_SIZE
-        try:
-            while True:
-                chunk = file_stream.read(chunk_size)
-                if not chunk:
-                    break
-                yield chunk
-        finally:
-            if hasattr(file_stream, 'close'):
-                file_stream.close()
+#     def file_streamer(self, file_stream, chunk_size: Optional[int] = None):
+#         """파일 스트림을 청크 단위로 읽어서 제공합니다."""
+#         chunk_size = chunk_size or self.settings.CHUNK_SIZE
+#         try:
+#             while True:
+#                 chunk = file_stream.read(chunk_size)
+#                 if not chunk:
+#                     break
+#                 yield chunk
+#         finally:
+#             if hasattr(file_stream, 'close'):
+#                 file_stream.close()
     
-    def parse_range_header(self, range_header: str, file_size: int) -> tuple[int, int]:
-        """HTTP Range 헤더를 파싱합니다."""
-        try:
-            # "bytes=start-end" 형식에서 start, end 추출
-            range_spec = range_header.replace('bytes=', '')
-            parts = range_spec.split('-')
+#     def parse_range_header(self, range_header: str, file_size: int) -> tuple[int, int]:
+#         """HTTP Range 헤더를 파싱합니다."""
+#         try:
+#             # "bytes=start-end" 형식에서 start, end 추출
+#             range_spec = range_header.replace('bytes=', '')
+#             parts = range_spec.split('-')
             
-            start = int(parts[0]) if parts[0] else 0
-            end = int(parts[1]) if parts[1] else file_size - 1
+#             start = int(parts[0]) if parts[0] else 0
+#             end = int(parts[1]) if parts[1] else file_size - 1
             
-            # 범위 검증
-            start = max(0, min(start, file_size - 1))
-            end = max(start, min(end, file_size - 1))
+#             # 범위 검증
+#             start = max(0, min(start, file_size - 1))
+#             end = max(start, min(end, file_size - 1))
             
-            return start, end
-        except (ValueError, IndexError):
-            # 잘못된 Range 헤더인 경우 전체 파일 반환
-            return 0, file_size - 1
+#             return start, end
+#         except (ValueError, IndexError):
+#             # 잘못된 Range 헤더인 경우 전체 파일 반환
+#             return 0, file_size - 1
 
 
 class BaseHandler(LoggingMixin, ValidationMixin, TimestampMixin):

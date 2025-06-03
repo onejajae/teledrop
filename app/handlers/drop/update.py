@@ -4,29 +4,32 @@ Drop 수정 Handler
 Drop의 메타데이터 수정 관련 비즈니스 로직을 처리합니다.
 """
 
-from dataclasses import dataclass
 from typing import Optional, Dict, Any
 
 from sqlmodel import Session
+from fastapi import Depends
 
 from app.models import Drop
 from app.handlers.base import BaseHandler, TransactionMixin
 from app.infrastructure.storage.base import StorageInterface
 from app.models.drop import DropUpdate
 from app.core.config import Settings
-from app.core.exceptions import (
-    DropNotFoundError,
-    ValidationError,
-)
+from app.core.exceptions import DropNotFoundError, ValidationError
+from app.core.dependencies import get_session, get_storage, get_settings
 
 
-@dataclass
 class DropUpdateHandler(BaseHandler, TransactionMixin):
     """Drop 수정 Handler"""
     
-    session: Session
-    storage_service: StorageInterface
-    settings: Settings
+    def __init__(
+        self,
+        session: Session = Depends(get_session),
+        storage_service: StorageInterface = Depends(get_storage),
+        settings: Settings = Depends(get_settings)
+    ):
+        self.session = session
+        self.storage_service = storage_service
+        self.settings = settings
     
     def execute(
         self,
@@ -53,7 +56,7 @@ class DropUpdateHandler(BaseHandler, TransactionMixin):
         
         try:
             # Drop 조회 (라우터에서 이미 존재 여부 검증됨)
-            drop = Drop.get_by_key(self.session, drop_key, include_file=False)
+            drop = Drop.get_by_key(self.session, drop_key)
             if not drop:
                 raise DropNotFoundError(f"Drop not found: {drop_key}")
             
