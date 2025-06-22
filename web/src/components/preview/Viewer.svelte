@@ -5,7 +5,7 @@
 
 	export let post;
 
-	const src = `${API_BASE_URL}/content/${post.key}?preview=true${$postPasswords[post.key] ? `&password=${$postPasswords[post.key]}` : ''}`;
+	const src = `${API_BASE_URL}/content/${post.slug}?preview=true${$postPasswords[post.slug] ? `&password=${$postPasswords[post.slug]}` : ''}`;
 </script>
 
 {#if post.file_type.startsWith('image/')}

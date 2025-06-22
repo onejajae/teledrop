@@ -28,10 +28,10 @@ const API = {
 	},
 
 	async getPostList() {
-		const res = await instance.get(`/content`, {
+		const res = await instance.get(`/content/`, {
 			params: { sortby: get(sortBy), orderby: get(orderBy) }
 		});
-		postList.set(res.data.contents);
+		postList.set(res.data.drops);
 
 		return res.data;
 	},
@@ -47,16 +47,16 @@ const API = {
 		}
 	},
 
-	async getKeyExist({ key }) {
-		const res = await instance.get(`/content/keycheck/${key}`);
+	async getKeyExist({ slug }) {
+		const res = await instance.get(`/content/keycheck/${slug}`);
 		return res.data;
 	},
 
 	async uploadPost({ formData }) {
-		if (!Boolean(formData.get('key'))) formData.delete('key');
+		if (!Boolean(formData.get('slug'))) formData.delete('slug');
 
 		uploadProgress.set(0);
-		const res = await instance.post(`/content`, formData, {
+		const res = await instance.post(`/content/`, formData, {
 			onUploadProgress: (progressEvent) => {
 				uploadProgress.update((percentage) =>
 					Math.max(percentage, Math.round((progressEvent.loaded * 100) / progressEvent.total))
@@ -67,77 +67,72 @@ const API = {
 		return res.data;
 	},
 
-	async deletePost({ key, password }) {
-		const res = await instance.delete(`/content/${key}`, {
+	async deletePost({ slug, password }) {
+		const res = await instance.delete(`/content/${slug}`, {
 			params: { password }
 		});
 
 		await this.getPostList();
 		postPasswords.update((passwords) => {
-			delete passwords[key];
+			delete passwords[slug];
 			return passwords;
 		});
 		return res.data;
 	},
 
-	async updatePostDetail({ key, password, formData }) {
-		if (password) formData.set('password', password);
-		const res = await instance.patch(`/content/${key}/detail`, formData);
+	async updatePostDetail({ slug, password, formData }) {
+		const res = await instance.patch(`/content/${slug}/detail`, formData);
 		await this.getPostList();
 		return res.data;
 	},
 
-	async updatePostFavorite({ key, password, favorite }) {
+	async updatePostFavorite({ slug, password, is_favorite }) {
 		const formData = new FormData();
 
-		if (password) formData.set('password', password);
-		formData.set('favorite', favorite);
+		formData.set('favorite', is_favorite);
 
-		const res = await instance.patch(`/content/${key}/favorite`, formData);
+		const res = await instance.patch(`/content/${slug}/favorite`, formData);
 		await this.getPostList();
 		return res.data;
 	},
 
-	async updatePostPermission({ key, password, user_only }) {
+	async updatePostPermission({ slug, password, user_only }) {
 		const formData = new FormData();
 
-		if (password) formData.set('password', password);
 		formData.set('user_only', user_only);
 
-		const res = await instance.patch(`/content/${key}/permission`, formData);
+		const res = await instance.patch(`/content/${slug}/permission`, formData);
 		await this.getPostList();
 		return res.data;
 	},
 
-	async updatePostPassword({ key, formData }) {
-		const res = await instance.patch(`/content/${key}/password`, formData);
+	async updatePostPassword({ slug, formData }) {
+		const res = await instance.patch(`/content/${slug}/password/set`, formData);
 		await this.getPostList();
 		postPasswords.update((passwords) => {
-			delete passwords[key];
+			delete passwords[slug];
 			return passwords;
 		});
 		return res.data;
 	},
 
-	async resetPostPassword({ key, password }) {
-		const formData = new FormData();
-		if (password) formData.set('password', password);
-		const res = await instance.patch(`/content/${key}/reset`, formData);
+	async resetPostPassword({ slug, password }) {
+		const res = await instance.patch(`/content/${slug}/password/remove`);
 		await this.getPostList();
 		postPasswords.update((passwords) => {
-			delete passwords[key];
+			delete passwords[slug];
 			return passwords;
 		});
 		return res.data;
 	},
 
-	async getPostPreview({ key, password }) {
-		const res = await instance.get(`/content/${key}/preview`, {
+	async getPostPreview({ slug, password }) {
+		const res = await instance.get(`/content/${slug}/preview`, {
 			params: { password }
 		});
 
 		postPasswords.update((passwords) => {
-			return { ...passwords, [key]: password };
+			return { ...passwords, [slug]: password };
 		});
 
 		return res.data;

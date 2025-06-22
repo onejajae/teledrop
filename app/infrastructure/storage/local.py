@@ -9,14 +9,16 @@ import anyio
 import anyio.to_thread
 from pathlib import Path
 from typing import AsyncGenerator, BinaryIO, Tuple, Callable, Awaitable
+from contextlib import asynccontextmanager
 
 from .base import StorageInterface
+from app.core.exceptions import StorageError
 
 
 class LocalStorage(StorageInterface):
     """로컬 파일 시스템을 사용하는 스토리지 구현"""
 
-    def __init__(self, base_path: str = "share"):
+    def __init__(self, base_path: str = "share", chunk_size: int = 128 * 1024):
         """LocalStorage 초기화
         
         Args:
@@ -26,6 +28,7 @@ class LocalStorage(StorageInterface):
         self._storage_type = "local"  # 스토리지 타입 속성 추가
         # 디렉토리가 없으면 생성
         self.base_path.mkdir(parents=True, exist_ok=True)
+        self.chunk_size = chunk_size
 
     @property
     def storage_type(self) -> str:
@@ -40,13 +43,10 @@ class LocalStorage(StorageInterface):
         """파일을 로컬 디스크에 저장합니다."""
         full_path = self._get_full_path(file_path)
         
-        # 상위 디렉토리 생성
-        full_path.parent.mkdir(parents=True, exist_ok=True)
-        
         # 파일 저장
         async with await anyio.open_file(full_path, mode="wb") as f:
             while chunk := await anyio.to_thread.run_sync(
-                file_stream.read, 1024 * 1024  # 1MB 청크
+                file_stream.read, self.chunk_size
             ):
                 await f.write(chunk)
         
@@ -60,7 +60,7 @@ class LocalStorage(StorageInterface):
             raise FileNotFoundError(f"File not found: {file_path}")
         
         async with await anyio.open_file(full_path, "rb") as f:
-            while chunk := await f.read(1024 * 1024):  # 1MB 청크
+            while chunk := await f.read(self.chunk_size):  # 1MB 청크
                 yield chunk
 
     async def read_file_range(
@@ -118,55 +118,19 @@ class LocalStorage(StorageInterface):
         
         return full_path.stat().st_size
 
-    def save_file_sync(self, file_stream: BinaryIO, file_path: str) -> str:
-        """파일을 로컬 디스크에 동기 방식으로 저장합니다."""
-        full_path = self._get_full_path(file_path)
-        
-        # 상위 디렉토리 생성
-        full_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # 파일 저장
-        with open(full_path, "wb") as f:
-            while chunk := file_stream.read(1024 * 1024):  # 1MB 청크
-                f.write(chunk)
-        
-        return str(file_path)
 
-    def delete_file_sync(self, file_path: str) -> bool:
-        """파일을 동기 방식으로 삭제합니다."""
+    @asynccontextmanager
+    async def write_stream(self, file_path: str):
+        """파일 쓰기를 위한 스트림 컨텍스트 매니저"""
         full_path = self._get_full_path(file_path)
+        
+        # 스토리지 파일 스트림 생성 (저장용)
+        storage_stream = await anyio.open_file(full_path, mode="wb")
         
         try:
-            if full_path.exists():
-                os.remove(full_path)
-                return True
-            return False
-        except OSError:
-            return False
-
-    async def save_file_streaming(
-        self, 
-        file_path: str,
-        chunk_size: int = 1024 * 1024
-    ) -> Tuple[Callable[[bytes], Awaitable[None]], Callable[[], Awaitable[None]]]:
-        """스트리밍 방식으로 파일을 저장하기 위한 컨텍스트를 반환합니다."""
-        full_path = self._get_full_path(file_path)
-        
-        # 상위 디렉토리 생성
-        full_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # 실제 파일 스트림 생성
-        file_stream = await anyio.open_file(full_path, mode="wb")
-        
-        async def write_chunk(chunk: bytes) -> None:
-            """청크를 파일에 쓴다"""
-            await file_stream.write(chunk)
-        
-        async def finalize() -> None:
-            """파일 저장 완료"""
-            await file_stream.aclose()
-        
-        return write_chunk, finalize 
+            yield storage_stream  # 스토리지 저장 스트림 반환
+        finally:
+            await storage_stream.aclose()
 
     async def move_file(self, old_path: str, new_path: str) -> None:
         """파일을 이동하거나 이름을 변경합니다."""
@@ -184,6 +148,4 @@ class LocalStorage(StorageInterface):
             # 파일 이동
             await anyio.to_thread.run_sync(old_full_path.rename, new_full_path)
         except OSError as e:
-            # app.core.exceptions.StorageError 임포트 필요
-            from app.core.exceptions import StorageError
             raise StorageError(f"Failed to move file from {old_path} to {new_path}: {e}") 

@@ -9,7 +9,7 @@ from sqlalchemy.engine import Engine
 from app.core.config import Settings
 
 # 모든 SQLModel 테이블 클래스들을 import해야 metadata.create_all()이 정상 작동합니다
-from app.models import Drop, File, ApiKey
+from app.models import Drop
 
 # 순환 import를 피하기 위해 여기서는 설정을 직접 import하지 않음
 engine = None

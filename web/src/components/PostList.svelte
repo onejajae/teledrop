@@ -19,7 +19,7 @@
 	dayjs.locale('ko');
 
 	const sortBys = [
-		{ value: 'created_at', name: '날짜' },
+		{ value: 'created_time', name: '날짜' },
 		{ value: 'title', name: '제목' },
 		{ value: 'file_size', name: '크기' }
 	];
@@ -88,8 +88,8 @@
 			<Listgroup active>
 				{#each $postList as post}
 					<ListgroupItem
-						href="/{post.key}"
-						current={post.key === $page.params.key}
+						href="/{post.slug}"
+						current={post.slug === $page.params.slug}
 						class="p-1 py-2"
 					>
 						<div class="flex items-center">
@@ -99,7 +99,7 @@
 
 							<div class="w-full min-w-0 flex-col ps-1">
 								<div class="font-base flex items-center text-base">
-									{#if post.favorite}
+									{#if post.is_favorite}
 										<span class="pe-1"><StarSolid size="xs" /></span>
 									{/if}
 									<span class="truncate">
@@ -113,14 +113,14 @@
 
 								<div class="flex items-center space-x-1 truncate text-sm font-normal">
 									<span>{filesize(post.file_size, { standard: 'jedec' })}</span>
-									{#if !post.user_only}
+									{#if !post.is_private}
 										<span> • 전체 공개</span>
 									{/if}
-									<span> • {dayjs.utc(post.created_at).local().fromNow()}</span>
+									<span> • {dayjs.utc(post.created_time).local().fromNow()}</span>
 								</div>
 							</div>
-							{#if post.required_password}
-								{#if $postPasswords[post.key]}
+							{#if post.has_password}
+								{#if $postPasswords[post.slug]}
 									<span class="pe-3"><LockOpenSolid size="sm" /> </span>
 								{:else}
 									<span class="pe-3"><LockSolid size="sm" /> </span>

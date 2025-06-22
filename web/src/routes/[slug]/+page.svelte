@@ -3,6 +3,6 @@
 	import { page } from '$app/stores';
 </script>
 
-{#key $page.params.key}
-	<Preview key={$page.params.key} />
+{#key $page.params.slug}
+	<Preview slug={$page.params.slug} />
 {/key}

@@ -11,10 +11,9 @@ from sqlmodel import Session
 from fastapi import Depends
 
 from app.core.config import Settings
-from app.core.dependencies import get_session, get_storage, get_settings
+from app.core.dependencies import get_session, get_settings
 from app.core.exceptions import DropNotFoundError, DropPasswordInvalidError, DropAccessDeniedError
 from app.handlers.base import BaseHandler
-from app.infrastructure.storage.base import StorageInterface
 from app.models import Drop
 
 class DropAccessHandler(BaseHandler):
@@ -23,16 +22,14 @@ class DropAccessHandler(BaseHandler):
     def __init__(
         self,
         session: Session = Depends(get_session),
-        storage_service: StorageInterface = Depends(get_storage),
         settings: Settings = Depends(get_settings)
     ):
         self.session = session
-        self.storage_service = storage_service
         self.settings = settings
     
     def execute(
         self,
-        drop_key: str,
+        slug: str,
         password: Optional[str] = None,
         auth_data: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
@@ -40,7 +37,7 @@ class DropAccessHandler(BaseHandler):
         Drop 접근 권한을 검증하고 접근 정보를 반환합니다.
         
         Args:
-            drop_key: Drop 키
+            slug: Drop 키
             password: Drop 패스워드 (필요한 경우)
             auth_data: 인증 정보
             
@@ -52,14 +49,14 @@ class DropAccessHandler(BaseHandler):
             DropPasswordInvalidError: 패스워드가 틀린 경우
             DropAccessDeniedError: 접근 권한이 없는 경우
         """
-        self.log_info("Validating drop access", drop_key=drop_key)
+        self.log_info("Validating drop access", slug=slug)
         
         # Drop 조회
-        drop = self._get_drop(drop_key)
+        drop = self._get_drop(slug)
         
         # 접근 권한 검증
         access_granted = True
-        requires_auth = drop.user_only and self.settings.REQUIRE_AUTH_FOR_SENSITIVE_OPS
+        requires_auth = drop.is_private and self.settings.REQUIRE_AUTH_FOR_SENSITIVE_OPS
         requires_password = bool(drop.password) and self.settings.ENABLE_PASSWORD_PROTECTION
         
         try:
@@ -76,25 +73,24 @@ class DropAccessHandler(BaseHandler):
             raise
         
         result = {
-            "drop_key": drop_key,
+            "slug": slug,
             "access_granted": access_granted,
             "requires_auth": requires_auth,
             "requires_password": requires_password,
-            "has_file": True,  # 모든 Drop은 file을 가짐
             "drop_info": {
                 "title": drop.title,
                 "description": drop.description,
-                "created_at": drop.created_at,
-                "favorite": drop.favorite
+                "created_time": drop.created_time,
+                "favorite": drop.is_favorite
             }
         }
         
-        self.log_info("Drop access validated", drop_key=drop_key, granted=access_granted)
+        self.log_info("Drop access validated", slug=slug, granted=access_granted)
         return result
     
     def validate_access(
         self,
-        drop_key: str,
+        slug: str,
         password: Optional[str] = None,
         auth_data: Optional[Dict[str, Any]] = None,
         require_auth: bool = True
@@ -105,7 +101,7 @@ class DropAccessHandler(BaseHandler):
         인증, 패스워드, 권한을 모두 검증하여 Drop 객체를 반환합니다.
         
         Args:
-            drop_key: Drop 키
+            slug: Drop 키
             password: 입력된 패스워드
             auth_data: 인증 정보
             require_auth: 인증 필수 여부 (기본값: True)
@@ -118,33 +114,33 @@ class DropAccessHandler(BaseHandler):
             DropPasswordInvalidError: 패스워드가 틀린 경우
             DropAccessDeniedError: 접근 권한이 없는 경우
         """
-        self.log_info("Validating drop access", drop_key=drop_key, require_auth=require_auth)
+        self.log_info("Validating drop access", slug=slug, require_auth=require_auth)
         
         # Drop 조회
-        drop = self._get_drop(drop_key)
+        drop = self._get_drop(slug)
         
         # 1. 인증 검증 (필요한 경우)
         if require_auth and self.settings.REQUIRE_AUTH_FOR_SENSITIVE_OPS:
             self._validate_authentication(auth_data)
         
         # 2. 사용자 전용 Drop 검증
-        if drop.user_only and self.settings.REQUIRE_AUTH_FOR_SENSITIVE_OPS:
+        if drop.is_private and self.settings.REQUIRE_AUTH_FOR_SENSITIVE_OPS:
             self._validate_user_access(drop, auth_data)
         
         # 3. 패스워드 검증
         if drop.password:
             self._validate_password(drop, password)
         
-        self.log_info("Drop access validated", drop_key=drop_key)
+        self.log_info("Drop access validated", slug=slug)
         return drop
     
     # === 내부 메서드들 ===
     
-    def _get_drop(self, drop_key: str) -> Drop:
+    def _get_drop(self, slug: str) -> Drop:
         """Drop을 조회합니다."""
-        drop = Drop.get_by_key(self.session, drop_key)
+        drop = Drop.get_by_slug(self.session, slug)
         if not drop:
-            raise DropNotFoundError(f"Drop not found: {drop_key}")
+            raise DropNotFoundError(f"Drop not found: {slug}")
         return drop
     
     def _validate_authentication(self, auth_data: Optional[Dict[str, Any]]):
@@ -156,11 +152,11 @@ class DropAccessHandler(BaseHandler):
     def _validate_user_access(self, drop: Drop, auth_data: Optional[Dict[str, Any]]):
         """사용자 전용 Drop 접근 권한을 검증합니다."""
         if not auth_data:
-            self.log_warning("User-only drop access denied", drop_key=drop.key)
-            raise DropAccessDeniedError("Authentication required for user-only drop")
+            self.log_warning("Private drop access denied", drop_slug=drop.slug)
+            raise DropAccessDeniedError("Authentication required for private drop")
     
     def _validate_password(self, drop: Drop, password: Optional[str]):
         """Drop 패스워드를 검증합니다."""
         if not password or drop.password != password:
-            self.log_warning("Invalid password attempt", drop_key=drop.key)
+            self.log_warning("Invalid password attempt", drop_slug=drop.slug)
             raise DropPasswordInvalidError("Invalid password") 

@@ -13,5 +13,5 @@ export const isLogin = persist_storage('login', false);
 export const postList = writable([]);
 export const uploadProgress = writable(0);
 export const postPasswords = writable({});
-export const sortBy = writable('created_at');
+export const sortBy = writable('created_time');
 export const orderBy = writable('desc');

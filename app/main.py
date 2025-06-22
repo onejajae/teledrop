@@ -111,23 +111,6 @@ if os.path.exists(settings.PATH_WEB_STATIC):
     app.mount("/static", StaticFiles(directory=settings.PATH_WEB_STATIC), name="static")
 
 
-@app.get("/health")
-async def health_check():
-    """
-    애플리케이션 헬스 체크 엔드포인트
-    """
-    from app.routers import get_router_info
-    
-    router_info = get_router_info()
-    
-    return {
-        "status": "healthy",
-        "app_mode": settings.APP_MODE,
-        "version": "1.0.0",
-        "routers": router_info
-    }
-
-
 @app.get("/{catchall:path}")
 async def serve_spa(catchall: str):
     """

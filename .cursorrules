@@ -64,19 +64,26 @@ The application uses a Handler-based architecture where:
 │   │   ├── exceptions.py  # Custom exception classes
 │   │   └── dependencies.py # FastAPI 의존성 주입 (설정, 세션, 스토리지)
 │   ├── handlers/          # Business logic handlers
-│   │   ├── base.py        # Base handler and mixins
+│   │   ├── base.py        # Base handler class
 │   │   ├── __init__.py    # Handler exports
+│   │   ├── mixins/        # Handler mixins for common functionality
+│   │   │   ├── __init__.py     # Mixin exports
+│   │   │   ├── logging.py      # Structured logging capabilities
+│   │   │   ├── validation.py   # Common validation logic for drops, files
+│   │   │   ├── timestamp.py    # Timestamp management for created/updated fields
+│   │   │   └── pagination.py   # Pagination logic for list endpoints
 │   │   ├── drop/          # Drop management handlers
 │   │   │   ├── __init__.py     # Drop handler exports
 │   │   │   ├── create.py       # Drop creation logic
 │   │   │   ├── read.py         # Drop retrieval logic
 │   │   │   ├── update.py       # Drop update logic
 │   │   │   ├── delete.py       # Drop deletion logic
-│   │   │   └── access.py       # Drop access control
-│   │   ├── file/          # File operation handlers
-│   │   │   ├── __init__.py     # File handler exports
+│   │   │   ├── access.py       # Drop access control
+│   │   │   ├── list.py         # Drop listing with pagination
+│   │   │   ├── keycheck.py     # Drop key validation
 │   │   │   └── stream.py       # File streaming logic
 │   │   └── auth/          # Authentication handlers
+│   │       ├── __init__.py     # Auth handler exports
 │   │       ├── user.py         # User authentication logic
 │   │       ├── token.py        # Token management logic
 │   │       └── login.py        # Login logic
@@ -89,21 +96,34 @@ The application uses a Handler-based architecture where:
 │   │       ├── __init__.py     # Storage module exports
 │   │       ├── base.py         # Storage interface definition
 │   │       ├── local.py        # Local filesystem implementation
-│   │       ├── s3.py           # S3 storage implementation
-│   │       └── factory.py      # Storage factory
+│   │       └── s3.py           # S3 storage implementation
 │   ├── models/           # SQLModel database models
 │   │   ├── __init__.py   # Model exports
 │   │   ├── auth.py       # Authentication models
-│   │   ├── drop.py       # Drop models
-│   │   ├── file.py       # File models
-│   │   └── api_key.py    # API key models (DB 테이블만, 비즈니스 로직 없음)
+│   │   └── drop/         # Drop-related models
+│   │       ├── __init__.py     # Drop model exports
+│   │       ├── base.py         # Base drop classes and enums
+│   │       ├── table.py        # Drop and File database models
+│   │       ├── request.py      # Request/input validation models
+│   │       └── response.py     # Response/output models
 │   ├── routers/          # FastAPI route handlers
 │   │   ├── __init__.py   # Router exports
-│   │   ├── api/          # API routers
-│   │   │   ├── __init__.py     # API router exports
-│   │   │   ├── auth_router.py  # Authentication endpoints
-│   │   │   ├── drop_router.py  # Drop management endpoints
-│   │   └── web/          # Web interface routers (future SSR)
+│   │   └── api/          # API routers
+│   │       ├── __init__.py     # API router exports
+│   │       ├── auth/           # Authentication endpoints
+│   │       │   ├── __init__.py     # Auth router exports
+│   │       │   ├── login.py        # Login endpoint
+│   │       │   ├── logout.py       # Logout endpoint
+│   │       │   ├── token.py        # Token management endpoints
+│   │       │   └── user.py         # User management endpoints
+│   │       └── drop/           # Drop management endpoints
+│   │           ├── __init__.py     # Drop router exports
+│   │           ├── create.py       # Drop creation endpoint
+│   │           ├── read.py         # Drop retrieval endpoints
+│   │           ├── update.py       # Drop update endpoints
+│   │           ├── delete.py       # Drop deletion endpoint
+│   │           ├── list.py         # Drop listing endpoint
+│   │           └── keycheck.py     # Drop key validation endpoint
 │   └── utils/            # Utility functions
 ├── web/                  # Frontend SvelteKit application
 │   ├── src/             # Source code
@@ -137,12 +157,10 @@ The application uses a Handler-based architecture where:
 - Use type hints for all parameters and return values
 
 ### Handler Mixins
-- `LoggingMixin`: Provides structured logging capabilities
-- `ValidationMixin`: Common validation logic for drops, files
-- `HashingMixin`: Password hashing utilities
+- `LoggingMixin`: Provides structured logging capabilities with configurable log levels
+- `ValidationMixin`: Common validation logic for drops, files, passwords, and API keys
 - `TimestampMixin`: Timestamp management for created/updated fields
-- `TransactionMixin`: Database transaction management
-- `PaginationMixin`: Pagination logic for list endpoints
+- `PaginationMixin`: Pagination logic for list endpoints with configurable page sizes
 
 ### Python Development with uv
 - Use `uv` as the primary package manager for Python dependencies
@@ -318,13 +336,12 @@ def get_drop_create_handler():
 
 ### Core Entities
 - **Drop**: Main content entity with metadata and 1:1 file relationship
-- **File**: Physical file storage with metadata
-- **ApiKey**: API authentication keys with permissions and expiration
+- **File**: Physical file storage with metadata (embedded in Drop model)
 - **User**: Authentication information (currently single admin user)
 
 ### Relationships
-- Drop ↔ File: One-to-one relationship (every drop has exactly one file)
-- ApiKey → User: Many-to-one relationship (future enhancement)
+- Drop ↔ File: One-to-one embedded relationship (every drop has exactly one file)
+- Future enhancement: API key authentication system
 
 When suggesting code changes or new features:
 1. Follow the Handler pattern for business logic

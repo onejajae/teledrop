@@ -1,7 +1,8 @@
 """
-Drop 수정 Handler
+Drop 수정 Handler들
 
 Drop의 메타데이터 수정 관련 비즈니스 로직을 처리합니다.
+각 핸들러는 완전히 독립적으로 동작하며 특정 업데이트 기능만 담당합니다.
 """
 
 from typing import Optional, Dict, Any
@@ -10,16 +11,21 @@ from sqlmodel import Session
 from fastapi import Depends
 
 from app.models import Drop
-from app.handlers.base import BaseHandler, TransactionMixin
+from app.handlers.base import BaseHandler
+from app.handlers.mixins import ValidationMixin
 from app.infrastructure.storage.base import StorageInterface
-from app.models.drop import DropUpdate
+from app.models.drop import (
+    DropUpdateDetailForm, DropUpdatePermissionForm, 
+    DropSetPasswordForm, DropUpdateFavoriteForm, 
+    DropRead
+)
 from app.core.config import Settings
 from app.core.exceptions import DropNotFoundError, ValidationError
 from app.core.dependencies import get_session, get_storage, get_settings
 
 
-class DropUpdateHandler(BaseHandler, TransactionMixin):
-    """Drop 수정 Handler"""
+class DropDetailUpdateHandler(BaseHandler, ValidationMixin):
+    """Drop 제목, 설명 수정 전담 핸들러"""
     
     def __init__(
         self,
@@ -33,60 +39,200 @@ class DropUpdateHandler(BaseHandler, TransactionMixin):
     
     def execute(
         self,
-        drop_key: str,
-        update_data: DropUpdate,
-        auth_data: Optional[Dict[str, Any]] = None
-    ) -> Drop:
-        """
-        Drop 정보를 수정합니다.
-        
-        Args:
-            drop_key: Drop 키
-            update_data: 수정할 데이터
-            auth_data: 인증 정보 (라우터에서 이미 검증됨)
-            
-        Returns:
-            Drop: 수정된 Drop
-            
-        Raises:
-            DropNotFoundError: Drop을 찾을 수 없는 경우
-            ValidationError: 수정 데이터가 유효하지 않은 경우
-        """
-        self.log_info("Updating drop", drop_key=drop_key)
+        slug: str,
+        form_data: DropUpdateDetailForm
+    ) -> DropRead:
+        """Drop 상세정보를 수정합니다."""
+        self.log_info("Updating drop detail", slug=slug)
         
         try:
-            # Drop 조회 (라우터에서 이미 존재 여부 검증됨)
-            drop = Drop.get_by_key(self.session, drop_key)
+            # Drop 조회
+            drop = Drop.get_by_slug(self.session, slug)
             if not drop:
-                raise DropNotFoundError(f"Drop not found: {drop_key}")
+                raise DropNotFoundError(f"Drop not found: {slug}")
             
-            # 수정할 필드만 업데이트
-            update_dict = update_data.model_dump(exclude_unset=True)
+            # 제목/설명 특화 검증
+            if form_data.title and not self.validate_drop_title_length(form_data.title):
+                raise ValidationError(f"Title exceeds maximum length ({self.settings.MAX_DROP_TITLE_LENGTH})")
             
-            # 수정 데이터 검증
-            self._validate_update_data(update_dict)
+            if form_data.description and not self.validate_drop_description_length(form_data.description):
+                raise ValidationError(f"Description exceeds maximum length ({self.settings.MAX_DROP_DESCRIPTION_LENGTH})")
             
-            # 필드 업데이트
-            for field, value in update_dict.items():
-                setattr(drop, field, value)
+            # 업데이트 (None 값 제외)
+            update_fields = {}
+            if form_data.title is not None:
+                update_fields['title'] = form_data.title
+            if form_data.description is not None:
+                update_fields['description'] = form_data.description
             
-            self.update_timestamps(drop)
+            if update_fields:
+                drop.update(self.session, **update_fields)
             
-            self.session.commit()
-            self.session.refresh(drop)
-            
-            self.log_info("Drop updated successfully", drop_id=str(drop.id))
-            return drop
+            result = DropRead.model_validate(drop)
+            self.log_info("Drop detail updated successfully", drop_id=str(drop.id))
+            return result
             
         except Exception as e:
-            self.session.rollback()
-            self.log_error("Failed to update drop", error=str(e))
+            # 의존성에서 자동 롤백 처리됨
+            self.log_error("Failed to update drop detail", error=str(e))
             raise
+
+
+class DropPermissionUpdateHandler(BaseHandler, ValidationMixin):
+    """Drop 권한 수정 전담 핸들러"""
     
-    def _validate_update_data(self, update_dict: Dict[str, Any]):
-        """수정 데이터 검증"""
-        if 'title' in update_dict and not self.validate_drop_title_length(update_dict['title']):
-            raise ValidationError(f"Drop title exceeds maximum length ({self.settings.MAX_DROP_TITLE_LENGTH})")
+    def __init__(
+        self,
+        session: Session = Depends(get_session),
+        storage_service: StorageInterface = Depends(get_storage),
+        settings: Settings = Depends(get_settings)
+    ):
+        self.session = session
+        self.storage_service = storage_service
+        self.settings = settings
+    
+    def execute(
+        self,
+        slug: str,
+        form_data: DropUpdatePermissionForm
+    ) -> DropRead:
+        """Drop 권한을 수정합니다."""
+        self.log_info("Updating drop permission", slug=slug, is_private=form_data.is_private)
         
-        if 'description' in update_dict and update_dict['description'] and not self.validate_drop_description_length(update_dict['description']):
-            raise ValidationError(f"Drop description exceeds maximum length ({self.settings.MAX_DROP_DESCRIPTION_LENGTH})") 
+        try:
+            drop = Drop.get_by_slug(self.session, slug)
+            if not drop:
+                raise DropNotFoundError(f"Drop not found: {slug}")
+            
+            # 권한 변경
+            drop.update(self.session, is_private=form_data.is_private)
+            
+            result = DropRead.model_validate(drop)
+            self.log_info("Drop permission updated successfully", drop_id=str(drop.id))
+            return result
+            
+        except Exception as e:
+            # 의존성에서 자동 롤백 처리됨
+            self.log_error("Failed to update drop permission", error=str(e))
+            raise
+
+
+class DropPasswordSetHandler(BaseHandler, ValidationMixin):
+    """Drop 패스워드 설정 전담 핸들러"""
+    
+    def __init__(
+        self,
+        session: Session = Depends(get_session),
+        storage_service: StorageInterface = Depends(get_storage),
+        settings: Settings = Depends(get_settings)
+    ):
+        self.session = session
+        self.storage_service = storage_service
+        self.settings = settings
+    
+    def execute(
+        self,
+        slug: str,
+        form_data: DropSetPasswordForm
+    ) -> DropRead:
+        """Drop 패스워드를 설정합니다."""
+        self.log_info("Setting drop password", slug=slug)
+        
+        try:
+            drop = Drop.get_by_slug(self.session, slug)
+            if not drop:
+                raise DropNotFoundError(f"Drop not found: {slug}")
+            
+            # 패스워드 특화 검증 (길이는 이미 Form에서 검증됨)
+            password = form_data.new_password.strip()
+            if not password:
+                raise ValidationError("Password cannot be empty")
+            
+            # 패스워드 설정
+            drop.update(self.session, password=password)
+            
+            result = DropRead.model_validate(drop)
+            self.log_info("Drop password set successfully", drop_id=str(drop.id))
+            return result
+            
+        except Exception as e:
+            # 의존성에서 자동 롤백 처리됨
+            self.log_error("Failed to set drop password", error=str(e))
+            raise
+
+
+class DropPasswordRemoveHandler(BaseHandler, ValidationMixin):
+    """Drop 패스워드 제거 전담 핸들러"""
+    
+    def __init__(
+        self,
+        session: Session = Depends(get_session),
+        storage_service: StorageInterface = Depends(get_storage),
+        settings: Settings = Depends(get_settings)
+    ):
+        self.session = session
+        self.storage_service = storage_service
+        self.settings = settings
+    
+    def execute(
+        self,
+        slug: str
+    ) -> DropRead:
+        """Drop 패스워드를 제거합니다."""
+        self.log_info("Removing drop password", slug=slug)
+        
+        try:
+            drop = Drop.get_by_slug(self.session, slug)
+            if not drop:
+                raise DropNotFoundError(f"Drop not found: {slug}")
+            
+            # 패스워드 제거
+            drop.update(self.session, password=None)
+            
+            result = DropRead.model_validate(drop)
+            self.log_info("Drop password removed successfully", drop_id=str(drop.id))
+            return result
+            
+        except Exception as e:
+            # 의존성에서 자동 롤백 처리됨
+            self.log_error("Failed to remove drop password", error=str(e))
+            raise
+
+
+class DropFavoriteUpdateHandler(BaseHandler, ValidationMixin):
+    """Drop 즐겨찾기 수정 전담 핸들러"""
+    
+    def __init__(
+        self,
+        session: Session = Depends(get_session),
+        storage_service: StorageInterface = Depends(get_storage),
+        settings: Settings = Depends(get_settings)
+    ):
+        self.session = session
+        self.storage_service = storage_service
+        self.settings = settings
+    
+    def execute(
+        self,
+        slug: str,
+        form_data: DropUpdateFavoriteForm
+    ) -> DropRead:
+        """Drop 즐겨찾기를 수정합니다."""
+        self.log_info("Updating drop favorite", slug=slug, is_favorite=form_data.is_favorite)
+        
+        try:
+            drop = Drop.get_by_slug(self.session, slug)
+            if not drop:
+                raise DropNotFoundError(f"Drop not found: {slug}")
+            
+            # 즐겨찾기 변경
+            drop.update(self.session, is_favorite=form_data.is_favorite)
+            
+            result = DropRead.model_validate(drop)
+            self.log_info("Drop favorite updated successfully", drop_id=str(drop.id))
+            return result
+            
+        except Exception as e:
+            # 의존성에서 자동 롤백 처리됨
+            self.log_error("Failed to update drop favorite", error=str(e))
+            raise

@@ -16,6 +16,6 @@
 	</div>
 	<div slot="footer" class="flex justify-center pb-3">
 		<Button class="mx-3 px-5" href="/" size="sm" on:click={reload} outline pill>계속 업로드</Button>
-		<Button class="mx-3 px-5" href={`/${result.key}`} size="sm" outline pill>파일 미리보기</Button>
+		<Button class="mx-3 px-5" href={`/${result.slug}`} size="sm" outline pill>파일 미리보기</Button>
 	</div>
 </Section>

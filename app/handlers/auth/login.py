@@ -1,12 +1,11 @@
-from typing import Optional
 from fastapi import Depends
 from sqlmodel import Session
 from datetime import datetime, timedelta, timezone
+
 from app.handlers.base import BaseHandler
 from app.models.auth import AccessToken
 from app.core.exceptions import AuthenticationError
 from app.core.config import Settings
-# from app.utils.security import verify_password, create_access_token, create_refresh_token
 from app.utils.password import verify_password
 from app.utils.token import create_access_token, create_refresh_token
 from app.core.dependencies import get_session, get_settings
@@ -52,8 +51,9 @@ class LoginHandler(BaseHandler):
                 raise AuthenticationError("Invalid password")
             
             # JWT 토큰 생성
-            access_token = create_access_token({"sub": username, "iat": datetime.now(timezone.utc)}, self.settings, timedelta(minutes=self.settings.JWT_EXP_MINUTES))
-            refresh_token = create_refresh_token({"sub": username, "iat": datetime.now(timezone.utc)}, self.settings, timedelta(days=30))
+            current_time = self.get_current_timestamp() 
+            access_token = create_access_token({"sub": username, "iat": current_time}, self.settings, timedelta(minutes=self.settings.JWT_EXP_MINUTES))
+            refresh_token = create_refresh_token({"sub": username, "iat": current_time}, self.settings, timedelta(days=30))
             
             self.log_info("Login successful", username=username)
             

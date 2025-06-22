@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     # 파일 업로드 설정
     MAX_FILE_SIZE: int = 1024 * 1024 * 1024  # 1GB
     ALLOWED_FILE_EXTENSIONS: str = ""  # 빈 문자열이면 모든 확장자 허용
-    CHUNK_SIZE: int = 8192  # 파일 스트리밍 청크 크기
+    CHUNK_SIZE: int = 1024 * 1024  # 파일 스트리밍 청크 크기
     
     # 페이지네이션 설정
     DEFAULT_PAGE_SIZE: int = 20

@@ -5,256 +5,207 @@ Drop 생성 Handler
 트랜잭션과 보상 트랜잭션 패턴을 사용하여 데이터 일관성을 보장합니다.
 """
 
-from typing import Optional, Dict, Any, Tuple
-import io
+from typing import Optional, Dict, Any, BinaryIO
 import hashlib
 import uuid
+from datetime import datetime
 
 from sqlmodel import Session
-from fastapi import UploadFile, Depends
+from fastapi import Depends
 
-from app.models import Drop, File
-from app.handlers.base import BaseHandler, TransactionMixin
+from app.models import Drop
+from app.handlers.base import BaseHandler
+
 from app.infrastructure.storage.base import StorageInterface
 from app.core.config import Settings
 from app.core.exceptions import ValidationError, StorageError, DropKeyAlreadyExistsError
-from app.utils.file_utils import sanitize_filename, get_file_type
+from app.utils.file_utils import sanitize_filename
 from app.core.dependencies import get_session, get_storage, get_settings
-from app.models.drop import DropCreate
+from app.models.drop import DropCreateForm, DropRead
 
-class DropCreateHandler(BaseHandler, TransactionMixin):
+
+class DropCreateHandler(BaseHandler):
     """Drop 생성 Handler - 파일과 함께 생성"""
     
     def __init__(
         self,
         session: Session = Depends(get_session),
-        storage_service: StorageInterface = Depends(get_storage),
+        storage: StorageInterface = Depends(get_storage),
         settings: Settings = Depends(get_settings)
     ):
         self.session = session
-        self.storage_service = storage_service
+        self.storage = storage
         self.settings = settings
+    
     
     async def execute(
         self,
-        drop_data: DropCreate,
-        upload_file: UploadFile,
-        auth_data: Optional[Dict[str, Any]] = None
-    ) -> Drop:
+        drop_data: DropCreateForm,
+        upload_stream: BinaryIO,
+    ) -> DropRead:
         """
         새로운 Drop을 파일과 함께 생성합니다.
         
         Args:
-            drop_data: Drop 생성 데이터
-            upload_file: 업로드할 파일 (필수)
+            drop_data: 완전한 Drop 생성 데이터 (파일 정보 포함)
+            upload_stream: 업로드할 파일 스트림 (BinaryIO)
             auth_data: 인증 정보
             
         Returns:
-            Drop: 생성된 Drop (파일 포함)
+            DropRead: 생성된 Drop 정보
         """
-        self.log_info("Creating new drop with file", title=drop_data.title)
+        self.log_info("Creating new drop with file", 
+                     title=drop_data.title, 
+                     filename=drop_data.filename,
+                     expected_size=drop_data.file_size)
         
-        # 사전 검증 (트랜잭션 외부에서 수행)
-        self._validate_drop_creation(drop_data, upload_file)
-        
-        # 트랜잭션 내에서 Drop과 파일 생성
-        return await self.execute_in_transaction_async(
-            self._create_drop_with_file_transaction,
-            drop_data,
-            upload_file,
-            auth_data=auth_data
-        )
-    
-    def _validate_drop_creation(self, drop_data: DropCreate, upload_file: UploadFile):
-        """Drop 생성 전 검증 로직 (트랜잭션 외부)"""
-        # Drop 데이터 검증
-        if not self.validate_drop_title_length(drop_data.title or ""):
-            raise ValidationError(f"Drop title exceeds maximum length ({self.settings.MAX_DROP_TITLE_LENGTH})")
-        
-        if drop_data.description and not self.validate_drop_description_length(drop_data.description):
-            raise ValidationError(f"Drop description exceeds maximum length ({self.settings.MAX_DROP_DESCRIPTION_LENGTH})")
-        
-        # 파일 검증
-        if not upload_file or not upload_file.filename:
-            raise ValidationError("File is required when creating a Drop")
-        
-        # 파일 확장자 검증
-        if not self.validate_file_extension(upload_file.filename):
-            extension = upload_file.filename.split('.')[-1] if '.' in upload_file.filename else ''
-            raise ValidationError(f"File extension not allowed: {extension}")
-    
-    async def _create_drop_with_file_transaction(
-        self, 
-        drop_data: DropCreate, 
-        upload_file: UploadFile, 
-        auth_data: Optional[Dict[str, Any]] = None
-    ) -> Drop:
-        """트랜잭션 내에서 실행되는 Drop과 파일 생성 로직"""
-        
-        saved_file_path = None  # 롤백 시 삭제할 파일 경로 추적
-        
-        try:
-            # 1. key 결정: DropCreate에서 key를 우선 사용, 없으면 생성
-            key = drop_data.key
-            if not key or not key.strip():
-                key = self._generate_unique_drop_key()
+        # ═══════════════════════════════════════════════════════════════
+        # 1️⃣ DROP KEY 처리 (비즈니스 규칙)
+        # ═══════════════════════════════════════════════════════════════
+        slug = drop_data.slug
+        if not slug or not slug.strip():
+            # 고유 키 생성
+            max_attempts = 10
+            for _ in range(max_attempts):
+                slug = str(uuid.uuid4())
+                if not Drop.get_by_slug(self.session, slug):
+                    break
             else:
-                # 중복 체크
-                existing = Drop.get_by_key(self.session, key)
-                if existing:
-                    raise DropKeyAlreadyExistsError(f"Drop key already exists: {key}")
-
-            # 2. Drop 생성
-            drop = self._create_drop_record(drop_data, key)
-            
-            # 3. 파일 처리 및 저장
-            file_obj, saved_file_path = await self._process_and_save_file_with_path(upload_file, drop.id)
-            
-            # 4. 최종 커밋은 TransactionMixin에서 자동 처리
-            self.session.refresh(drop)  # 관계 데이터 로드
-            
-            self.log_info("Drop with file created successfully", drop_id=str(drop.id), key=key)
-            return drop
-            
-        except Exception as e:
-            # 트랜잭션 롤백 시 스토리지에서도 파일 삭제 (보상 트랜잭션)
-            if saved_file_path:
-                try:
-                    await self.storage_service.delete_file(saved_file_path)
-                    self.log_info("Compensating transaction: deleted file from storage", path=saved_file_path)
-                except Exception as cleanup_error:
-                    self.log_error("Failed to cleanup file during rollback", 
-                                 path=saved_file_path, error=str(cleanup_error))
-            
-            # 원래 예외를 다시 발생시켜 TransactionMixin이 DB 롤백 처리
-            raise
-    
-    async def _process_and_save_file_with_path(self, upload_file: UploadFile, drop_id: int) -> Tuple[File, str]:
-        """파일 처리, 저장 및 File 레코드 생성 (저장 경로 반환 포함)"""
-        safe_filename = sanitize_filename(upload_file.filename)
-
-        # 클라이언트가 알린 파일 크기 (Content-Length 헤더 기반)
-        declared_size: Optional[int] = upload_file.size
-        if declared_size is None:
-            self.log_info(
-                "Content-Length header not available or zero for file. "
-                "Skipping declared vs actual size integrity check.", 
-                filename=safe_filename
-            )
-
-        temp_file_identifier = f"temp_{str(uuid.uuid4())}"
-        temp_storage_path = self._generate_file_path(temp_file_identifier)
-        self.log_info("Created temporary storage path", temp_path=temp_storage_path, filename=safe_filename)
+                raise ValidationError("Failed to generate unique drop key")
+        else:
+            if Drop.get_by_slug(self.session, slug):
+                raise DropKeyAlreadyExistsError(f"Drop key already exists: {slug}")
         
-        write_chunk, finalize = await self.storage_service.save_file_streaming(temp_storage_path)
+        # ═══════════════════════════════════════════════════════════════
+        # 2️⃣ 파일 처리 및 검증 (검증 후 생성 패턴)
+        # ═══════════════════════════════════════════════════════════════
+        storage_path = str(uuid.uuid4())
         
+        self.log_info("Processing file", path=storage_path)
+        
+        # 스트리밍 저장 
         file_hash_obj = hashlib.sha256()
-        actual_file_size = 0 # 실제 스트림에서 읽은 크기
-        chunk_size = 1024 * 1024
+        actual_file_size = 0
+        chunk_size = self.settings.CHUNK_SIZE
 
         try:
-            while chunk := await upload_file.read(chunk_size):
-                actual_file_size += len(chunk)
-                
-                if actual_file_size > self.settings.MAX_FILE_SIZE:
-                    error_msg = (
-                        f"File size {actual_file_size} bytes exceeds maximum allowed size "
-                        f"({self.settings.MAX_FILE_SIZE} bytes) during streaming."
-                    )
-                    self.log_warning(error_msg, filename=safe_filename, current_size=actual_file_size)
-                    raise ValidationError(error_msg)
-                
-                file_hash_obj.update(chunk)
-                await write_chunk(chunk)
-            
-            await finalize()
-            
-            # 보안 검사: 클라이언트가 알린 크기와 실제 수신된 크기 비교
-            if declared_size is not None and declared_size != actual_file_size:
-                error_msg = (
-                    f"File size mismatch: Declared Content-Length ({declared_size} bytes) "
-                    f"does not match actual received size ({actual_file_size} bytes)."
-                )
-                self.log_error(
-                    error_msg, 
-                    declared_size=declared_size, 
-                    actual_size=actual_file_size, 
-                    filename=safe_filename
-                )
-                raise ValidationError(error_msg)
-            
-            calculated_file_hash = file_hash_obj.hexdigest()
-            final_file_identifier = str(uuid.uuid4())
-            final_storage_path = self._generate_file_path(final_file_identifier)
-            
-            if temp_storage_path != final_storage_path:
-                try:
-                    await self.storage_service.move_file(temp_storage_path, final_storage_path)
-                    self.log_info("Moved file to final storage path", old_path=temp_storage_path, new_path=final_storage_path)
-                except FileNotFoundError:
-                    if not await self.storage_service.file_exists(final_storage_path):
-                        self.log_error("Temporary file missing and final file not created after finalize/move attempt.", temp_path=temp_storage_path, final_path=final_storage_path)
-                        raise StorageError(f"Failed to secure file in final location: {final_storage_path}")
-                    else:
-                        self.log_info("File already at final destination, no move needed.", path=final_storage_path)
-            else:
-                self.log_info("File already at final destination (temp path is final path)", path=final_storage_path)
+            # 컨텍스트 매니저로 자동 파일 관리
+            async with self.storage.write_stream(storage_path) as storage_stream:
+                # 청크 단위로 읽어서 처리
+                while chunk := upload_stream.read(chunk_size):
+                    actual_file_size += len(chunk)
+                    file_hash_obj.update(chunk)
+                    await storage_stream.write(chunk)  
 
-            from app.models.file import FileCreate
-            file_data = FileCreate(
-                original_filename=safe_filename,
-                file_hash=calculated_file_hash,
-                file_type=get_file_type(safe_filename),
-                file_size=actual_file_size, # 실제 계산된 크기 사용
-                storage_type=self.storage_service.storage_type,
-                storage_path=final_storage_path
+            # ═══════════════════════════════════════════════════════════════
+            # 🏷️ FILENAME 처리 (해시 기반) - drop_data에서 추출
+            # ═══════════════════════════════════════════════════════════════
+            file_hash = file_hash_obj.hexdigest()
+            filename = drop_data.filename
+            
+            if not filename or not filename.strip():
+                # 해시는 이미 안전하므로 sanitize 불필요
+                safe_filename = file_hash
+                self.log_info("Generated filename from hash", 
+                             generated=safe_filename,
+                             full_hash=file_hash)
+            else:
+                # 외부 입력(신뢰할 수 없음)만 sanitize
+                filename = filename.strip()
+                safe_filename = sanitize_filename(filename)
+                self.log_info("Using provided filename", 
+                             original=filename, 
+                             sanitized=safe_filename)
+
+            # ═══════════════════════════════════════════════════════════════
+            # 🔍 파일 크기 무결성 검증 (Content-Length vs 실제 크기)
+            # ═══════════════════════════════════════════════════════════════
+            expected_size = drop_data.file_size
+            if expected_size is not None and expected_size != actual_file_size:
+                self.log_error("File size mismatch detected", 
+                              expected=expected_size, 
+                              actual=actual_file_size,
+                              path=storage_path)
+                # 스토리지에서 파일 삭제 (보상 트랜잭션)
+                try:
+                    await self.storage.delete_file(storage_path)
+                except Exception as cleanup_error:
+                    self.log_error("Failed to cleanup file after size mismatch", 
+                                  path=storage_path, error=str(cleanup_error))
+                
+                raise ValidationError(
+                    f"File size mismatch: expected {expected_size} bytes, "
+                    f"but received {actual_file_size} bytes"
+                )
+            else:
+                self.log_info("File size validation passed", 
+                             expected=expected_size, 
+                             actual=actual_file_size)
+
+        except Exception as e:
+            self.log_error("Error during file processing", 
+                          path=storage_path, error=str(e))
+            raise
+        
+        # ═══════════════════════════════════════════════════════════════
+        # 3️⃣ DATABASE 트랜잭션 - Drop 생성 (모델 메서드 활용)
+        # ═══════════════════════════════════════════════════════════════
+        self.log_info("File processing completed successfully, creating Drop entity")
+        
+        try:
+            # Drop 생성 데이터 준비
+            create_data = {
+                "title": drop_data.title,
+                "description": drop_data.description,
+                "password": drop_data.password,
+                "is_private": drop_data.is_private,
+                "is_favorite": drop_data.is_favorite,
+                "updated_time": None,
+                # 파일 정보 (통합된 모델)
+                "file_name": safe_filename,
+                "file_size": actual_file_size,
+                "file_type": drop_data.content_type,
+                "file_hash": file_hash,
+                "storage_type": self.storage.storage_type,
+                "storage_path": storage_path
+            }
+            
+            # 모델의 create 메서드 사용 (내부에서 commit 수행)
+            drop = Drop.create(
+                session=self.session,
+                drop_data=create_data,
+                slug=slug,
+                created_time=self.get_current_timestamp()
             )
             
-            file_obj = File(**file_data.model_dump(), drop_id=drop_id)
-            self.update_timestamps(file_obj, update_created=True)
-            self.session.add(file_obj)
-            return file_obj, final_storage_path
+            self.log_info("Drop created successfully", 
+                         drop_id=str(drop.id), 
+                         slug=slug)
             
         except Exception as e:
-            self.log_error("Error during file processing, attempting to cleanup temporary file", path=temp_storage_path, error=str(e), filename=safe_filename)
+            # 의존성에서 자동 롤백 처리됨
+            self.log_error("Database transaction failed", error=str(e))
+            
+            # 스토리지에서 파일 삭제 (보상 트랜잭션)
             try:
-                if await self.storage_service.file_exists(temp_storage_path):
-                    await self.storage_service.delete_file(temp_storage_path)
-                    self.log_info("Cleaned up temporary file after error", path=temp_storage_path)
+                await self.storage_service.delete_file(storage_path)
+                self.log_info("Successfully cleaned up storage file", path=storage_path)
             except Exception as cleanup_error:
-                self.log_error("Failed to cleanup temporary file after error", path=temp_storage_path, cleanup_error=str(cleanup_error))
+                self.log_error("Failed to cleanup storage file after DB failure", 
+                              path=storage_path, error=str(cleanup_error))
+            
             raise
-    
-    def _generate_unique_drop_key(self) -> str:
-        """중복되지 않는 고유한 Drop 키 생성"""
-        max_attempts = 10  # 무한 루프 방지
         
-        for _ in range(max_attempts):
-            key = str(uuid.uuid4())
-            existing = Drop.get_by_key(self.session, key)
-            if not existing:
-                return key
+        # ═══════════════════════════════════════════════════════════════
+        # 4️⃣ 성공 응답 반환
+        # ═══════════════════════════════════════════════════════════════
         
-        raise ValidationError("Failed to generate unique drop key after multiple attempts")
-    
-    def _create_drop_record(self, drop_data: DropCreate, key: str) -> Drop:
-        """Drop 레코드 생성 및 데이터베이스 저장"""
-        drop_dict = drop_data.model_dump()
-        drop_dict["key"] = key
+        # DropRead 스키마로 변환하여 반환 (model_validate 사용)
+        result = DropRead.model_validate(drop)
         
-        drop = Drop(**drop_dict)
-        self.update_timestamps(drop, update_created=True)
+        self.log_info("Drop creation completed successfully", 
+                     drop_id=str(drop.id), 
+                     slug=slug,
+                     file_size=actual_file_size)
         
-        self.session.add(drop)
-        self.session.flush()  # Drop ID 생성을 위해 flush
-        
-        return drop 
-    
-    def _generate_file_path(self, identifier: str, extension: Optional[str] = None) -> str:
-        """식별자(해시 또는 UUID)를 기반으로 저장 경로를 생성합니다.
-        확장자가 제공되면 파일명에 포함됩니다.
-        파일은 스토리지 루트에 바로 저장됩니다 (하위 디렉토리 없음).
-        """
-        # 확장자가 있으면 파일명에 추가
-        filename = f"{identifier}.{extension}" if extension else identifier
-        return filename
+        return result

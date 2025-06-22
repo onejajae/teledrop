@@ -5,8 +5,10 @@ boto3 라이브러리를 사용하여 S3 API와 통신합니다.
 """
 
 import boto3
-import tempfile
-from typing import AsyncGenerator, BinaryIO, Tuple, Callable, Awaitable
+import io
+import anyio
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator, BinaryIO
 from botocore.exceptions import ClientError, NoCredentialsError
 
 from .base import StorageInterface
@@ -62,22 +64,49 @@ class S3Storage(StorageInterface):
     async def save_file(self, file_stream: BinaryIO, file_path: str) -> str:
         """파일을 S3에 저장합니다."""
         try:
-            # 파일을 S3에 업로드
-            self.s3_client.upload_fileobj(
+            # boto3 upload_fileobj는 동기 함수이므로 anyio.to_thread로 실행
+            await anyio.to_thread.run_sync(
+                self.s3_client.upload_fileobj,
                 file_stream,
                 self.bucket_name,
                 file_path,
-                ExtraArgs={"ServerSideEncryption": "AES256"}  # 서버 사이드 암호화
+                {"ServerSideEncryption": "AES256"}  # 서버 사이드 암호화
             )
             return file_path
             
         except ClientError as e:
             raise RuntimeError(f"Failed to upload file to S3: {e}")
 
+    @asynccontextmanager
+    async def write_stream(self, file_path: str):
+        """스트리밍 쓰기를 위한 스트림 컨텍스트 매니저를 반환합니다.
+        
+        S3는 직접 스트리밍 쓰기를 지원하지 않으므로 메모리 버퍼를 사용합니다.
+        대용량 파일의 경우 메모리 사용량이 클 수 있으니 주의하세요.
+        """
+        buffer = io.BytesIO()
+        try:
+            yield buffer
+            
+            # 버퍼의 내용을 S3에 업로드
+            buffer.seek(0)
+            await anyio.to_thread.run_sync(
+                self.s3_client.upload_fileobj,
+                buffer,
+                self.bucket_name,
+                file_path,
+                {"ServerSideEncryption": "AES256"}
+            )
+        except ClientError as e:
+            raise RuntimeError(f"Failed to upload file to S3: {e}")
+        finally:
+            buffer.close()
+
     async def read_file(self, file_path: str) -> AsyncGenerator[bytes, None]:
         """S3에서 파일의 전체 내용을 읽어서 반환합니다."""
         try:
-            response = self.s3_client.get_object(
+            response = await anyio.to_thread.run_sync(
+                self.s3_client.get_object,
                 Bucket=self.bucket_name,
                 Key=file_path
             )
@@ -86,7 +115,10 @@ class S3Storage(StorageInterface):
             chunk_size = 1024 * 1024  # 1MB 청크
             
             with response["Body"] as stream:
-                while chunk := stream.read(chunk_size):
+                while True:
+                    chunk = await anyio.to_thread.run_sync(stream.read, chunk_size)
+                    if not chunk:
+                        break
                     yield chunk
                     
         except ClientError as e:
@@ -102,7 +134,8 @@ class S3Storage(StorageInterface):
             # HTTP Range 헤더 사용
             range_header = f"bytes={start}-{end}"
             
-            response = self.s3_client.get_object(
+            response = await anyio.to_thread.run_sync(
+                self.s3_client.get_object,
                 Bucket=self.bucket_name,
                 Key=file_path,
                 Range=range_header
@@ -111,7 +144,10 @@ class S3Storage(StorageInterface):
             chunk_size = 1024 * 1024  # 1MB 청크
             
             with response["Body"] as stream:
-                while chunk := stream.read(chunk_size):
+                while True:
+                    chunk = await anyio.to_thread.run_sync(stream.read, chunk_size)
+                    if not chunk:
+                        break
                     yield chunk
                     
         except ClientError as e:
@@ -122,7 +158,8 @@ class S3Storage(StorageInterface):
     async def delete_file(self, file_path: str) -> bool:
         """S3에서 파일을 삭제합니다."""
         try:
-            self.s3_client.delete_object(
+            await anyio.to_thread.run_sync(
+                self.s3_client.delete_object,
                 Bucket=self.bucket_name,
                 Key=file_path
             )
@@ -138,7 +175,8 @@ class S3Storage(StorageInterface):
     async def file_exists(self, file_path: str) -> bool:
         """S3에서 파일이 존재하는지 확인합니다."""
         try:
-            self.s3_client.head_object(
+            await anyio.to_thread.run_sync(
+                self.s3_client.head_object,
                 Bucket=self.bucket_name,
                 Key=file_path
             )
@@ -152,7 +190,8 @@ class S3Storage(StorageInterface):
     async def get_file_size(self, file_path: str) -> int:
         """S3에서 파일 크기를 반환합니다."""
         try:
-            response = self.s3_client.head_object(
+            response = await anyio.to_thread.run_sync(
+                self.s3_client.head_object,
                 Bucket=self.bucket_name,
                 Key=file_path
             )
@@ -162,37 +201,6 @@ class S3Storage(StorageInterface):
             if e.response["Error"]["Code"] == "404":
                 raise FileNotFoundError(f"File not found: {file_path}")
             raise RuntimeError(f"Failed to get file size from S3: {e}")
-
-    async def save_file_streaming(
-        self, 
-        file_path: str,
-        chunk_size: int = 1024 * 1024
-    ) -> Tuple[Callable[[bytes], Awaitable[None]], Callable[[], Awaitable[None]]]:
-        """스트리밍 방식으로 파일을 저장하기 위한 컨텍스트를 반환합니다."""
-        # 임시 파일 생성 (S3 업로드용)
-        temp_file = tempfile.TemporaryFile()
-        
-        async def write_chunk(chunk: bytes) -> None:
-            """청크를 임시 파일에 저장"""
-            await anyio.to_thread.run_sync(temp_file.write, chunk)
-        
-        async def finalize() -> None:
-            """임시 파일을 S3에 업로드"""
-            await anyio.to_thread.run_sync(temp_file.seek, 0)
-            try:
-                await anyio.to_thread.run_sync(
-                    self.s3_client.upload_fileobj,
-                    temp_file,
-                    self.bucket_name,
-                    file_path,
-                    ExtraArgs={"ServerSideEncryption": "AES256"}
-                )
-            except ClientError as e:
-                raise RuntimeError(f"Failed to upload file to S3: {e}")
-            finally:
-                await anyio.to_thread.run_sync(temp_file.close) # Ensure temp_file is closed
-        
-        return write_chunk, finalize 
 
     async def move_file(self, old_path: str, new_path: str) -> None:
         """S3 내에서 객체를 복사하고 이전 객체를 삭제하여 이동을 흉내냅니다."""
@@ -215,6 +223,5 @@ class S3Storage(StorageInterface):
         except ClientError as e:
             if e.response["Error"]["Code"] == "NoSuchKey":
                 raise FileNotFoundError(f"Source file not found in S3: {old_path}")
-            # app.core.exceptions.StorageError 임포트 필요
             from app.core.exceptions import StorageError
             raise StorageError(f"Failed to move file in S3 from {old_path} to {new_path}: {e}") 

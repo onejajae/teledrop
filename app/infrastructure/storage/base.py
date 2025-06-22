@@ -6,6 +6,7 @@
 
 from abc import ABC, abstractmethod
 from typing import AsyncGenerator, BinaryIO, Tuple, Callable, Awaitable
+from contextlib import asynccontextmanager
 
 
 class StorageInterface(ABC):
@@ -33,25 +34,22 @@ class StorageInterface(ABC):
         """
         pass
 
+
+
     @abstractmethod
-    async def save_file_streaming(
-        self, 
-        file_path: str,
-        chunk_size: int = 1024 * 1024
-    ) -> Tuple[Callable[[bytes], Awaitable[None]], Callable[[], Awaitable[None]]]:
-        """스트리밍 방식으로 파일을 저장하기 위한 컨텍스트를 반환합니다.
+    @asynccontextmanager
+    async def write_stream(self, file_path: str):
+        """파일 쓰기를 위한 스트림 컨텍스트 매니저
         
         Args:
             file_path: 저장할 파일 경로 (상대경로)
-            chunk_size: 청크 크기 (기본 1MB)
             
-        Returns:
-            Tuple[write_chunk, finalize]:
-                - write_chunk: 청크를 쓰는 비동기 함수
-                - finalize: 저장을 완료하는 비동기 함수
+        Yields:
+            파일 스트림 객체 (write, aclose 메서드 제공)
             
-        Raises:
-            StorageError: 파일 저장 실패 시
+        Examples:
+            async with storage.write_stream("file.txt") as stream:
+                await stream.write(b"data")
         """
         pass
 

@@ -26,9 +26,9 @@
 	import { API, API_BASE_URL } from '$lib/api.js';
 	import { onMount } from 'svelte';
 
-	export let key;
+	export let slug;
 
-	let postLoading = API.getPostPreview({ key, password: $postPasswords[key] });
+	let postLoading = API.getPostPreview({ slug, password: $postPasswords[slug] });
 	let passwordCorrect = true;
 	let deleted = false;
 
@@ -37,13 +37,13 @@
 
 	async function handlePasswordSubmit(event) {
 		const formData = new FormData(event.target);
-		postLoading = API.getPostPreview({ key, password: formData.get('file-password') });
+		postLoading = API.getPostPreview({ slug, password: formData.get('file-password') });
 		passwordCorrect = false;
 	}
 
 	async function handleDelete() {
 		if (confirm('정말 삭제하시겠습니까?')) {
-			await API.deletePost({ key, password: $postPasswords[key] });
+			await API.deletePost({ slug, password: $postPasswords[slug] });
 			alert('삭제가 완료되었습니다.');
 			deleted = true;
 		}
@@ -51,16 +51,16 @@
 
 	async function handleUpdatePassword(event) {
 		const formData = new FormData(event.target);
-		await API.updatePostPassword({ key, formData });
-		postLoading = API.getPostPreview({ key, password: $postPasswords[key] });
+		await API.updatePostPassword({ slug, formData });
+		postLoading = API.getPostPreview({ slug, password: $postPasswords[slug] });
 		updatePasswordModal = false;
 		passwordCorrect = true;
 	}
 
 	async function handleUpdateDetail(event) {
 		const formData = new FormData(event.target);
-		await API.updatePostDetail({ key, password: $postPasswords[key], formData });
-		postLoading = API.getPostPreview({ key, password: $postPasswords[key] });
+		await API.updatePostDetail({ slug, password: $postPasswords[slug], formData });
+		postLoading = API.getPostPreview({ slug, password: $postPasswords[slug] });
 		updateDetailModal = false;
 		passwordCorrect = true;
 	}
@@ -92,8 +92,8 @@
 					<button
 						on:click={async () => {
 							await API.updatePostPermission({
-								key,
-								password: $postPasswords[key],
+								slug,
+								password: $postPasswords[slug],
 								user_only: !post.user_only
 							});
 							post.user_only = !post.user_only;
@@ -111,14 +111,14 @@
 					{:else}
 						<Tooltip type="light">나만 보기로 변경</Tooltip>
 					{/if}
-					{#if post.required_password}
+					{#if post.has_password}
 						<button
 							on:click={async () => {
 								if (confirm('비밀번호 설정을 해제하시겠습니까?')) {
-									await API.resetPostPassword({ key, password: $postPasswords[key] });
+									await API.resetPostPassword({ slug, password: $postPasswords[slug] });
 									alert('비밀번호가 해제되었습니다.');
 								}
-								post.required_password = false;
+								post.has_password = false;
 							}}
 							class="rounded-lg p-1.5 text-xs text-gray-600 hover:bg-gray-200 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500"
 						>
@@ -140,21 +140,21 @@
 					<button
 						on:click={async () => {
 							await API.updatePostFavorite({
-								key,
-								password: $postPasswords[key],
-								favorite: !post.favorite
+								slug,
+								password: $postPasswords[slug],
+								is_favorite: !post.is_favorite
 							});
-							post.favorite = !post.favorite;
+							post.is_favorite = !post.is_favorite;
 						}}
 						class="rounded-lg p-1.5 text-xs text-gray-600 hover:bg-gray-200 hover:text-amber-300 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500 dark:hover:text-yellow-300"
 					>
-						{#if post.favorite}
+						{#if post.is_favorite}
 							<StarSolid />
 						{:else}
 							<StarOutline />
 						{/if}
 					</button>
-					{#if post.favorite}
+					{#if post.is_favorite}
 						<Tooltip type="light">즐겨찾기 해제</Tooltip>
 					{:else}
 						<Tooltip type="light">즐겨찾기 설정</Tooltip>
@@ -194,7 +194,7 @@
 				<div class="mb-1 flex justify-center">
 					<Button
 						rel="external"
-						href={`${API_BASE_URL}/content/${key}${$postPasswords[key] ? `?password=${$postPasswords[key]}` : ''}`}
+						href={`${API_BASE_URL}/content/${slug}${$postPasswords[slug] ? `?password=${$postPasswords[slug]}` : ''}`}
 						size="sm"
 						class="mx-2 px-5"
 						color="light"
@@ -215,7 +215,7 @@
 				bind:updatePasswordModal
 				resetAvailable={(function () {
 					for (const post of $postList) {
-						if (post.key === key) {
+						if (post.slug === slug) {
 							return true;
 						}
 					}

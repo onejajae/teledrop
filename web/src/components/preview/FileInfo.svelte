@@ -29,12 +29,12 @@
 		<P size="sm">
 			<div class="flex items-center">
 				<span class="me-1">
-					{dayjs.utc(post.created_at).local().format('YYYY-MM-DD (dd) HH:mm:ss')} 에 업로드</span
+					{dayjs.utc(post.created_time).local().format('YYYY-MM-DD (dd) HH:mm:ss')} 에 업로드</span
 				>
-				{#if post.updated_at}
+				{#if post.updated_time}
 					<span><InfoCircleOutline size="sm" /></span>
 					<Tooltip type="light"
-						>{dayjs.utc(post.updated_at).local().format('YYYY-MM-DD (dd) HH:mm:ss')} 에 수정됨</Tooltip
+						>{dayjs.utc(post.updated_time).local().format('YYYY-MM-DD (dd) HH:mm:ss')} 에 수정됨</Tooltip
 					>
 				{/if}
 			</div>
