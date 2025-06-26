@@ -13,10 +13,4 @@ api_router = APIRouter()
 
 # 라우터들을 메인 라우터에 포함 (prefix를 여기서 중앙집중 관리)
 api_router.include_router(auth_router, prefix="/auth", tags=["Auth"])
-api_router.include_router(drop_router, prefix="/content", tags=["Content"])
-
-__all__ = [
-    "api_router",
-    "auth_router",
-    "drop_router"
-] 
+api_router.include_router(drop_router, prefix="/drop", tags=["Drop"]) 

@@ -22,13 +22,13 @@
 	import UpdatDetailModal from './UpdateDetailModal.svelte';
 	import UpdatePasswordModal from './UpdatePasswordModal.svelte';
 
-	import { postPasswords, postList, isLogin } from '$lib/store.js';
+	import { dropPasswords, dropList, isLogin } from '$lib/store.js';
 	import { API, API_BASE_URL } from '$lib/api.js';
 	import { onMount } from 'svelte';
 
 	export let slug;
 
-	let postLoading = API.getPostPreview({ slug, password: $postPasswords[slug] });
+	let dropLoading = API.getDropPreview({ slug, password: $dropPasswords[slug] });
 	let passwordCorrect = true;
 	let deleted = false;
 
@@ -37,13 +37,13 @@
 
 	async function handlePasswordSubmit(event) {
 		const formData = new FormData(event.target);
-		postLoading = API.getPostPreview({ slug, password: formData.get('file-password') });
+		dropLoading = API.getDropPreview({ slug, password: formData.get('file-password') });
 		passwordCorrect = false;
 	}
 
 	async function handleDelete() {
 		if (confirm('정말 삭제하시겠습니까?')) {
-			await API.deletePost({ slug, password: $postPasswords[slug] });
+			await API.deleteDrop({ slug, password: $dropPasswords[slug] });
 			alert('삭제가 완료되었습니다.');
 			deleted = true;
 		}
@@ -51,16 +51,16 @@
 
 	async function handleUpdatePassword(event) {
 		const formData = new FormData(event.target);
-		await API.updatePostPassword({ slug, formData });
-		postLoading = API.getPostPreview({ slug, password: $postPasswords[slug] });
+		await API.updateDropPassword({ slug, formData });
+		dropLoading = API.getDropPreview({ slug, password: $dropPasswords[slug] });
 		updatePasswordModal = false;
 		passwordCorrect = true;
 	}
 
 	async function handleUpdateDetail(event) {
 		const formData = new FormData(event.target);
-		await API.updatePostDetail({ slug, password: $postPasswords[slug], formData });
-		postLoading = API.getPostPreview({ slug, password: $postPasswords[slug] });
+		await API.updateDropDetail({ slug, password: $dropPasswords[slug], formData });
+		dropLoading = API.getDropPreview({ slug, password: $dropPasswords[slug] });
 		updateDetailModal = false;
 		passwordCorrect = true;
 	}
@@ -78,11 +78,11 @@
 </script>
 
 {#if !deleted}
-	{#await postLoading then post}
+	{#await dropLoading then drop}
 		<Section>
 			<span slot="title">
-				{#if post.title}
-					{post.title}
+				{#if drop.title}
+					{drop.title}
 				{:else}
 					미리보기
 				{/if}
@@ -91,34 +91,34 @@
 				{#if $isLogin}
 					<button
 						on:click={async () => {
-							await API.updatePostPermission({
+							await API.updateDropPermission({
 								slug,
-								password: $postPasswords[slug],
-								user_only: !post.user_only
+								password: $dropPasswords[slug],
+								is_private: !drop.is_private
 							});
-							post.user_only = !post.user_only;
+							drop.is_private = !drop.is_private;
 						}}
 						class="rounded-lg p-1.5 text-xs text-gray-600 hover:bg-gray-200 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500"
 					>
-						{#if post.user_only}
+						{#if drop.is_private}
 							<UserCircleSolid />
 						{:else}
 							<GlobeSolid />
 						{/if}
 					</button>
-					{#if post.user_only}
+					{#if drop.is_private}
 						<Tooltip type="light">전체 보기로 변경</Tooltip>
 					{:else}
 						<Tooltip type="light">나만 보기로 변경</Tooltip>
 					{/if}
-					{#if post.has_password}
+					{#if drop.has_password}
 						<button
 							on:click={async () => {
 								if (confirm('비밀번호 설정을 해제하시겠습니까?')) {
-									await API.resetPostPassword({ slug, password: $postPasswords[slug] });
+									await API.resetDropPassword({ slug, password: $dropPasswords[slug] });
 									alert('비밀번호가 해제되었습니다.');
+									drop.has_password = false;
 								}
-								post.has_password = false;
 							}}
 							class="rounded-lg p-1.5 text-xs text-gray-600 hover:bg-gray-200 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500"
 						>
@@ -139,22 +139,22 @@
 
 					<button
 						on:click={async () => {
-							await API.updatePostFavorite({
+							await API.updateDropFavorite({
 								slug,
-								password: $postPasswords[slug],
-								is_favorite: !post.is_favorite
+								password: $dropPasswords[slug],
+								is_favorite: !drop.is_favorite
 							});
-							post.is_favorite = !post.is_favorite;
+							drop.is_favorite = !drop.is_favorite;
 						}}
 						class="rounded-lg p-1.5 text-xs text-gray-600 hover:bg-gray-200 hover:text-amber-300 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500 dark:hover:text-yellow-300"
 					>
-						{#if post.is_favorite}
+						{#if drop.is_favorite}
 							<StarSolid />
 						{:else}
 							<StarOutline />
 						{/if}
 					</button>
-					{#if post.is_favorite}
+					{#if drop.is_favorite}
 						<Tooltip type="light">즐겨찾기 해제</Tooltip>
 					{:else}
 						<Tooltip type="light">즐겨찾기 설정</Tooltip>
@@ -177,24 +177,24 @@
 			</div>
 			<div slot="content" class="space-y-2">
 				<div class="flex justify-center">
-					<Viewer {post} />
+					<Viewer drop={drop} />
 				</div>
 
-				{#if post.description}
+				{#if drop.description}
 					<div>
-						<P class="mx-1" whitespace="prewrap">{post.description}</P>
+						<P class="mx-1" whitespace="prewrap">{drop.description}</P>
 					</div>
 				{/if}
 
 				<div>
-					<FileInfo {post} />
+					<FileInfo drop={drop} />
 				</div>
 			</div>
 			<div slot="footer">
 				<div class="mb-1 flex justify-center">
 					<Button
 						rel="external"
-						href={`${API_BASE_URL}/content/${slug}${$postPasswords[slug] ? `?password=${$postPasswords[slug]}` : ''}`}
+						href={`${API_BASE_URL}/drop/${slug}${$dropPasswords[slug] ? `?password=${$dropPasswords[slug]}` : ''}`}
 						size="sm"
 						class="mx-2 px-5"
 						color="light"
@@ -204,7 +204,7 @@
 				</div>
 			</div>
 		</Section>
-		<UpdatDetailModal bind:open={updateDetailModal} {post} {handleUpdateDetail} />
+		<UpdatDetailModal bind:open={updateDetailModal} drop={drop} {handleUpdateDetail} />
 		<UpdatePasswordModal bind:open={updatePasswordModal} {handleUpdatePassword} />
 	{:catch error}
 		{#if error.response.status === 401}
@@ -214,8 +214,8 @@
 				{passwordCorrect}
 				bind:updatePasswordModal
 				resetAvailable={(function () {
-					for (const post of $postList) {
-						if (post.slug === slug) {
+					for (const drop of $dropList) {
+						if (drop.slug === slug) {
 							return true;
 						}
 					}

@@ -1,13 +1,12 @@
-from typing import Optional
 from fastapi import Depends
-from sqlmodel import Session
 from datetime import datetime, timezone
+
 from app.handlers.base import BaseHandler
 from app.models.auth import TokenPayload
 from app.core.exceptions import AuthenticationError
 from app.core.config import Settings
 from app.utils.token import verify_token
-from app.core.dependencies import get_session, get_settings
+from app.core.dependencies import get_settings
 
 
 class TokenValidateHandler(BaseHandler):
@@ -17,10 +16,8 @@ class TokenValidateHandler(BaseHandler):
     """
     def __init__(
         self,
-        session: Optional[Session] = Depends(get_session),
         settings: Settings = Depends(get_settings)
     ):
-        self.session = session
         self.settings = settings
     
     async def execute(self, token: str) -> TokenPayload:
@@ -72,61 +69,3 @@ class TokenValidateHandler(BaseHandler):
         except Exception as e:
             self.log_error("Token validation error", error=str(e))
             raise AuthenticationError("Token validation failed")
-
-
-# class TokenRefreshHandler(BaseHandler):
-#     """토큰 갱신을 담당하는 Handler
-    
-#     리프레시 토큰으로 새로운 액세스 토큰을 발급합니다.
-#     """
-#     def __init__(
-#         self,
-#         session: Optional[Session] = Depends(get_session),
-#         settings: Settings = Depends(get_settings)
-#     ):
-#         self.session = session
-#         self.settings = settings
-    
-#     async def execute(self, refresh_token: str) -> AccessToken:
-#         """리프레시 토큰으로 새 액세스 토큰을 생성합니다.
-        
-#         Args:
-#             refresh_token: 리프레시 토큰
-            
-#         Returns:
-#             AccessToken: 새로운 액세스 토큰
-            
-#         Raises:
-#             AuthenticationError: 리프레시 토큰이 유효하지 않을 때
-#         """
-#         self.log_info("Token refresh requested")
-        
-#         try:
-#             # 리프레시 토큰 검증
-#             validator = TokenValidateHandler(session=None, settings=self.settings)
-#             token_payload = await validator.execute(refresh_token)
-            
-#             # 리프레시 토큰 타입 확인
-#             if token_payload.token_type != "refresh":
-#                 self.log_warning("Invalid token type for refresh", token_type=token_payload.token_type)
-#                 raise AuthenticationError("Invalid token type")
-            
-#             # 새 액세스 토큰 생성
-#             login_handler = LoginHandler(session=None, settings=self.settings)
-#             access_token = await login_handler._create_access_token(token_payload.username)
-            
-#             self.log_info("Token refresh successful", username=token_payload.username)
-            
-#             return AccessToken(
-#                 access_token=access_token,
-#                 refresh_token=refresh_token,  # 기존 리프레시 토큰 재사용
-#                 token_type="bearer",
-#                 expires_in=self.settings.JWT_EXP_MINUTES * 60
-#             )
-            
-#         except AuthenticationError:
-#             self.log_error("Token refresh failed")
-#             raise
-#         except Exception as e:
-#             self.log_error("Token refresh error", error=str(e))
-#             raise AuthenticationError("Token refresh failed")

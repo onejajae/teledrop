@@ -1,13 +1,13 @@
 from fastapi import Depends
-from sqlmodel import Session
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta, timezone, datetime
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.handlers.base import BaseHandler
-from app.models.auth import AccessToken
+from app.models.auth import AccessToken, TokenPayload
 from app.core.exceptions import AuthenticationError
 from app.core.config import Settings
 from app.utils.password import verify_password
-from app.utils.token import create_access_token, create_refresh_token
+from app.utils.token import create_jwt_token
 from app.core.dependencies import get_session, get_settings
 
 class LoginHandler(BaseHandler):
@@ -18,7 +18,7 @@ class LoginHandler(BaseHandler):
     """
     def __init__(
         self,
-        session: Session = Depends(get_session),
+        session: AsyncSession = Depends(get_session),
         settings: Settings = Depends(get_settings)
     ):
         self.session = session
@@ -43,23 +43,26 @@ class LoginHandler(BaseHandler):
             # 사용자명 검증 (Settings에서 관리자 계정 확인)
             if username != self.settings.WEB_USERNAME:
                 self.log_warning("Invalid username", username=username)
-                raise AuthenticationError("Invalid username")
+                raise AuthenticationError("Invalid username or password")
             
             # 패스워드 검증 (SecurityUtils 사용)
             if not verify_password(password, self.settings.WEB_PASSWORD):
                 self.log_warning("Password verification failed")
-                raise AuthenticationError("Invalid password")
+                raise AuthenticationError("Invalid username or password")
             
             # JWT 토큰 생성
-            current_time = self.get_current_timestamp() 
-            access_token = create_access_token({"sub": username, "iat": current_time}, self.settings, timedelta(minutes=self.settings.JWT_EXP_MINUTES))
-            refresh_token = create_refresh_token({"sub": username, "iat": current_time}, self.settings, timedelta(days=30))
+            current_time = datetime.now(timezone.utc)
+            payload = TokenPayload(
+                username=username,
+                token_type="access",
+                exp=current_time + timedelta(minutes=self.settings.JWT_EXP_MINUTES)
+            )
+            access_token = create_jwt_token(payload, self.settings)
             
             self.log_info("Login successful", username=username)
             
             return AccessToken(
                 access_token=access_token,
-                refresh_token=refresh_token,
                 token_type="bearer",
                 expires_in=self.settings.JWT_EXP_MINUTES * 60
             )

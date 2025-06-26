@@ -10,8 +10,8 @@ const persist_storage = (key, initValue) => {
 };
 
 export const isLogin = persist_storage('login', false);
-export const postList = writable([]);
+export const dropList = writable([]);
 export const uploadProgress = writable(0);
-export const postPasswords = writable({});
+export const dropPasswords = writable({});
 export const sortBy = writable('created_time');
 export const orderBy = writable('desc');

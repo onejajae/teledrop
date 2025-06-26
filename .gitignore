@@ -4,9 +4,14 @@
 *$py.class
 .env
 .env.*
+.ruff_cache/
+.pytest_cache/
 
 # vscode
 .vscode
+
+# cursor
+.cursor
 
 # virtual environment
 .venv

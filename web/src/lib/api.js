@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 import { get } from 'svelte/store';
-import { isLogin, postList, uploadProgress, postPasswords, sortBy, orderBy } from '$lib/store.js';
+import { isLogin, dropList, uploadProgress, dropPasswords, sortBy, orderBy } from '$lib/store.js';
 
 const API_BASE_URL = '/api';
 const instance = axios.create({ baseURL: API_BASE_URL });
@@ -22,16 +22,17 @@ const API = {
 		try {
 			const res = await instance.get(`/auth/logout`);
 			isLogin.set(false);
+			dropPasswords.set({});
 		} catch (error) {
 			isLogin.set(false);
 		}
 	},
 
-	async getPostList() {
-		const res = await instance.get(`/content/`, {
+	async getDropList() {
+		const res = await instance.get(`/drop/`, {
 			params: { sortby: get(sortBy), orderby: get(orderBy) }
 		});
-		postList.set(res.data.drops);
+		dropList.set(res.data.drops);
 
 		return res.data;
 	},
@@ -47,91 +48,99 @@ const API = {
 		}
 	},
 
-	async getKeyExist({ slug }) {
-		const res = await instance.get(`/content/keycheck/${slug}`);
-		return res.data;
+	async getSlugExists({ slug }) {
+		const res = await instance.get(`/drop/${slug}/exists`);
+		return res.data.exists;
 	},
 
-	async uploadPost({ formData }) {
+	async uploadDrop({ formData }) {
 		if (!Boolean(formData.get('slug'))) formData.delete('slug');
 
 		uploadProgress.set(0);
-		const res = await instance.post(`/content/`, formData, {
+		const res = await instance.post(`/drop/`, formData, {
 			onUploadProgress: (progressEvent) => {
 				uploadProgress.update((percentage) =>
 					Math.max(percentage, Math.round((progressEvent.loaded * 100) / progressEvent.total))
 				);
 			}
 		});
-		await this.getPostList();
+		await this.getDropList();
 		return res.data;
 	},
 
-	async deletePost({ slug, password }) {
-		const res = await instance.delete(`/content/${slug}`, {
+	async deleteDrop({ slug, password }) {
+		const res = await instance.delete(`/drop/${slug}`, {
 			params: { password }
 		});
 
-		await this.getPostList();
-		postPasswords.update((passwords) => {
+		await this.getDropList();
+		dropPasswords.update((passwords) => {
 			delete passwords[slug];
 			return passwords;
 		});
 		return res.data;
 	},
 
-	async updatePostDetail({ slug, password, formData }) {
-		const res = await instance.patch(`/content/${slug}/detail`, formData);
-		await this.getPostList();
+	async updateDropDetail({ slug, password, formData }) {
+		const res = await instance.patch(`/drop/${slug}/detail`, formData, {
+			params: { password }
+		});
+		await this.getDropList();
 		return res.data;
 	},
 
-	async updatePostFavorite({ slug, password, is_favorite }) {
+	async updateDropFavorite({ slug, password, is_favorite }) {
 		const formData = new FormData();
 
-		formData.set('favorite', is_favorite);
+		formData.set('is_favorite', is_favorite);
 
-		const res = await instance.patch(`/content/${slug}/favorite`, formData);
-		await this.getPostList();
+		const res = await instance.patch(`/drop/${slug}/favorite`, formData, {
+			params: { password }
+		});
+		await this.getDropList();
 		return res.data;
 	},
 
-	async updatePostPermission({ slug, password, user_only }) {
+	async updateDropPermission({ slug, password, is_private }) {
 		const formData = new FormData();
 
-		formData.set('user_only', user_only);
+		formData.set('is_private', is_private);
 
-		const res = await instance.patch(`/content/${slug}/permission`, formData);
-		await this.getPostList();
+		const res = await instance.patch(`/drop/${slug}/permission`, formData, {
+			params: { password }
+		});
+		await this.getDropList();
 		return res.data;
 	},
 
-	async updatePostPassword({ slug, formData }) {
-		const res = await instance.patch(`/content/${slug}/password/set`, formData);
-		await this.getPostList();
-		postPasswords.update((passwords) => {
+	async updateDropPassword({ slug, formData }) {
+		const res = await instance.patch(`/drop/${slug}/password/set`, formData);
+		await this.getDropList();
+		dropPasswords.update((passwords) => {
 			delete passwords[slug];
 			return passwords;
 		});
 		return res.data;
 	},
 
-	async resetPostPassword({ slug, password }) {
-		const res = await instance.patch(`/content/${slug}/password/remove`);
-		await this.getPostList();
-		postPasswords.update((passwords) => {
+	async resetDropPassword({ slug, password }) {
+		const res = await instance.patch(`/drop/${slug}/password/remove`, null, {
+			params: { password }
+		});
+		await this.getDropList();
+		dropPasswords.update((passwords) => {
 			delete passwords[slug];
 			return passwords;
 		});
 		return res.data;
 	},
 
-	async getPostPreview({ slug, password }) {
-		const res = await instance.get(`/content/${slug}/preview`, {
+	async getDropPreview({ slug, password }) {
+		const res = await instance.get(`/drop/${slug}/preview`, {
 			params: { password }
 		});
 
-		postPasswords.update((passwords) => {
+		dropPasswords.update((passwords) => {
 			return { ...passwords, [slug]: password };
 		});
 

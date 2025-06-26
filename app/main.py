@@ -11,8 +11,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-
-# 마이그레이션된 코드 사용
 from app.infrastructure.database import init_db
 from app.routers import api_router
 from app.core.dependencies import get_settings
@@ -39,7 +37,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # 데이터베이스가 없으면 초기화
     if not os.path.exists(settings.DATABASE_URL.replace("sqlite:///", "")):
         print("🗃️  데이터베이스를 초기화합니다...")
-        init_db(settings)
+        await init_db()
         print("✅ 데이터베이스 초기화가 완료되었습니다.")
 
     print("✅ 애플리케이션 시작이 완료되었습니다.")

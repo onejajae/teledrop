@@ -2,7 +2,7 @@
 	import '../app.css';
 
 	import Header from '../components/Header.svelte';
-	import PostList from '../components/PostList.svelte';
+	import DropList from '../components/DropList.svelte';
 
 	import { isLogin } from '$lib/store.js';
 </script>
@@ -21,7 +21,7 @@
 			{/key}
 		</main>
 		{#if $isLogin}
-			<PostList></PostList>
+			<DropList></DropList>
 		{/if}
 		<footer></footer>
 	</div>

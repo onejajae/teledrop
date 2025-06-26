@@ -12,7 +12,7 @@
 	async function handleUpload(event) {
 		const formData = new FormData(event.target);
 		formData.set('file', file);
-		uploadResult = API.uploadPost({ formData });
+		uploadResult = API.uploadDrop({ formData });
 		waitUpload = false;
 	}
 </script>

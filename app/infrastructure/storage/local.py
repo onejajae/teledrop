@@ -8,7 +8,7 @@ import os
 import anyio
 import anyio.to_thread
 from pathlib import Path
-from typing import AsyncGenerator, BinaryIO, Tuple, Callable, Awaitable
+from typing import AsyncGenerator, BinaryIO
 from contextlib import asynccontextmanager
 
 from .base import StorageInterface
@@ -18,17 +18,18 @@ from app.core.exceptions import StorageError
 class LocalStorage(StorageInterface):
     """로컬 파일 시스템을 사용하는 스토리지 구현"""
 
-    def __init__(self, base_path: str = "share", chunk_size: int = 128 * 1024):
+    def __init__(self, base_path: str = "share", read_chunk_size: int = 1024 * 1024 * 8, write_chunk_size: int = 1024 * 1024 * 4):
         """LocalStorage 초기화
         
         Args:
             base_path: 파일이 저장될 기본 디렉토리 경로
+            read_chunk_size: 파일 읽기 시 사용할 청크 크기 (기본 8MB)
+            write_chunk_size: 파일 쓰기 시 사용할 청크 크기 (기본 4MB)
         """
         self.base_path = Path(base_path)
         self._storage_type = "local"  # 스토리지 타입 속성 추가
-        # 디렉토리가 없으면 생성
-        self.base_path.mkdir(parents=True, exist_ok=True)
-        self.chunk_size = chunk_size
+        self.read_chunk_size = read_chunk_size
+        self.write_chunk_size = write_chunk_size
 
     @property
     def storage_type(self) -> str:
@@ -39,60 +40,74 @@ class LocalStorage(StorageInterface):
         """상대 경로를 전체 경로로 변환"""
         return self.base_path / file_path
 
-    async def save_file(self, file_stream: BinaryIO, file_path: str) -> str:
-        """파일을 로컬 디스크에 저장합니다."""
+    @asynccontextmanager
+    async def _write_stream(self, file_path: str):
+        """파일 쓰기를 위한 스트림 컨텍스트 매니저 (내부 구현)"""
         full_path = self._get_full_path(file_path)
         
-        # 파일 저장
-        async with await anyio.open_file(full_path, mode="wb") as f:
-            while chunk := await anyio.to_thread.run_sync(
-                file_stream.read, self.chunk_size
-            ):
-                await f.write(chunk)
+        # 상위 디렉토리 생성
+        await anyio.to_thread.run_sync(
+            lambda: full_path.parent.mkdir(parents=True, exist_ok=True)
+        )
         
-        return str(file_path)
+        # 스토리지 파일 스트림 생성 (저장용)
+        storage_stream = await anyio.open_file(full_path, mode="wb")
+        
+        try:
+            yield storage_stream  # 스토리지 저장 스트림 반환
+        finally:
+            await storage_stream.aclose()
 
-    async def read_file(self, file_path: str) -> AsyncGenerator[bytes, None]:
-        """파일의 전체 내용을 읽어서 반환합니다."""
-        full_path = self._get_full_path(file_path)
-        
-        if not full_path.exists():
-            raise FileNotFoundError(f"File not found: {file_path}")
-        
-        async with await anyio.open_file(full_path, "rb") as f:
-            while chunk := await f.read(self.chunk_size):  # 1MB 청크
-                yield chunk
-
-    async def read_file_range(
-        self, file_path: str, start: int, end: int
+    async def read(
+        self, 
+        file_path: str, 
+        start: int | None = None, 
+        end: int | None = None
     ) -> AsyncGenerator[bytes, None]:
-        """파일의 지정된 범위를 읽어서 반환합니다."""
+        """파일의 내용을 읽어서 반환합니다."""
         full_path = self._get_full_path(file_path)
         
         if not full_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
         
-        chunk_size = 1024 * 1024  # 1MB 청크
-        
         async with await anyio.open_file(full_path, "rb") as f:
-            await f.seek(start)
-            pos = await f.tell()
-            
-            while pos <= end:
-                remaining_size = end + 1 - pos
-                if remaining_size <= 0:
-                    break
+            # 범위 읽기인 경우
+            if start is not None or end is not None:
+                # 시작 위치 설정
+                if start is not None:
+                    await f.seek(start)
+                    pos = start
+                else:
+                    pos = 0
                 
-                read_size = min(chunk_size, remaining_size)
-                data = await f.read(read_size)
+                # 끝 위치 설정 (None이면 파일 끝까지)
+                if end is None:
+                    # 파일 크기 확인
+                    await f.seek(0, 2)  # 파일 끝으로 이동
+                    file_size = await f.tell()
+                    end = file_size - 1
+                    await f.seek(pos)  # 원래 시작 위치로 복귀
                 
-                if not data:
-                    break
-                
-                pos += read_size
-                yield data
+                # 범위 내에서 청크 단위로 읽기
+                while pos <= end:
+                    remaining_size = end + 1 - pos
+                    if remaining_size <= 0:
+                        break
+                    
+                    read_size = min(self.read_chunk_size, remaining_size)
+                    data = await f.read(read_size)
+                    
+                    if not data:
+                        break
+                    
+                    pos += len(data)
+                    yield data
+            else:
+                # 전체 파일 읽기
+                while chunk := await f.read(self.read_chunk_size):
+                    yield chunk
 
-    async def delete_file(self, file_path: str) -> bool:
+    async def delete(self, file_path: str) -> bool:
         """파일을 삭제합니다."""
         full_path = self._get_full_path(file_path)
         
@@ -104,12 +119,12 @@ class LocalStorage(StorageInterface):
         except OSError:
             return False
 
-    async def file_exists(self, file_path: str) -> bool:
+    async def exists(self, file_path: str) -> bool:
         """파일이 존재하는지 확인합니다."""
         full_path = self._get_full_path(file_path)
         return full_path.exists()
 
-    async def get_file_size(self, file_path: str) -> int:
+    async def size(self, file_path: str) -> int:
         """파일 크기를 반환합니다."""
         full_path = self._get_full_path(file_path)
         
@@ -118,21 +133,7 @@ class LocalStorage(StorageInterface):
         
         return full_path.stat().st_size
 
-
-    @asynccontextmanager
-    async def write_stream(self, file_path: str):
-        """파일 쓰기를 위한 스트림 컨텍스트 매니저"""
-        full_path = self._get_full_path(file_path)
-        
-        # 스토리지 파일 스트림 생성 (저장용)
-        storage_stream = await anyio.open_file(full_path, mode="wb")
-        
-        try:
-            yield storage_stream  # 스토리지 저장 스트림 반환
-        finally:
-            await storage_stream.aclose()
-
-    async def move_file(self, old_path: str, new_path: str) -> None:
+    async def move(self, old_path: str, new_path: str) -> None:
         """파일을 이동하거나 이름을 변경합니다."""
         old_full_path = self._get_full_path(old_path)
         new_full_path = self._get_full_path(new_path)

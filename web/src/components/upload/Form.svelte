@@ -20,11 +20,11 @@
 	export let handleUpload;
 
 	let files;
-	let key;
+	let slug;
 	let password1;
 	let password2;
 
-	let isKeyExist = false;
+	let isSlugExists = false;
 	let usePassword = false;
 
 	let filename;
@@ -62,11 +62,11 @@
 		filedata = URL.createObjectURL(files[0]);
 	}
 
-	async function handleKeyChange(event) {
-		if (key) {
-			isKeyExist = await API.getKeyExist({ key });
+	async function handleSlugChange(event) {
+		if (slug) {
+			isSlugExists = await API.getSlugExists({ slug });
 		} else {
-			isKeyExist = false;
+			isSlugExists = false;
 		}
 	}
 </script>
@@ -128,24 +128,24 @@
 		{/if}
 	</Dropzone>
 
-	<Label for="url-key" class="space-y-1">
+	<Label for="url-slug" class="space-y-1">
 		<span>접근 URL</span>
 		<div class="flex">
 			<Button class="rounded-e-none px-3" color="light" disabled>{window.location.host}/</Button>
 			<Input
 				clearable
 				type="text"
-				name="key"
-				id="url-key"
+				name="slug"
+				id="url-slug"
 				class="rounded-s-none"
-				color={isKeyExist ? 'red' : 'green'}
+				color={isSlugExists ? 'red' : 'green'}
 				placeholder="입력하지 않으면 자동 생성됩니다."
 				autoComplete="off"
-				on:change={handleKeyChange}
-				bind:value={key}
+				on:change={handleSlugChange}
+				bind:value={slug}
 			></Input>
 		</div>
-		{#if isKeyExist}
+		{#if isSlugExists}
 			<Helper class="text-center" color="red">
 				<span class="font-medium">이미 사용 중인 URL 입니다.</span>
 			</Helper>
@@ -211,7 +211,7 @@
 			type="submit"
 			disabled={!(
 				Boolean(file) &&
-				!isKeyExist &&
+				!isSlugExists &&
 				(!usePassword || (password1 === password2 && Boolean(password1)))
 			)}><UploadOutline class="me-3" />업로드</Button
 		>

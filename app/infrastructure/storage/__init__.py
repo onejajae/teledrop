@@ -2,9 +2,8 @@
 
 파일 스토리지 추상화 레이어입니다.
 현재는 로컬 파일 시스템만 지원합니다.
-"""
 
-from .base import StorageInterface
-from .local import LocalStorage
-
-__all__ = ["StorageInterface", "LocalStorage"] 
+사용 예시:
+    from app.infrastructure.storage.base import StorageInterface
+    from app.infrastructure.storage.local import LocalStorage
+""" 

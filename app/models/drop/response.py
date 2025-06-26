@@ -5,16 +5,11 @@ Drop API 응답 스키마들
 각 스키마는 특정 API 엔드포인트의 응답 형태에 맞춰 설계되었습니다.
 """
 
-from typing import TYPE_CHECKING
 
 from sqlmodel import SQLModel, Field
 from pydantic import computed_field
 
 from .base import DropCore, DropDetail, DropFileDetail
-
-if TYPE_CHECKING:
-    pass
-
 
 # ═══════════════════════════════════════════════════════════════
 # 📤 응답 스키마들 - API 응답용 데이터 구조
@@ -61,17 +56,15 @@ class DropList(SQLModel):
         if self.page_size and self.page_size > 0:
             return (self.total_count + self.page_size - 1) // self.page_size
         return None
+
+
+class DropDeleteResult(SQLModel):
+    """Drop 삭제 결과 스키마"""
     
-    @property
-    def has_next(self) -> bool | None:
-        """다음 페이지 존재 여부"""
-        if self.page is not None and self.total_pages is not None:
-            return self.page < self.total_pages
-        return None
+    deleted_slug: str 
+
+
+class DropExistsResult(SQLModel):
+    """Drop 슬러그 존재 여부 스키마"""
     
-    @property
-    def has_prev(self) -> bool | None:
-        """이전 페이지 존재 여부"""
-        if self.page is not None:
-            return self.page > 1
-        return None 
+    exists: bool    

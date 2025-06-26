@@ -6,8 +6,8 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status, Response
 
-from app.handlers.auth.user import CurrentUserHandler
 from app.models.auth import AuthData
+from app.core.dependencies import get_auth_data
 
 
 router = APIRouter()
@@ -16,7 +16,7 @@ router = APIRouter()
 @router.get("/logout")
 async def logout(
     response: Response,
-    user_handler: CurrentUserHandler = Depends(CurrentUserHandler),
+    auth_data: AuthData | None = Depends(get_auth_data),
 ):
     """로그아웃 엔드포인트
     
@@ -31,8 +31,7 @@ async def logout(
     Returns:
         dict: 로그아웃 성공 메시지
     """
-    current_user = user_handler.execute()
-    if not current_user:
+    if not auth_data:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="인증이 필요합니다",
@@ -42,14 +41,10 @@ async def logout(
     try:
         # HttpOnly 쿠키에서 토큰들 제거
         response.delete_cookie(key="access_token")
-        response.delete_cookie(key="refresh_token")
         
-        return {
-            "message": "Successfully logged out",
-            "user": current_user.username
-        }
+        return {"message": "Successfully logged out"}
         
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Logout failed"

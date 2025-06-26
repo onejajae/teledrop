@@ -19,7 +19,7 @@ router = APIRouter()
 async def login(
     response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
-    handler: LoginHandler = Depends(LoginHandler)
+    login_handler: LoginHandler = Depends(LoginHandler)
 ):
     """사용자 로그인 엔드포인트
     
@@ -37,7 +37,7 @@ async def login(
         HTTPException: 인증 실패 시 401 에러
     """
     try:
-        token_result = await handler.execute(
+        token = await login_handler.execute(
             username=form_data.username,
             password=form_data.password
         )
@@ -45,32 +45,22 @@ async def login(
         # HttpOnly 쿠키에 액세스 토큰 설정 (보안)
         response.set_cookie(
             key="access_token",
-            value=f"Bearer {token_result.access_token}",
+            value=f"Bearer {token.access_token}",
             httponly=True,
             samesite="strict",
-            max_age=token_result.expires_in
+            max_age=token.expires_in
         )
         
-        # 리프레시 토큰도 HttpOnly 쿠키로 설정 (보안 강화)
-        if token_result.refresh_token:
-            response.set_cookie(
-                key="refresh_token",
-                value=token_result.refresh_token,
-                httponly=True,
-                samesite="strict",
-                max_age=30 * 24 * 60 * 60  # 30일
-            )
+        return token
         
-        return token_result
-        
-    except AuthenticationError as e:
+    except AuthenticationError:
         # Handler에서 발생한 인증 에러를 HTTP 401로 변환
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password",
             headers={"WWW-Authenticate": "Bearer"}
         )
-    except Exception as e:
+    except Exception:
         # 예상치 못한 에러를 HTTP 500으로 변환
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

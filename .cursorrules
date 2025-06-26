@@ -5,7 +5,7 @@ This is teledrop, a private file-sharing platform for self-hosted servers built 
 
 ## Technology Stack
 - **Backend**: Python 3.12+, FastAPI, SQLModel, Uvicorn
-- **Frontend**: SvelteKit, TypeScript, TailwindCSS, Flowbite
+- **Frontend**: SvelteKit, JavaScript, TailwindCSS, Flowbite
 - **Database**: SQLite with SQLModel ORM
 - **Authentication**: JWT tokens, API Keys, Argon2 password hashing
 - **Storage**: Local filesystem with pluggable storage interface
@@ -45,8 +45,8 @@ The application uses a Handler-based architecture where:
   - Run development server: `uv run uvicorn app.main:app --reload`
   - Sync dependencies: `uv sync`
 
-### JavaScript/TypeScript (Frontend)
-- Use TypeScript for type safety
+### JavaScript (Frontend)
+- Use JavaScript with JSDoc comments for type documentation when needed
 - Follow Svelte/SvelteKit conventions and best practices
 - Use TailwindCSS for styling with Flowbite components
 - Use async/await for API calls with proper error handling
@@ -54,97 +54,57 @@ The application uses a Handler-based architecture where:
 - Use ESLint and Prettier for code formatting
 - Prefer composition over inheritance in Svelte components
 
-### File Organization
+## File & Directory Structure
+
+This project follows a Handler-based clean architecture with clear layer separation and domain-driven organization.
+
+### Backend Structure (Python/FastAPI)
+
+- **Application Entry Point:** `app/main.py` - FastAPI application setup and router registration
+- **Core Layer:** `app/core/` contains application-wide configuration (`config.py`), dependency injection (`dependencies.py`), and custom exceptions (`exceptions.py`)
+- **API Routers:** `app/routers/api/[domain]/` format for HTTP endpoints. (e.g., `app/routers/api/drop/create.py`, `app/routers/api/auth/login.py`)
+- **Business Logic Handlers:** `app/handlers/[domain]/[action].py` format for business logic implementation. (e.g., `app/handlers/drop/create.py`, `app/handlers/auth/login.py`)
+- **Handler Common Functionality:** `app/handlers/mixins/` contains reusable handler capabilities. (e.g., `logging.py`, `access_control.py`, `pagination.py`, `timestamp.py`)
+- **Data Models:** `app/models/[domain]/` separated by domain. Each domain contains `table.py` (DB models), `request.py` (input), `response.py` (output), `base.py` (common)
+- **Infrastructure Layer:** `app/infrastructure/` contains database connections (`database/`) and storage implementations (`storage/`)
+- **Utility Functions:** `app/utils/` directory contains shared utilities. (e.g., `password.py`, `token.py`, `file_utils.py`)
+
+### Frontend Structure (SvelteKit/JavaScript)
+
+- **Pages:** `web/src/routes/` directory following SvelteKit file-based routing conventions. Contains `+layout.svelte`, `+page.svelte`, and dynamic routes like `[slug]/`
+- **UI Components:** `web/src/components/` contains all reusable components organized by functionality
+  - **Common Components:** Root level components (e.g., `Header.svelte`, `Footer.svelte`, `Logo.svelte`, `Login.svelte`)
+  - **Upload Components:** `web/src/components/upload/` for file upload functionality (e.g., `Form.svelte`, `Upload.svelte`, `Progress.svelte`)
+  - **Preview Components:** `web/src/components/preview/` for drop viewing and management (e.g., `Preview.svelte`, `Viewer.svelte`, `FileInfo.svelte`)
+  - **Error Components:** `web/src/components/preview/error/` for error handling (e.g., `Error401.svelte`, `Error403.svelte`, `Error404.svelte`)
+- **Library Layer:** `web/src/lib/` contains shared functionality
+  - **API Client:** `api.js` - centralized backend communication
+  - **State Management:** `store.js` - global state using Svelte stores
+  - **Module Exports:** `index.js` - library exports
+- **Static Assets:** `web/static/static/` contains favicons, app icons, and PWA manifest files
+- **Configuration:** Root level configuration files (`svelte.config.js`, `vite.config.js`, `tailwind.config.cjs`, etc.)
+
+### Naming Conventions
+
+- **Backend Files:** snake_case (e.g., `drop_create.py`, `user_login.py`)
+- **Handler Classes:** PascalCase + Handler suffix (e.g., `DropCreateHandler`, `UserLoginHandler`)
+- **Router Functions:** verb_noun format (e.g., `create_drop`, `login_user`)
+- **Frontend Components:** PascalCase (e.g., `DropCard.svelte`, `LoginForm.svelte`)
+- **API Functions:** camelCase (e.g., `createDrop`, `loginUser`)
+
+### Layer Dependency Rules
+
 ```
-├── app/                    # Backend application code
-│   ├── main.py            # FastAPI application entry point
-│   ├── core/              # Core functionality
-│   │   ├── config.py      # Application configuration
-│   │   ├── __init__.py    # Core module exports
-│   │   ├── exceptions.py  # Custom exception classes
-│   │   └── dependencies.py # FastAPI 의존성 주입 (설정, 세션, 스토리지)
-│   ├── handlers/          # Business logic handlers
-│   │   ├── base.py        # Base handler class
-│   │   ├── __init__.py    # Handler exports
-│   │   ├── mixins/        # Handler mixins for common functionality
-│   │   │   ├── __init__.py     # Mixin exports
-│   │   │   ├── logging.py      # Structured logging capabilities
-│   │   │   ├── validation.py   # Common validation logic for drops, files
-│   │   │   ├── timestamp.py    # Timestamp management for created/updated fields
-│   │   │   └── pagination.py   # Pagination logic for list endpoints
-│   │   ├── drop/          # Drop management handlers
-│   │   │   ├── __init__.py     # Drop handler exports
-│   │   │   ├── create.py       # Drop creation logic
-│   │   │   ├── read.py         # Drop retrieval logic
-│   │   │   ├── update.py       # Drop update logic
-│   │   │   ├── delete.py       # Drop deletion logic
-│   │   │   ├── access.py       # Drop access control
-│   │   │   ├── list.py         # Drop listing with pagination
-│   │   │   ├── keycheck.py     # Drop key validation
-│   │   │   └── stream.py       # File streaming logic
-│   │   └── auth/          # Authentication handlers
-│   │       ├── __init__.py     # Auth handler exports
-│   │       ├── user.py         # User authentication logic
-│   │       ├── token.py        # Token management logic
-│   │       └── login.py        # Login logic
-│   ├── infrastructure/    # Infrastructure layer
-│   │   ├── __init__.py    # Infrastructure exports
-│   │   ├── database/      # Database connection and setup
-│   │   │   ├── __init__.py     # Database module exports
-│   │   │   └── connection.py   # Database connection management
-│   │   └── storage/       # Storage interface and implementations
-│   │       ├── __init__.py     # Storage module exports
-│   │       ├── base.py         # Storage interface definition
-│   │       ├── local.py        # Local filesystem implementation
-│   │       └── s3.py           # S3 storage implementation
-│   ├── models/           # SQLModel database models
-│   │   ├── __init__.py   # Model exports
-│   │   ├── auth.py       # Authentication models
-│   │   └── drop/         # Drop-related models
-│   │       ├── __init__.py     # Drop model exports
-│   │       ├── base.py         # Base drop classes and enums
-│   │       ├── table.py        # Drop and File database models
-│   │       ├── request.py      # Request/input validation models
-│   │       └── response.py     # Response/output models
-│   ├── routers/          # FastAPI route handlers
-│   │   ├── __init__.py   # Router exports
-│   │   └── api/          # API routers
-│   │       ├── __init__.py     # API router exports
-│   │       ├── auth/           # Authentication endpoints
-│   │       │   ├── __init__.py     # Auth router exports
-│   │       │   ├── login.py        # Login endpoint
-│   │       │   ├── logout.py       # Logout endpoint
-│   │       │   ├── token.py        # Token management endpoints
-│   │       │   └── user.py         # User management endpoints
-│   │       └── drop/           # Drop management endpoints
-│   │           ├── __init__.py     # Drop router exports
-│   │           ├── create.py       # Drop creation endpoint
-│   │           ├── read.py         # Drop retrieval endpoints
-│   │           ├── update.py       # Drop update endpoints
-│   │           ├── delete.py       # Drop deletion endpoint
-│   │           ├── list.py         # Drop listing endpoint
-│   │           └── keycheck.py     # Drop key validation endpoint
-│   └── utils/            # Utility functions
-├── web/                  # Frontend SvelteKit application
-│   ├── src/             # Source code
-│   │   ├── lib/         # Shared libraries
-│   │   ├── routes/      # SvelteKit routes
-│   │   ├── components/  # Reusable components
-│   │   ├── app.html     # HTML template
-│   │   └── app.css      # Global styles
-│   ├── static/          # Static assets
-│   ├── package.json     # Frontend dependencies
-│   ├── svelte.config.js # Svelte configuration
-│   ├── tailwind.config.cjs # Tailwind configuration
-│   └── vite.config.js   # Vite bundler configuration
-├── docs/                # Documentation
-│   └── architecture/    # Architecture documentation
-├── share/               # Shared files storage directory
-├── pyproject.toml       # Python project configuration
-├── docker-compose.yml   # Docker deployment configuration
-├── Dockerfile           # Container definition
-└── README.md           # Project documentation
+Routers → Handlers → Models → Infrastructure
+              ↓
+            Utils (accessible from all layers)
+            Core (accessible from all layers)
 ```
+
+- Upper layers can only reference lower layers
+- Minimize dependencies between modules in the same layer
+- Business logic must be implemented in the Handlers layer
+- Infrastructure abstractions enable pluggable implementations
 
 ## Development Guidelines
 
@@ -158,8 +118,7 @@ The application uses a Handler-based architecture where:
 
 ### Handler Mixins
 - `LoggingMixin`: Provides structured logging capabilities with configurable log levels
-- `ValidationMixin`: Common validation logic for drops, files, passwords, and API keys
-- `TimestampMixin`: Timestamp management for created/updated fields
+- `DropAccessMixin`: Drop access control and permission logic
 - `PaginationMixin`: Pagination logic for list endpoints with configurable page sizes
 
 ### Python Development with uv
@@ -235,23 +194,26 @@ The application uses a Handler-based architecture where:
 
 ### Handler Implementation
 ```python
-@dataclass
-class ExampleHandler(BaseHandler, LoggingMixin, ValidationMixin):
+class ExampleHandler(BaseHandler, DropAccessMixin):
     """Example handler demonstrating the pattern"""
     
-    session: Session
-    storage_service: StorageInterface
-    settings: Settings
+    def __init__(
+        self,
+        session: Session = Depends(get_session),
+        storage: StorageInterface = Depends(get_storage),
+        settings: Settings = Depends(get_settings)
+    ):
+        self.session = session
+        self.storage = storage
+        self.settings = settings
     
-    async def execute(self, data: ExampleData, auth_data: Optional[Dict[str, Any]] = None) -> ExampleResult:
+    @authenticate  # Authentication decorator when required
+    async def execute(self, data: ExampleData, auth_data: AuthData | None = None) -> ExampleResult:
         """Execute the handler logic"""
         self.log_info("Starting example operation", data_id=data.id)
         
         try:
-            # Validation
-            self.validate_input(data)
-            
-            # Business logic
+            # Business logic with integrated validation
             result = await self._process_data(data)
             
             self.log_info("Example operation completed", result_id=result.id)
@@ -312,16 +274,17 @@ def get_by_key(cls, session: Session, key: str, include_file: bool = True) -> Op
 
 ### Dependency Injection
 ```python
-# Handler factory pattern for dependency injection
-def get_drop_create_handler():
-    def _get_handler(
-        session: DatabaseDep,
-        storage: StorageDep,
-        settings: SettingsDep
-    ) -> DropCreateHandler:
-        return DropCreateHandler(session=session, storage_service=storage, settings=settings)
-    
-    return _get_handler
+# Handler with dependency injection through constructor
+class DropCreateHandler(BaseHandler, DropAccessMixin):
+    def __init__(
+        self,
+        session: Session = Depends(get_session),
+        storage: StorageInterface = Depends(get_storage),
+        settings: Settings = Depends(get_settings)
+    ):
+        self.session = session
+        self.storage = storage
+        self.settings = settings
 ```
 
 ## Docker and Deployment

@@ -2,7 +2,7 @@
 	import { Button, Modal, Label, Input, Textarea } from 'flowbite-svelte';
 
 	export let open;
-	export let post;
+	export let drop;
 	export let handleUpdateDetail;
 </script>
 
@@ -10,11 +10,11 @@
 	<form on:submit|preventDefault={handleUpdateDetail} class="flex flex-col space-y-4">
 		<Label class="space-y-2">
 			<span>제목</span>
-			<Input type="text" name="title" value={post.title} />
+			<Input type="text" name="title" value={drop.title} />
 		</Label>
 		<Label class="space-y-2">
 			<span>내용</span>
-			<Textarea name="description" rows="4" value={post.description} />
+			<Textarea name="description" rows="4" value={drop.description} />
 		</Label>
 		<Button type="submit">수정</Button>
 	</form>

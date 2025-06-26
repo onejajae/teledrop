@@ -5,7 +5,7 @@
 	import FileIcon from './FileIcon.svelte';
 
 	import { API } from '$lib/api.js';
-	import { postList, postPasswords, sortBy, orderBy } from '$lib/store.js';
+	import { dropList, dropPasswords, sortBy, orderBy } from '$lib/store.js';
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 
@@ -26,7 +26,7 @@
 
 	async function reloadList() {
 		try {
-			await API.getPostList();
+			await API.getDropList();
 		} catch (error) {
 			await API.logout();
 		}
@@ -35,7 +35,7 @@
 	onMount(async () => {
 		console.log();
 		// try {
-		// 	await API.getPostList();
+		// 	await API.getDropList();
 		// } catch (error) {
 		// 	await API.logout();
 		// }
@@ -60,7 +60,7 @@
 				<button
 					on:click={async () => {
 						orderBy.set($orderBy === 'desc' ? 'asc' : 'desc');
-						await API.getPostList();
+						await API.getDropList();
 					}}
 					class="rounded-lg p-1.5 px-2 font-semibold text-gray-600 hover:bg-gray-200 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-500"
 				>
@@ -78,49 +78,49 @@
 					placeholder=""
 					size="sm"
 					bind:value={$sortBy}
-					on:change={async () => await API.getPostList()}
+					on:change={async () => await API.getDropList()}
 				/>
 			</span>
 		</div>
 	</div>
 	<div slot="content">
-		{#key $postList}
+		{#key $dropList}
 			<Listgroup active>
-				{#each $postList as post}
+				{#each $dropList as drop}
 					<ListgroupItem
-						href="/{post.slug}"
-						current={post.slug === $page.params.slug}
+						href="/{drop.slug}"
+						current={drop.slug === $page.params.slug}
 						class="p-1 py-2"
 					>
 						<div class="flex items-center">
 							<div class="p-1.5">
-								<p class="text-xl"><FileIcon file_type={post.file_type} size="xl" /></p>
+								<p class="text-xl"><FileIcon file_type={drop.file_type} size="xl" /></p>
 							</div>
 
 							<div class="w-full min-w-0 flex-col ps-1">
 								<div class="font-base flex items-center text-base">
-									{#if post.is_favorite}
+									{#if drop.is_favorite}
 										<span class="pe-1"><StarSolid size="xs" /></span>
 									{/if}
 									<span class="truncate">
-										{#if post.title}
-											{post.title}
+										{#if drop.title}
+											{drop.title}
 										{:else}
-											{post.file_name}
+											{drop.file_name}
 										{/if}
 									</span>
 								</div>
 
 								<div class="flex items-center space-x-1 truncate text-sm font-normal">
-									<span>{filesize(post.file_size, { standard: 'jedec' })}</span>
-									{#if !post.is_private}
+									<span>{filesize(drop.file_size, { standard: 'jedec' })}</span>
+									{#if !drop.is_private}
 										<span> • 전체 공개</span>
 									{/if}
-									<span> • {dayjs.utc(post.created_time).local().fromNow()}</span>
+									<span> • {dayjs.utc(drop.created_time).local().fromNow()}</span>
 								</div>
 							</div>
-							{#if post.has_password}
-								{#if $postPasswords[post.slug]}
+							{#if drop.has_password}
+								{#if $dropPasswords[drop.slug]}
 									<span class="pe-3"><LockOpenSolid size="sm" /> </span>
 								{:else}
 									<span class="pe-3"><LockSolid size="sm" /> </span>

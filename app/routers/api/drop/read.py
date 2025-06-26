@@ -1,24 +1,24 @@
 """
-Drop 읽기 관련 API 엔드포인트
+Drop 읽기 관련 API 엔드포인트들
 
-Drop의 미리보기와 파일 다운로드 기능을 제공합니다.
+Drop의 미리보기, 다운로드, 존재 여부 확인 기능을 제공합니다.
 """
 
-from typing import Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Header, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Header
 from fastapi.responses import StreamingResponse
 from urllib import parse
 
-from app.handlers.drop import DropReadHandler, DropStreamHandler
-from app.handlers.auth.user import CurrentUserHandler
-from app.models.drop import DropRead
+from app.handlers.drop.read import DropReadHandler, DropExistsHandler, DropStreamHandler
+from app.models.drop.response import DropRead, DropExistsResult
+from app.models.auth import AuthData
+from app.core.dependencies import get_auth_data
 from app.core.exceptions import (
     DropNotFoundError,
     DropPasswordInvalidError,
-    DropAccessDeniedError,
-    DropFileNotFoundError
+    InvalidRangeHeaderError,
+    RangeNotSatisfiableError,
+    AuthenticationRequiredError
 )
-from app.utils.range_header import parse_range_header
 
 
 router = APIRouter()
@@ -27,9 +27,9 @@ router = APIRouter()
 @router.get("/{slug}/preview", response_model=DropRead)
 async def get_drop_preview(
     slug: str,
-    password: Optional[str] = Query(None, description="Drop 패스워드 (보호된 Drop인 경우)"),
-    user_handler: CurrentUserHandler = Depends(CurrentUserHandler),
-    handler: DropReadHandler = Depends(DropReadHandler)
+    password: str | None = Query(None, description="Drop 패스워드 (보호된 Drop인 경우)"),
+    auth_data: AuthData | None = Depends(get_auth_data),
+    drop_read_handler: DropReadHandler = Depends(DropReadHandler)
 ):
     """
     Drop 미리보기 정보를 조회합니다.
@@ -38,21 +38,16 @@ async def get_drop_preview(
     - **password**: Drop 패스워드 (보호된 Drop인 경우 필수)
     
     파일 다운로드 전에 Drop 정보를 확인할 수 있습니다.
-    """
-    current_user = user_handler.execute()
-    if not current_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="인증이 필요합니다",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    Public Drop은 인증 없이 조회 가능하며, Private Drop은 인증이 필요합니다.
     
+    @authenticate(required=False) 데코레이터에 의해 접근 제어가 자동으로 처리됩니다.
+    """
     try:
-        # DropReadHandler의 execute_preview 메서드 사용
-        result = handler.execute_preview(
+        # @authenticate 데코레이터가 자동으로 인증 처리
+        result = await drop_read_handler.execute_preview(
             slug=slug,
             password=password,
-            auth_data=current_user
+            auth_data=auth_data
         )
         
         return result
@@ -67,12 +62,6 @@ async def get_drop_preview(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid password"
         )
-    except DropAccessDeniedError:
-        # 보안 상의 이유로 404 반환
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Drop not found"
-        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -83,11 +72,11 @@ async def get_drop_preview(
 @router.get("/{slug}")
 async def download_drop_file(
     slug: str,
-    password: Optional[str] = Query(None, description="Drop 패스워드 (보호된 Drop인 경우)"),
-    preview: Optional[bool] = Query(False, description="미리보기 여부"),
-    range: Optional[str] = Header(None, alias="Range"),
-    user_handler: CurrentUserHandler = Depends(CurrentUserHandler),
-    stream_handler: DropStreamHandler = Depends(DropStreamHandler)
+    password: str | None = Query(None, description="Drop 패스워드 (보호된 Drop인 경우)"),
+    preview: bool | None = Query(False, description="미리보기 여부"),
+    range: str | None = Header(None, alias="Range"),
+    auth_data: AuthData | None = Depends(get_auth_data),
+    drop_stream_handler: DropStreamHandler = Depends(DropStreamHandler)
 ):
     """
     Drop 파일을 다운로드합니다.
@@ -96,38 +85,15 @@ async def download_drop_file(
     - **password**: Drop 패스워드 (보호된 Drop인 경우 필수)
     
     Range 요청을 지원하여 부분 다운로드가 가능합니다.
+    Public Drop은 인증 없이 다운로드 가능하며, Private Drop은 인증이 필요합니다.
     """
-    current_user = user_handler.execute()
-    if not current_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="인증이 필요합니다",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
     try:
-        # Range 헤더 로깅
-        
-        if range:
-            try:
-                # 이전에 작동했던 방식으로 Range 헤더 파싱 (4MB 청크 제한)
-                start_str, end_str = range.strip().lower().replace("bytes=", "").split("-")
-                start = int(start_str) if start_str else 0
-                # 핵심: end가 없으면 4MB 청크로 제한 (이전 코드 방식)
-                end = int(end_str) if end_str else start + 1024 * 1024 * 4 - 1
-            except Exception:
-                raise HTTPException(status_code=416, detail="Invalid Range header")
-        else:
-            start = 0
-            end = None
-
-        # DropStreamHandler 사용
-        async_file_streamer, start_byte, end_byte, file_size, file_metadata = await stream_handler.execute(
+        # DropStreamHandler 사용 - Range 헤더를 그대로 전달
+        async_file_streamer, start_byte, end_byte, drop_result = await drop_stream_handler.execute(
             slug=slug,
-            start=start,
-            end=end,
+            range_header=range,
             password=password,
-            auth_data=current_user
+            auth_data=auth_data
         )
         
         if preview:
@@ -138,9 +104,9 @@ async def download_drop_file(
         # 헤더 생성
         content_length = end_byte - start_byte + 1
         headers = {
-            "Content-Disposition": f"{content_disposition_type}; filename*=UTF-8''{parse.quote(file_metadata['filename'])}",
+            "Content-Disposition": f"{content_disposition_type}; filename*=UTF-8''{parse.quote(drop_result.file_name)}",
             "Content-Length": str(content_length),
-            "Content-Type": file_metadata.get('content_type', 'application/octet-stream'),
+            "Content-Type": drop_result.file_type,
             "Accept-Ranges": "bytes",
             "Access-Control-Expose-Headers": (
                 "content-type, accept-ranges, content-length, "
@@ -149,12 +115,12 @@ async def download_drop_file(
             "Content-Encoding": "identity"
         }
         
-        # 상태코드 결정 (이전 코드 방식)
-        if start_byte > 0 or end_byte < file_size - 1:
-            status_code = 206
-            headers["Content-Range"] = f"bytes {start_byte}-{end_byte}/{file_size}"
+        # 상태코드 및 Content-Range 헤더 설정
+        if start_byte > 0 or end_byte < drop_result.file_size - 1:
+            status_code = status.HTTP_206_PARTIAL_CONTENT
+            headers["Content-Range"] = f"bytes {start_byte}-{end_byte}/{drop_result.file_size}"
         else:
-            status_code = 200
+            status_code = status.HTTP_200_OK
         
         return StreamingResponse(
             async_file_streamer,
@@ -172,14 +138,61 @@ async def download_drop_file(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid password"
         )
-    except DropAccessDeniedError:
-        # 보안 상의 이유로 404 반환
+    except InvalidRangeHeaderError as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Drop not found"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid Range header: {str(e)}"
+        )
+    except RangeNotSatisfiableError as e:
+        raise HTTPException(
+            status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE,
+            detail=f"Range not satisfiable: {str(e)}"
         )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to download file: {str(e)}"
-        ) 
+        )
+
+
+@router.get("/{slug}/exists", response_model=DropExistsResult)
+async def check_drop_slug_exists(
+    slug: str,
+    auth_data: AuthData | None = Depends(get_auth_data),
+    drop_exists_handler: DropExistsHandler = Depends(DropExistsHandler)
+):
+    """
+    Drop 슬러그 존재 여부를 확인합니다.
+    
+    관리자 전용 기능으로 인증이 필요합니다.
+    @authenticate 데코레이터를 사용하여 깔끔한 인증 처리를 구현합니다.
+    
+    - **slug**: 확인할 Drop 슬러그
+    
+    Returns:
+        bool: Drop 존재 여부
+    """
+    try:
+        # @authenticate 데코레이터가 자동으로 인증 검증 처리
+        exists = await drop_exists_handler.execute(slug=slug, auth_data=auth_data)
+        return DropExistsResult(exists=exists)
+    except AuthenticationRequiredError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="인증이 필요합니다",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error checking slug existence: {str(e)}"
+        )
+
+
+
+
+
+
+
+
+ 

@@ -4,13 +4,13 @@
 공통으로 필요한 기능들은 별도 믹스인으로 분리되어 있습니다.
 """
 
-from sqlmodel import SQLModel, Session
+from sqlmodel import Session
 
 from app.core.config import Settings
-from app.handlers.mixins import LoggingMixin, TimestampMixin
+from app.handlers.mixins import LoggingMixin
 
 
-class BaseHandler(LoggingMixin, TimestampMixin):
+class BaseHandler(LoggingMixin):
     """모든 Handler의 기본 베이스 클래스
     
     공통적으로 필요한 기능들을 제공합니다.
@@ -26,20 +26,3 @@ class BaseHandler(LoggingMixin, TimestampMixin):
     session: Session    # Session 주입 필수 (대부분의 핸들러에서 필요)
 
 
-def handler_method(operation_name: str):
-    """Handler 메서드를 위한 데코레이터"""
-    def decorator(func):
-        def wrapper(self, *args, **kwargs):
-            if hasattr(self, 'log_info'):
-                self.log_info(f"Starting {operation_name}")
-            try:
-                result = func(self, *args, **kwargs)
-                if hasattr(self, 'log_info'):
-                    self.log_info(f"Completed {operation_name}")
-                return result
-            except Exception as e:
-                if hasattr(self, 'log_error'):
-                    self.log_error(f"Failed {operation_name}", error=str(e))
-                raise
-        return wrapper
-    return decorator 

@@ -8,14 +8,17 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.handlers.auth.user import CurrentUserHandler
 from app.models.auth import AuthData
+from app.core.dependencies import get_auth_data
+from app.core.exceptions import AuthenticationRequiredError
 
 
 router = APIRouter()
 
 
-@router.get("/me", response_model=dict)
+@router.get("/me", response_model=AuthData)
 async def get_current_user_info(
-    user_handler: CurrentUserHandler = Depends(CurrentUserHandler),
+    auth_data: AuthData | None = Depends(get_auth_data),
+    current_user_handler: CurrentUserHandler = Depends(CurrentUserHandler),
 ):
     """현재 사용자 정보 조회 엔드포인트
     
@@ -28,9 +31,9 @@ async def get_current_user_info(
     Returns:
         dict: 사용자 정보
     """
-
-    current_user = user_handler.execute()
-    if not current_user:
+    try:
+        auth_data = current_user_handler.execute(auth_data)
+    except AuthenticationRequiredError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="인증이 필요합니다",
@@ -38,9 +41,4 @@ async def get_current_user_info(
         )
 
     # AuthData 모델에서 정보 추출
-    return {
-        "username": current_user.username,
-        "can_read": current_user.can_read,
-        "can_write": current_user.can_write,
-        "authentication_type": "jwt"
-    } 
+    return auth_data
