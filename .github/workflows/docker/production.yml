@@ -1,4 +1,4 @@
-name: teledrop Docker image build
+name: Production Docker Build
 
 on:
   workflow_dispatch:
@@ -59,4 +59,4 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
         build-args: |
-          GIT_COMMIT_TIMESTAMP=${{ env.GIT_COMMIT_TIMESTAMP }}
+          GIT_COMMIT_TIMESTAMP=${{ env.GIT_COMMIT_TIMESTAMP }} 
