@@ -3,7 +3,13 @@ name: teledrop Docker image build
 on:
   workflow_dispatch:
   push:
-    branches: [ "production" ]
+    branches: [ "main" ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+      - 'LICENSE'
+      - 'README*'
 
 jobs:
   build-and-push:
