@@ -1,15 +1,15 @@
-name: teledrop Docker image build
+name: Production Docker Build
 
 on:
   workflow_dispatch:
   push:
     branches: [ "main" ]
     paths-ignore:
-      - '**.md'         
-      - 'docs/**'       
-      - '.gitignore'    
-      - 'LICENSE'       
-      - 'README*'       
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+      - 'LICENSE'
+      - 'README*'
 
 jobs:
   build-and-push:
@@ -29,6 +29,10 @@ jobs:
         registry: ghcr.io
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set commit timestamp as env variable
+      run: |
+        echo "GIT_COMMIT_TIMESTAMP=$(git show -s --format=%ct)" >> $GITHUB_ENV
 
     - name: Extract metadata
       id: meta
@@ -54,3 +58,5 @@ jobs:
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
+        build-args: |
+          GIT_COMMIT_TIMESTAMP=${{ env.GIT_COMMIT_TIMESTAMP }} 
