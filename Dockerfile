@@ -1,7 +1,7 @@
 # 1. node base for building tailwind css
 FROM node:20-alpine AS node_builder
 WORKDIR /app
-COPY ui-build/package.json ui-build/package-lock.json ui-build/tailwind.config.js ./ui-build/
+COPY ui-build/package.json ui-build/package-lock.json ./ui-build/
 COPY app/interfaces/web/static ./app/interfaces/web/static
 COPY app/interfaces/web/templates ./app/interfaces/web/templates
 WORKDIR /app/ui-build
