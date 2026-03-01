@@ -10,12 +10,13 @@ from fastapi import FastAPI
 from app.bootstrap.container import ensure_app_container
 from app.infrastructure.db.init import init_db
 from app.bootstrap.runtime_paths import sqlite_parent_dir_from_url
+from app.core.config import Settings
 
 
 logger = logging.getLogger(__name__)
 
 
-def build_lifespan(settings):
+def build_lifespan(settings: Settings):
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         Path(settings.SHARE_DIRECTORY).mkdir(parents=True, exist_ok=True)

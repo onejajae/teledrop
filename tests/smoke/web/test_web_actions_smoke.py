@@ -7,7 +7,7 @@ from app.application.drop.models import DropDetailDTO, DropListDTO, DropListItem
 from app.bootstrap.container import get_app_settings
 from app.domain.drop.errors import DropNotFoundError, DropPasswordInvalidError
 from app.domain.drop.value_objects import AccessScope
-from app.interfaces.api.dependencies import get_csrf_token_service, get_drop_use_cases, get_revoke_session_use_case, get_verify_session_use_case
+from app.interfaces.api.deps import get_csrf_token_service, get_drop_use_cases, get_revoke_session_use_case, get_verify_session_use_case
 from app.interfaces.web.router import router as web_router
 
 class _FakeVerifySessionUseCase:

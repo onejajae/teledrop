@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.config import Settings
 
-def register_middlewares(app: FastAPI, settings) -> None:
+
+def register_middlewares(app: FastAPI, settings: Settings) -> None:
     if settings.APP_MODE == "prod":
         return
 
