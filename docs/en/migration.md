@@ -8,5 +8,13 @@ Before upgrading in production, back up your DB file:
 cp share/database.db share/database.db.bak
 ```
 
-Alembic files are provided under `migrations/`. Runtime startup also performs schema compatibility migration (`drops.key` -> `drops.slug`) and legacy `content`/`contents` -> `drops` migration if needed.
-If you want to run Alembic manually, install it in your environment first (`pip install alembic`).
+Alembic files are provided under `migrations/`.
+When running the official Docker image, container startup automatically runs:
+```bash
+alembic -c alembic.ini upgrade head
+```
+
+If you run teledrop outside the Docker entrypoint, run migration manually before app startup:
+```bash
+uv run alembic -c alembic.ini upgrade head
+```
