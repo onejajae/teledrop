@@ -11,6 +11,14 @@
 # virtual environment
 .venv
 
+# node modules
+node_modules/
+ui-build/node_modules/
+
+# generated UI assets
+app/interfaces/web/static/gen/*
+!app/interfaces/web/static/gen/.gitkeep
+
 # macOS 
 .DS_Store
 

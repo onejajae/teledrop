@@ -1,4 +1,4 @@
-[한국어](README.ko.md) | [English](README.md)
+[한국어](docs/ko/README.md) | [English](README.md)
 
 # teledrop
 Private file sharing platform for self-hosted servers, powered by REST API.
@@ -75,16 +75,13 @@ docker run --detach \
 >     command: "--workers <NUMBER_OF_PROCESSES>"
 >     ...
 > ```
-> Set the `JWT_SECRET` environment variable to ensure token validation across worker processes:  
-> ```yaml
-> environment:
->   - JWT_SECRET=<YOUR_SECURE_RANDOM_SECRET>
-> ```
-> Example: Using OpenSSL to generate a secret key
-> ```bash
-> openssl rand -hex 32
-> ```
-> ***The generated key should be at least 32 bytes (256 bits) long. For enhanced security, you may use a longer key.***
+
+## Documentation
+* [Runtime Notes](docs/en/runtime-notes.md)
+* [Authentication and API](docs/en/auth-and-api.md)
+* [Slug Word Pools](docs/en/slug-word-pools.md)
+* [Migration Notes](docs/en/migration.md)
+* [Local Development and Tests](docs/en/local-dev-and-test.md)
 
 ## Build Docker image
 Instead of using a pre-built Docker image, you can build your own:

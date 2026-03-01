@@ -1,0 +1,39 @@
+{% from "macros/icons.html" import icon_error, icon_success, icon_info, icon_download, icon_copy, icon_star,
+icon_eye, icon_eye_off, icon_edit, icon_lock, icon_trash, icon_file_image, icon_file_video, icon_file_audio,
+icon_file_pdf, icon_file_generic %}
+{% if not selected_key %}
+{% include "panels/drop_detail/_empty_state.html" %}
+{% else %}
+
+{% include "panels/drop_detail/_alerts.html" %}
+
+<section class="td-section mb-6" data-detail-key="{{ selected_key }}"
+  data-detail-password="{{ selected_password or '' }}">
+  <div class="td-section-body">
+    {% if not (selected_requires_password and not selected_download_url) %}
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div class="min-w-0">
+        <h2 class="td-section-title">{{ selected_drop.title if selected_drop and selected_drop.title else
+          (selected_drop.file_name if selected_drop else selected_key) }}</h2>
+      </div>
+
+      {% include "panels/drop_detail/_owner_actions.html" %}
+    </div>
+
+    <div class="divider"></div>
+    {% endif %}
+
+    {% if selected_requires_password and not selected_download_url %}
+    {% include "panels/drop_detail/_locked_prompt.html" %}
+    {% elif selected_drop %}
+    {% include "panels/drop_detail/_content.html" %}
+    {% if is_login %}
+    {% include "panels/drop_detail/_modals.html" %}
+    {% endif %}
+    {% else %}
+    {% include "panels/drop_detail/_error_variants.html" %}
+    {% endif %}
+
+  </div>
+</section>
+{% endif %}

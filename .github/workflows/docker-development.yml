@@ -1,15 +1,18 @@
 name: Development Docker Build
 
 on:
-  workflow_dispatch:
   push:
-    branches: [ "develop" ]
+    branches: [ "devel" ]
     paths-ignore:
-      - '**.md'
+      - '**/*.md'
       - 'docs/**'
       - '.gitignore'
       - 'LICENSE'
       - 'README*'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-and-push:
@@ -41,6 +44,7 @@ jobs:
         images: ghcr.io/${{ github.repository }}
         tags: |
           type=raw,value=nightly
+          type=sha,format=short,prefix=sha-
 
     - name: Set up QEMU for multiplatform build
       uses: docker/setup-qemu-action@v3

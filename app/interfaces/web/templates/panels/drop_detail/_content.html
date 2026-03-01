@@ -1,0 +1,82 @@
+<div class="td-detail-actions">
+  <a href="{{ selected_download_url }}"
+    class="btn btn-primary td-detail-action-btn"
+    download aria-label="다운로드" title="다운로드">
+    {{ icon_download() }}
+    <span class="detail-download-label sm:hidden">다운로드</span>
+  </a>
+  <button type="button" class="btn btn-outline td-detail-action-btn td-detail-action-btn-outline detail-copy-link"
+    data-copy-url="{{ selected_page_preview_url }}" aria-label="링크 복사" title="링크 복사">
+    {{ icon_copy() }}
+    <span class="detail-copy-label sm:hidden">링크 복사</span>
+  </button>
+</div>
+
+<div class="mt-4">
+  {% if selected_drop.mime_type.startswith('image/') %}
+  <img src="{{ selected_preview_url }}" alt="{{ selected_drop.file_name }}"
+    class="rounded-xl max-h-[600px] object-contain mx-auto" />
+  {% elif selected_drop.mime_type.startswith('video/') %}
+  <video controls class="w-full rounded-xl">
+    <source src="{{ selected_preview_url }}" type="{{ selected_drop.mime_type }}">
+    이 브라우저에서는 비디오 재생을 지원하지 않습니다.
+  </video>
+  {% elif selected_drop.mime_type.startswith('audio/') %}
+  <audio controls class="w-full mt-4">
+    <source src="{{ selected_preview_url }}" type="{{ selected_drop.mime_type }}">
+    이 브라우저에서는 오디오 재생을 지원하지 않습니다.
+  </audio>
+  {% elif selected_drop.mime_type == 'application/pdf' %}
+  <object data="{{ selected_preview_url }}" type="application/pdf" class="w-full h-[800px] rounded-xl">
+    <p>PDF를 표시할 수 없습니다. <a href="{{ selected_download_url }}">다운로드</a>해서 확인해 주세요.</p>
+  </object>
+  {% else %}
+  <div class="alert">
+    {{ icon_info(class="stroke-info shrink-0 w-6 h-6") }}
+    <span>이 파일 형식은 미리보기를 지원하지 않습니다.</span>
+  </div>
+  {% endif %}
+</div>
+
+{% if selected_drop.description %}
+<div>
+  <p class="text-sm whitespace-pre-wrap">{{ selected_drop.description }}</p>
+</div>
+{% endif %}
+
+<div class="rounded-box border border-base-300 p-4">
+  <div class="flex items-start gap-4">
+    <div class="td-file-info-icon opacity-70">
+      {% if selected_drop.mime_type and selected_drop.mime_type.startswith('image/') %}
+      {{ icon_file_image(class="h-10 w-10") }}
+      {% elif selected_drop.mime_type and selected_drop.mime_type.startswith('video/') %}
+      {{ icon_file_video(class="h-10 w-10") }}
+      {% elif selected_drop.mime_type and selected_drop.mime_type.startswith('audio/') %}
+      {{ icon_file_audio(class="h-10 w-10") }}
+      {% elif selected_drop.mime_type and selected_drop.mime_type.startswith('application/pdf') %}
+      {{ icon_file_pdf(class="h-10 w-10 text-error") }}
+      {% else %}
+      {{ icon_file_generic(class="h-10 w-10") }}
+      {% endif %}
+    </div>
+    <div class="min-w-0 flex-1 space-y-1 text-sm">
+      <p class="truncate text-base font-semibold">{{ selected_drop.file_name }}</p>
+      <p class="opacity-80">
+        {% if selected_drop.size_human %}
+        {{ selected_drop.size_human }}
+        {% else %}
+        {{ selected_drop.size_bytes }} bytes
+        {% endif %}
+      </p>
+      <p class="opacity-80">
+        {{ selected_drop.created_at_label or selected_drop.created_at }} 에 업로드
+        {% if selected_drop.created_at_relative %}
+        <span class="opacity-70">({{ selected_drop.created_at_relative }})</span>
+        {% endif %}
+      </p>
+      {% if selected_drop.updated_at %}
+      <p class="opacity-70">수정: {{ selected_drop.updated_at_label or selected_drop.updated_at }}</p>
+      {% endif %}
+    </div>
+  </div>
+</div>

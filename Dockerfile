@@ -1,22 +1,14 @@
-# 1. web build
-FROM node:20-alpine AS web_builder
-
-# set workdir
-WORKDIR /web
-
-# install packages
-COPY ./web/package*.json ./
+# 1. node base for building tailwind css
+FROM node:20-alpine AS node_builder
+WORKDIR /app
+COPY ui-build/package.json ui-build/package-lock.json ui-build/tailwind.config.js ./ui-build/
+COPY app/interfaces/web/static ./app/interfaces/web/static
+COPY app/interfaces/web/templates ./app/interfaces/web/templates
+WORKDIR /app/ui-build
 RUN npm install
-
-# copy web sources
-COPY ./web ./
-
-# web build
-RUN npm run build
-
+RUN npm run build:css
 
 # python base image
-# FROM python:3.12-slim AS python_base
 FROM python:3.12-alpine AS python_base
 
 # 2. dependencies install
@@ -40,12 +32,11 @@ WORKDIR /teledrop
 # copy dependencies
 COPY --from=dependency_builder /teledrop ./
 
-# copy built web
-COPY --from=web_builder /web/build ./web/build
-
 # copy teledrop sources 
 COPY ./main.py .
-COPY ./api ./api
+COPY ./app ./app
+# Copy built css from node_builder
+COPY --from=node_builder /app/app/interfaces/web/static/gen/output.css ./app/interfaces/web/static/gen/output.css
 
 # set path
 ENV PATH="/teledrop/.venv/bin:$PATH"

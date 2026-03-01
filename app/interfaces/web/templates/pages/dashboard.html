@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ko">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>teledrop</title>
+  <meta name="description" content="간편한 파일 공유 서비스 teledrop. 파일을 업로드하고 링크로 공유하세요." />
+  <meta name="theme-color" content="#0ea5e9" />
+  <meta property="og:title" content="teledrop" />
+  <meta property="og:description" content="간편한 파일 공유 서비스" />
+  <meta property="og:type" content="website" />
+  <link rel="icon" href="/static/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png" />
+  <link rel="apple-touch-icon" href="/static/apple-icon.png" />
+  <script>
+    (function () {
+      var lightThemeColor = "#0ea5e9";
+      var darkThemeColor = "#1d232a";
+      try {
+        var stored = localStorage.getItem("color-theme");
+        var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+        var theme = stored || (prefersDark ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+        document.documentElement.style.colorScheme = theme === "dark" ? "dark" : "light";
+        var themeColorMeta = document.querySelector('meta[name="theme-color"]');
+        if (themeColorMeta) {
+          themeColorMeta.setAttribute("content", theme === "dark" ? darkThemeColor : lightThemeColor);
+        }
+      } catch (_err) {
+        document.documentElement.setAttribute("data-theme", "light");
+        document.documentElement.style.colorScheme = "light";
+        var fallbackThemeColorMeta = document.querySelector('meta[name="theme-color"]');
+        if (fallbackThemeColorMeta) {
+          fallbackThemeColorMeta.setAttribute("content", lightThemeColor);
+        }
+      }
+    })();
+  </script>
+  <style>
+    html {
+      background-color: #ffffff;
+    }
+
+    html[data-theme="dark"] {
+      background-color: #1d232a;
+    }
+
+    body {
+      background-color: transparent;
+    }
+  </style>
+  <link href="/static/gen/output.css" rel="stylesheet">
+  <script src="https://unpkg.com/htmx.org@2.0.0"></script>
+  <script src="/static/js/dashboard.js" defer></script>
+  <script src="/static/js/upload-panel.js" defer></script>
+  <script src="/static/js/drop-detail.js" defer></script>
+</head>
+
+<body class="bg-base-100 text-base-content">
+  <div class="min-h-screen">
+    <main class="mx-auto w-full max-w-screen-sm space-y-3 px-3 py-3">
+      {% include "layout/header.html" %}
+
+      <section id="main-panel" class="mb-6">
+        {% if selected_key %}
+        {% include "panels/drop_detail.html" %}
+        {% elif is_login %}
+        {% include "panels/upload.html" %}
+        {% else %}
+        {% include "panels/auth.html" %}
+        {% endif %}
+      </section>
+
+      {% if is_login %}
+      <section id="drop-panel">
+        {% include "panels/drop.html" %}
+      </section>
+      {% endif %}
+      {% include "layout/footer.html" %}
+    </main>
+  </div>
+
+</body>
+
+</html>

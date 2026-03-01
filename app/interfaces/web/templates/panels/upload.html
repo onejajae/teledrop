@@ -1,0 +1,138 @@
+{% from "macros/icons.html" import icon_upload %}
+{% if not is_login %}
+<div class="alert alert-info shadow-lg">
+  <span>파일 업로드는 로그인 후 사용할 수 있습니다.</span>
+</div>
+{% else %}
+{% if upload_error_message %}
+<div class="alert alert-error shadow-lg mb-4">
+  <span>{{ upload_error_message }}</span>
+</div>
+{% endif %}
+{% if upload_status_message and not selected_key %}
+<div class="alert alert-success shadow-lg mb-4">
+  <span>{{ upload_status_message }}</span>
+</div>
+{% endif %}
+<section class="td-section">
+  <div class="td-section-body">
+    <h2 class="td-section-title text-center">파일 업로드</h2>
+    {% if upload_status_message and selected_key %}
+    <div class="space-y-4 text-center">
+      <p class="text-sm opacity-80">업로드가 완료되었습니다.</p>
+      <div class="flex flex-col justify-center gap-2 sm:flex-row">
+        <button type="button" class="btn btn-outline btn-sm" hx-get="/upload-panel" hx-target="#main-panel"
+          hx-swap="innerHTML">
+          계속 업로드
+        </button>
+        <a href="/{{ selected_key | urlencode }}" class="btn btn-outline btn-sm">파일 미리보기</a>
+      </div>
+    </div>
+    {% else %}
+    <form id="upload-form" method="post" action="/actions/drop/upload" enctype="multipart/form-data"
+      hx-encoding="multipart/form-data" hx-post="/actions/drop/upload" hx-target="#main-panel" hx-swap="innerHTML"
+      class="space-y-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
+      <input id="upload-file" type="file" name="file" required class="hidden" />
+
+      <label id="upload-dropzone" for="upload-file"
+        class="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-box border-2 border-dashed border-base-300 px-4 py-8 text-center hover:bg-base-200">
+        <div id="upload-drop-placeholder" class="space-y-2">
+          {{ icon_upload(class="mx-auto h-10 w-10 opacity-60") }}
+          <p class="text-sm opacity-80">
+            <span class="font-semibold">클릭하여 업로드</span> 또는 끌어서 놓기
+          </p>
+        </div>
+        <div id="upload-preview" class="hidden w-full space-y-3">
+          <img id="upload-preview-image" alt="업로드 미리보기" class="mx-auto hidden max-h-72 rounded-xl" />
+          <video id="upload-preview-video" class="mx-auto hidden max-h-72 rounded-xl" controls>
+            <source id="upload-preview-video-source" />
+          </video>
+          <div id="upload-preview-file" class="mx-auto hidden w-full max-w-xs rounded-box bg-base-200 p-4 text-sm">
+            선택한 파일
+          </div>
+          <p id="upload-filename" class="text-sm font-semibold"></p>
+        </div>
+      </label>
+
+      <div class="w-full space-y-1">
+        <label class="flex w-full items-center justify-between gap-2" for="upload-key">
+          <span class="text-sm">공유 링크 주소</span>
+          <span class="text-xs opacity-70">선택 입력</span>
+        </label>
+        <div class="join w-full">
+          <button id="upload-host-prefix" type="button"
+            class="btn btn-sm join-item pointer-events-none max-w-[45%] overflow-hidden text-ellipsis border-base-300 bg-base-200 normal-case sm:max-w-none"></button>
+          <input id="upload-key" type="text" name="slug" placeholder="예: project-notes (비워두면 자동 생성)"
+            class="input input-bordered input-sm join-item w-full" autocomplete="off" aria-describedby="upload-key-helper" />
+        </div>
+        <p id="upload-key-helper" class="mt-1 text-xs opacity-70">업로드 후 공유 링크의 마지막 주소가 됩니다. 비워두면 자동 생성됩니다.</p>
+      </div>
+
+      <div class="space-y-2">
+        <label class="flex w-full cursor-pointer items-center justify-start gap-3 rounded-box border border-base-300 px-3 py-2">
+          <input type="checkbox" name="user_only" value="true" class="checkbox checkbox-sm" checked />
+          <span class="text-sm">나만 보기</span>
+        </label>
+        <label class="flex w-full cursor-pointer items-center justify-start gap-3 rounded-box border border-base-300 px-3 py-2">
+          <input id="upload-use-password" type="checkbox" class="checkbox checkbox-sm" />
+          <span class="text-sm">비밀번호 사용</span>
+        </label>
+      </div>
+
+      <div id="upload-password-fields" class="hidden rounded-box border border-base-300 p-4 space-y-3">
+        <div class="w-full space-y-1">
+          <label class="block text-sm" for="upload-password">
+            비밀번호
+          </label>
+          <input id="upload-password" type="password" name="password" placeholder="•••••"
+            class="input input-bordered w-full input-sm" />
+        </div>
+        <div class="w-full space-y-1">
+          <label class="block text-sm" for="upload-password-confirm">
+            비밀번호 확인
+          </label>
+          <input id="upload-password-confirm" type="password" placeholder="•••••"
+            class="input input-bordered w-full input-sm" />
+        </div>
+        <p id="upload-password-helper" class="hidden text-xs text-error">비밀번호가 일치하지 않습니다.</p>
+      </div>
+
+      <div class="collapse collapse-arrow rounded-box border border-base-300 bg-base-100">
+        <input type="checkbox" />
+        <div class="collapse-title px-4 py-3 text-sm font-semibold">
+          추가 정보 입력
+        </div>
+        <div class="collapse-content space-y-3 px-4 pb-4">
+          <div class="w-full space-y-1">
+            <label class="block text-sm" for="upload-title">
+              제목
+            </label>
+            <input type="text" id="upload-title" name="title" placeholder="제목"
+              class="input input-bordered w-full input-sm" />
+          </div>
+          <div class="w-full space-y-1">
+            <label class="block text-sm" for="upload-description">
+              내용
+            </label>
+            <textarea id="upload-description" name="description" class="textarea textarea-bordered w-full"
+              rows="4"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <button id="upload-submit" type="submit" class="btn btn-primary w-full" disabled>
+          업로드
+        </button>
+      </div>
+
+      <div class="mt-2 text-center hidden" id="upload-progress">
+        <progress id="progress" class="progress progress-primary w-full" value="0" max="100"></progress>
+      </div>
+
+    </form>
+    {% endif %}
+  </div>
+</section>
+{% endif %}

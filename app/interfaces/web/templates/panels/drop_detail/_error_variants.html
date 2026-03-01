@@ -1,0 +1,42 @@
+{% if detail_error_code == 'forbidden' %}
+<div class="mx-auto max-w-sm text-center">
+  <div class="grid place-items-center gap-2">
+    <div class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-error/10 text-error">
+      {{ icon_error(class="h-5 w-5") }}
+    </div>
+    <h3 class="text-lg font-semibold">권한이 없습니다.</h3>
+  </div>
+  {% if detail_error_message %}
+  <p class="mt-2 text-sm opacity-70">{{ detail_error_message }}</p>
+  {% endif %}
+  <div class="mt-5 text-center">
+    <a href="/" class="btn btn-outline btn-sm rounded-full px-8">돌아가기</a>
+  </div>
+</div>
+{% elif detail_error_code == 'not_found' %}
+<div class="mx-auto max-w-sm text-center">
+  <div class="grid place-items-center gap-2">
+    <div class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-base-200">
+      {{ icon_info(class="h-5 w-5") }}
+    </div>
+    <h3 class="text-lg font-semibold">존재하지 않습니다.</h3>
+  </div>
+  {% if detail_error_message %}
+  <p class="mt-2 text-sm opacity-70">{{ detail_error_message }}</p>
+  {% endif %}
+  <div class="mt-5 text-center">
+    <a href="/" class="btn btn-outline btn-sm rounded-full px-8">돌아가기</a>
+  </div>
+</div>
+{% else %}
+<div class="rounded-box border border-base-300 p-8 text-center">
+  <p class="font-semibold">{{ detail_error_message or "파일을 불러올 수 없습니다." }}</p>
+  <div class="mt-4">
+    {% if is_login %}
+    <a href="/" class="btn btn-outline btn-sm">대시보드로</a>
+    {% else %}
+    <a href="/" class="btn btn-primary btn-sm">로그인</a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}

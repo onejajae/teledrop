@@ -1,0 +1,124 @@
+{% from "macros/icons.html" import icon_error, icon_success, icon_file_image, icon_file_video, icon_file_audio,
+icon_file_pdf, icon_file_generic, icon_star, icon_download, icon_eye, icon_lock, icon_refresh, icon_upload %}
+{% if drop_error_message %}
+<div class="alert alert-error shadow-lg mb-4">
+  <div>
+    {{ icon_error() }}
+    <span>{{ drop_error_message }}</span>
+  </div>
+</div>
+{% endif %}
+
+{% if drop_status_message %}
+<div class="alert alert-success shadow-lg mb-4">
+  <div>
+    {{ icon_success() }}
+    <span>{{ drop_status_message }}</span>
+  </div>
+</div>
+{% endif %}
+
+<section class="td-section">
+  <div class="td-section-body">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-1">
+        <h2 class="td-section-title">내 업로드</h2>
+        <div class="tooltip tooltip-bottom" data-tip="새로고침">
+          <button type="button" class="btn btn-ghost btn-sm btn-square" title="새로고침" aria-label="새로고침"
+            data-td-action="drop-panel-refresh">
+            {{ icon_refresh() }}
+          </button>
+        </div>
+      </div>
+      <form method="get" action="/drop-panel" hx-get="/drop-panel" hx-target="#drop-panel" hx-swap="innerHTML"
+        class="flex flex-nowrap items-center justify-end gap-1 sm:gap-2">
+        <input type="hidden" name="orderby" id="drop-orderby" value="{{ drop_orderby or 'desc' }}" />
+        <button type="button" class="btn btn-sm btn-ghost whitespace-nowrap"
+          title="{% if drop_orderby == 'asc' %}오름차순{% else %}내림차순{% endif %}" aria-label="정렬 순서 변경"
+          data-td-action="drop-sort-toggle">
+          {% if drop_orderby == 'asc' %}오름차순{% else %}내림차순{% endif %}
+        </button>
+        <label for="drop-sortby" class="sr-only">정렬 기준</label>
+        <select id="drop-sortby" name="sortby" class="select select-bordered select-sm w-auto"
+          onchange="this.form.requestSubmit()">
+          <option value="created_at" {% if drop_sortby=='created_at' %}selected{% endif %}>날짜</option>
+          <option value="title" {% if drop_sortby=='title' %}selected{% endif %}>제목</option>
+          <option value="size_bytes" {% if drop_sortby=='size_bytes' %}selected{% endif %}>크기</option>
+        </select>
+      </form>
+    </div>
+
+    {% if drops %}
+    <div class="space-y-2">
+      {% for item in drops %}
+      <article class="td-drop-card" data-drop-key="{{ item.slug }}" data-select-key="{{ item.slug }}"
+        data-preview-url="{{ drop_preview_urls[item.slug] }}" role="button" tabindex="0">
+        <div class="flex items-start gap-3">
+          <div class="pt-1 opacity-70">
+            {% if item.mime_type and item.mime_type.startswith('image/') %}
+            {{ icon_file_image() }}
+            {% elif item.mime_type and item.mime_type.startswith('video/') %}
+            {{ icon_file_video() }}
+            {% elif item.mime_type and item.mime_type.startswith('audio/') %}
+            {{ icon_file_audio() }}
+            {% elif item.mime_type and item.mime_type.startswith('application/pdf') %}
+            {{ icon_file_pdf() }}
+            {% else %}
+            {{ icon_file_generic() }}
+            {% endif %}
+          </div>
+
+          <div class="min-w-0 flex-1">
+            <div class="td-list-title">
+              {% if item.is_favorite %}
+              {{ icon_star(class="h-4 w-4", filled=true) }}
+              {% endif %}
+              <span class="truncate">{{ item.title or item.file_name or item.slug }}</span>
+            </div>
+            {% if item.title and item.file_name and item.title != item.file_name %}
+            <p class="td-list-file-subline">{{ item.file_name }}</p>
+            {% endif %}
+            <p class="td-list-meta">
+              {{ item.size_human if item.size_human else item.size_bytes }}
+              {% if item.access_scope == 'private' %}
+              · 나만 보기
+              {% else %}
+              · 전체 공개
+              {% endif %}
+              {% if item.created_at_relative %}
+              · {{ item.created_at_relative }}
+              {% endif %}
+            </p>
+          </div>
+
+          <div class="flex shrink-0 flex-col items-stretch gap-1 sm:flex-row sm:items-center">
+            {% if item.requires_password %}
+            <span class="inline-flex items-center justify-center opacity-70 sm:px-1" title="비밀번호 보호">
+              {{ icon_lock(class="h-4 w-4") }}
+            </span>
+            {% endif %}
+            <a href="/api/drop/{{ item.slug }}" class="td-list-action-btn" download aria-label="다운로드" title="다운로드">
+              {{ icon_download() }}
+              <span class="sm:hidden">다운로드</span>
+            </a>
+            <a class="td-list-action-btn" href="{{ drop_preview_urls[item.slug] }}"
+              hx-get="/drop-detail?slug={{ item.slug | urlencode }}" hx-target="#main-panel" hx-swap="innerHTML"
+              hx-push-url="{{ drop_preview_urls[item.slug] }}"
+              aria-label="상세 보기" title="상세 보기">
+              {{ icon_eye() }}
+              <span class="sm:hidden">상세</span>
+            </a>
+          </div>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="rounded-box border border-base-300 p-10 text-center opacity-60">
+      {{ icon_upload(class="mx-auto mb-3 h-12 w-12 opacity-40") }}
+      <p class="mb-1 font-semibold">업로드한 파일이 없습니다.</p>
+      <p class="text-sm">파일을 업로드해 시작해보세요.</p>
+    </div>
+    {% endif %}
+  </div>
+</section>

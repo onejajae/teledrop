@@ -1,0 +1,71 @@
+<dialog id="detail-edit-modal" class="modal">
+  <div class="modal-box">
+    <h3 class="text-base font-semibold">메타데이터 수정</h3>
+    <form method="post" action="/actions/drop/{{ selected_key }}/detail"
+      hx-post="/actions/drop/{{ selected_key }}/detail" hx-swap="none"
+      data-td-success="refresh-panels" data-td-close-dialog-id="detail-edit-modal"
+      class="mt-4 space-y-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
+      <input type="hidden" name="password" value="{{ selected_password or '' }}" />
+      <div class="w-full space-y-1">
+        <label class="block text-sm" for="detail-edit-title">
+          제목
+        </label>
+        <input type="text" id="detail-edit-title" name="title" value="{{ selected_drop.title or '' }}"
+          class="input input-bordered input-sm" />
+      </div>
+      <div class="w-full space-y-1">
+        <label class="block text-sm" for="detail-edit-description">
+          내용
+        </label>
+        <textarea id="detail-edit-description" name="description" rows="3"
+          class="textarea textarea-bordered">{{ selected_drop.description or '' }}</textarea>
+      </div>
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost btn-sm"
+          data-td-action="close-dialog" data-td-dialog-id="detail-edit-modal">취소</button>
+        <button type="submit" class="btn btn-primary btn-sm">저장</button>
+      </div>
+    </form>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>닫기</button>
+  </form>
+</dialog>
+
+<dialog id="detail-password-modal" class="modal">
+  <div class="modal-box">
+    <h3 class="text-base font-semibold">비밀번호 설정</h3>
+    <p class="text-xs opacity-70">비워두면 비밀번호를 해제합니다.</p>
+    <form id="detail-password-form" method="post" action="/actions/drop/{{ selected_key }}/password"
+      hx-post="/actions/drop/{{ selected_key }}/password" hx-swap="none"
+      data-td-success="refresh-panels-reset-password" data-td-close-dialog-id="detail-password-modal"
+      class="mt-4 space-y-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
+      <input type="hidden" name="current_password" value="{{ selected_password or '' }}" />
+      <div class="w-full space-y-1">
+        <label class="block text-sm" for="detail-password-new">
+          새 비밀번호
+        </label>
+        <input id="detail-password-new" type="password" name="new_password" class="input input-bordered input-sm"
+          placeholder="•••••" />
+      </div>
+      <div class="w-full space-y-1">
+        <label class="block text-sm" for="detail-password-confirm">
+          비밀번호 확인
+        </label>
+        <input id="detail-password-confirm" type="password" class="input input-bordered input-sm"
+          placeholder="•••••" />
+      </div>
+      <p id="detail-password-mismatch" class="hidden text-xs text-error">비밀번호가 일치하지 않습니다.</p>
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost btn-sm"
+          data-td-action="close-dialog" data-td-dialog-id="detail-password-modal">취소</button>
+        <button id="detail-password-submit" type="submit" class="btn btn-primary btn-sm" disabled>적용</button>
+      </div>
+    </form>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>닫기</button>
+  </form>
+</dialog>

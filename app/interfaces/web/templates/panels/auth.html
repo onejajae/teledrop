@@ -1,0 +1,35 @@
+{% from "macros/icons.html" import icon_error %}
+{% if auth_error_message %}
+<div class="alert alert-error shadow-lg mb-4">
+  <div>
+    {{ icon_error() }}
+    <span>{{ auth_error_message }}</span>
+  </div>
+</div>
+{% endif %}
+
+<section class="td-section">
+  <div class="td-section-body">
+    <h2 class="td-section-title text-center">로그인</h2>
+    <form method="post" action="/actions/auth/login" hx-post="/actions/auth/login" hx-target="#main-panel"
+      hx-swap="innerHTML" class="mx-auto w-full max-w-sm space-y-4">
+      <div class="w-full space-y-1">
+        <label class="block text-sm" for="username">
+          사용자 ID
+        </label>
+        <input type="text" id="username" name="username" placeholder="사용자 ID" autocomplete="off" required
+          class="input input-bordered w-full" />
+      </div>
+      <div class="w-full space-y-1">
+        <label class="block text-sm" for="password">
+          비밀번호
+        </label>
+        <input type="password" id="password" name="password" placeholder="••••••" autocomplete="off" required
+          class="input input-bordered w-full" />
+      </div>
+      <div class="pt-2">
+        <button type="submit" class="btn btn-primary w-full">로그인</button>
+      </div>
+    </form>
+  </div>
+</section>

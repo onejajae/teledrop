@@ -1,0 +1,54 @@
+{% if selected_drop and is_login %}
+<div class="td-detail-owner-actions" aria-label="상세 관리 액션">
+  <form method="post" action="/actions/drop/{{ selected_key }}/favorite"
+    hx-post="/actions/drop/{{ selected_key }}/favorite" hx-swap="none" data-td-success="refresh-panels"
+    class="td-detail-owner-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
+    <input type="hidden" name="password" value="{{ selected_password or '' }}" />
+    <input type="hidden" name="favorite" value="{{ 'false' if selected_drop.is_favorite else 'true' }}" />
+    <button type="submit" class="td-detail-owner-btn"
+      aria-label="{% if selected_drop.is_favorite %}즐겨찾기 해제{% else %}즐겨찾기{% endif %}"
+      title="{% if selected_drop.is_favorite %}즐겨찾기 해제{% else %}즐겨찾기{% endif %}">
+      {{ icon_star(filled=selected_drop.is_favorite) }}
+    </button>
+  </form>
+
+  <form method="post" action="/actions/drop/{{ selected_key }}/access"
+    hx-post="/actions/drop/{{ selected_key }}/access" hx-swap="none" data-td-success="refresh-panels"
+    class="td-detail-owner-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
+    <input type="hidden" name="password" value="{{ selected_password or '' }}" />
+    <input type="hidden" name="user_only"
+      value="{{ 'false' if selected_drop.access_scope == 'private' else 'true' }}" />
+    <button type="submit" class="td-detail-owner-btn"
+      aria-label="{% if selected_drop.access_scope == 'private' %}전체 공개{% else %}나만 보기{% endif %}"
+      title="{% if selected_drop.access_scope == 'private' %}전체 공개{% else %}나만 보기{% endif %}">
+      {% if selected_drop.access_scope == 'private' %}
+      {{ icon_eye() }}
+      {% else %}
+      {{ icon_eye_off() }}
+      {% endif %}
+    </button>
+  </form>
+
+  <button type="button" class="td-detail-owner-btn" aria-label="메타데이터 수정" title="메타데이터 수정"
+    data-td-action="open-dialog" data-td-dialog-id="detail-edit-modal">
+    {{ icon_edit() }}
+  </button>
+
+  <button type="button" class="td-detail-owner-btn" aria-label="비밀번호 설정" title="비밀번호 설정"
+    data-td-action="open-dialog" data-td-dialog-id="detail-password-modal">
+    {{ icon_lock() }}
+  </button>
+
+  <form method="post" action="/actions/drop/{{ selected_key }}/delete"
+    hx-post="/actions/drop/{{ selected_key }}/delete" hx-confirm="정말 삭제하시겠습니까?" hx-swap="none"
+    data-td-success="show-upload-panel-and-refresh-list" class="td-detail-owner-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
+    <input type="hidden" name="password" value="{{ selected_password or '' }}" />
+    <button type="submit" class="td-detail-owner-btn-danger" aria-label="삭제" title="삭제">
+      {{ icon_trash() }}
+    </button>
+  </form>
+</div>
+{% endif %}
