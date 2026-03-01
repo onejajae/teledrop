@@ -4,6 +4,13 @@
 * 비밀번호 로그인만 사용
 * `WEB_USERNAME`, `WEB_PASSWORD`로 계정 정보를 설정
 
+기본 동작 및 확장 환경 참고:
+* `APP_MODE` 기본값은 `prod`
+* `prod`에서 `SESSION_COOKIE_SECURE`를 명시하지 않으면 기본적으로 `true`
+* `SESSION_COOKIE_SAMESITE=none`를 사용하면 `SESSION_COOKIE_SECURE=true`가 필수
+* `CSRF_SECRET_KEY` 기본값은 프로세스별 랜덤 값
+* 멀티 워커/인스턴스에서는 공유 `CSRF_SECRET_KEY`를 설정해야 함
+
 드롭 링크 비밀번호 정책:
 * `drop_password`는 현재 평문으로 저장/비교됩니다.
 * 계정 비밀번호 수준의 보안 기능이 아니라, 공유 링크 보호용 경량 장치로 사용해야 합니다.

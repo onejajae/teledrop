@@ -176,6 +176,14 @@ class TestAuthUseCase:
 
         settings = _settings(
             APP_MODE="prod",
+            WEB_USERNAME="custom",
+            WEB_PASSWORD=PasswordHasher().hash("strong-password"),
+        )
+        assert settings.validate_auth_configuration() is None
+        assert settings.SESSION_COOKIE_SECURE is True
+
+        settings = _settings(
+            APP_MODE="prod",
             SESSION_COOKIE_SECURE=True,
             WEB_USERNAME="admin",
         )
@@ -191,12 +199,6 @@ class TestAuthUseCase:
         )
         assert settings.validate_auth_configuration() is None
 
-        settings = _settings(
-            APP_MODE="prod",
-            SESSION_COOKIE_SECURE=True,
-            WEB_USERNAME="custom",
-            WEB_PASSWORD=PasswordHasher().hash("strong-password"),
-            CSRF_SECRET_KEY="dev-csrf-secret",
-        )
+        settings = _settings(CSRF_SECRET_KEY="")
         with pytest.raises(ValueError):
             settings.validate_auth_configuration()

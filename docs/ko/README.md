@@ -18,8 +18,8 @@ REST API를 기반으로 하는 개인용 파일 공유 플랫폼
 > ```
 > 이렇게 해야 `$` 기호를 올바르게 입력할 수 있습니다.
 
-2. 사용자 계정을 설정하지 않으면 기본 계정이 `admin/password`로 설정됩니다. 
-**보안을 위해 반드시 사용자 계정을 설정하십시오.**
+2. 사용자 계정을 설정하지 않으면 기본 계정이 `admin/password`로 설정됩니다.  
+**prod 모드에서는 기본 `admin/password` 조합이 차단되므로, 실행 전에 사용자 계정을 설정해야 합니다.**
 
 ### 3. teledrop 실행
 * `compose.yml` 작성 (권장)
@@ -66,8 +66,9 @@ docker run --detach \
 >     ...
 > ``` 
 
-* `CSRF_SECRET_KEY` 설정 (권장)
-> teledrop 실행 시 `CSRF_SECRET_KEY`를 설정하세요.
+* 멀티 워커/인스턴스 환경의 `CSRF_SECRET_KEY` 공유
+> `CSRF_SECRET_KEY`는 기본적으로 프로세스마다 랜덤 값이 생성됩니다.
+> 여러 워커/인스턴스를 실행하면 CSRF 검증 일관성을 위해 공유 값을 설정하세요.
 > ```yaml
 > # compose.yml
 > services:
@@ -79,6 +80,11 @@ docker run --detach \
 > ```bash
 > --env CSRF_SECRET_KEY=<CSRF_비밀키> \
 > ```
+
+* 쿠키 보안 기본 동작
+> `APP_MODE` 기본값은 `prod`입니다.
+> `prod`에서는 `SESSION_COOKIE_SECURE`가 명시되지 않으면 기본적으로 `true`로 동작합니다.
+> `SESSION_COOKIE_SAMESITE=none`를 쓰면 `SESSION_COOKIE_SECURE=true`가 필수입니다.
 
 * 여러 개의 워커 프로세스 실행
 > 성능 향상을 위해 `--workers` 옵션을 사용하여 워커 프로세스 개수를 지정할 수 있습니다.

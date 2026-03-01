@@ -17,8 +17,8 @@ Private file sharing platform for self-hosted servers, powered by REST API.
 > WEB_PASSWORD: $$argon2id$$v=19$$m=65536,t=3,p=4$$0123456789ABCDEF$$abcdefghijklmnopqrstuvwxyz0123456789
 > ```
 > This ensures that the `$` symbol is correctly escaped and not interpreted by Docker Compose.
-2. If a user account is not set, the default account credentials will be `admin/password`. 
-**For security reasons, it is strongly recommended to set a custom username and password before running the application.**
+2. If a user account is not set, the default account credentials will be `admin/password`.  
+**In prod mode, the default `admin/password` combination is blocked. Set custom credentials before running.**
 
 ### 3. Run teledrop
 * Configure `compose.yml` (Recommended)
@@ -65,8 +65,9 @@ docker run --detach \
 >     ...
 > ``` 
 
-* Setting `CSRF_SECRET_KEY` (recommended)
-> Set `CSRF_SECRET_KEY` when running teledrop.
+* Shared `CSRF_SECRET_KEY` for multiple workers/instances
+> `CSRF_SECRET_KEY` defaults to a per-process random value.
+> Set a shared value when running multiple workers/instances so CSRF validation remains consistent.
 > ```yaml
 > # compose.yml
 > services:
@@ -78,6 +79,11 @@ docker run --detach \
 > ```bash
 > --env CSRF_SECRET_KEY=<YOUR_CSRF_SECRET> \
 > ```
+
+* Cookie security defaults
+> `APP_MODE` defaults to `prod`.
+> In `prod`, `SESSION_COOKIE_SECURE` defaults to `true` (if not explicitly set).
+> If `SESSION_COOKIE_SAMESITE=none`, `SESSION_COOKIE_SECURE=true` is required.
 
 * Running multiple worker processes
 > To improve performance, specify the number of worker processes using the `--workers` option:

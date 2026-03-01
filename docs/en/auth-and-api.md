@@ -4,6 +4,13 @@
 * Password login only
 * Configure credentials with `WEB_USERNAME` and `WEB_PASSWORD`
 
+Runtime defaults and scaling notes:
+* `APP_MODE` defaults to `prod`
+* In `prod`, `SESSION_COOKIE_SECURE` defaults to `true` unless explicitly set
+* If `SESSION_COOKIE_SAMESITE=none`, `SESSION_COOKIE_SECURE=true` is required
+* `CSRF_SECRET_KEY` defaults to a per-process random value
+* For multiple workers/instances, set a shared `CSRF_SECRET_KEY`
+
 Drop link password policy:
 * `drop_password` is currently stored and compared as plain text.
 * Treat it as a lightweight sharing guard, not an account-grade secret.

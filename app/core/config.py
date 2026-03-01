@@ -1,3 +1,5 @@
+import secrets
+
 from functools import lru_cache
 from typing import Literal
 
@@ -21,7 +23,7 @@ class Settings(BaseSettings):
 
     WEB_USERNAME: str = "admin"
     WEB_PASSWORD: str = PasswordHasher().hash("password")
-    CSRF_SECRET_KEY: str = "dev-csrf-secret"
+    CSRF_SECRET_KEY: str = secrets.token_urlsafe(32)
 
     SESSION_COOKIE_NAME: str = "session_id"
     SESSION_TTL_SECONDS: int = 60 * 60 * 24
@@ -30,6 +32,13 @@ class Settings(BaseSettings):
     SESSION_COOKIE_PATH: str = "/"
 
     def validate_auth_configuration(self):
+        # In prod, default to secure cookies unless explicitly overridden.
+        if self.APP_MODE == "prod" and "SESSION_COOKIE_SECURE" not in self.model_fields_set:
+            self.SESSION_COOKIE_SECURE = True
+
+        if not self.CSRF_SECRET_KEY:
+            raise ValueError("CSRF_SECRET_KEY must not be empty.")
+
         if self.SESSION_TTL_SECONDS <= 0:
             raise ValueError("SESSION_TTL_SECONDS must be greater than 0.")
 
@@ -39,9 +48,6 @@ class Settings(BaseSettings):
         if self.APP_MODE == "prod":
             if not self.SESSION_COOKIE_SECURE:
                 raise ValueError("SESSION_COOKIE_SECURE must be true in prod mode.")
-
-            if not self.CSRF_SECRET_KEY or self.CSRF_SECRET_KEY == "dev-csrf-secret":
-                raise ValueError("CSRF_SECRET_KEY must be explicitly configured in prod mode.")
 
             is_default_password = False
             try:
