@@ -12,7 +12,7 @@ REST API를 기반으로 하는 개인용 파일 공유 플랫폼
 
 ### 2. 사용자 비밀번호 해시 생성
 1. 비밀번호는 Argon2 알고리즘을 사용하여 해시해야 합니다.
-> **주의사항:** `docker-compose.yml` 파일에서 환경 변수를 설정할 때 `$` 기호를 `$$` 로 변경해야 합니다.   
+> **주의사항:** `compose.yml` 파일에서 환경 변수를 설정할 때 `$` 기호를 `$$` 로 변경해야 합니다.   
 > ```yaml
 > WEB_PASSWORD: $$argon2id$$v=19$$m=65536,t=3,p=4$$0123456789ABCDEF$$abcdefghijklmnopqrstuvwxyz0123456789
 > ```
@@ -22,7 +22,7 @@ REST API를 기반으로 하는 개인용 파일 공유 플랫폼
 **보안을 위해 반드시 사용자 계정을 설정하십시오.**
 
 ### 3. teledrop 실행
-* `docker-compose.yml` 작성 (권장)
+* `compose.yml` 작성 (권장)
 ```yaml
 services:
   teledrop:
@@ -58,7 +58,7 @@ docker run --detach \
 * 리버스 프록시 뒤에서 실행
 > teledrop을 리버스 프록시 뒤에서 실행하는 경우 실제 클라이언트 IP 주소를 얻기 위해 다음 옵션을 추가할 수 있습니다.
 > ```yaml
-> # docker-compose.yml
+> # compose.yml
 > services:
 >   teledrop:
 >     ...
@@ -66,19 +66,34 @@ docker run --detach \
 >     ...
 > ``` 
 
+* `CSRF_SECRET_KEY` 설정 (권장)
+> teledrop 실행 시 `CSRF_SECRET_KEY`를 설정하세요.
+> ```yaml
+> # compose.yml
+> services:
+>   teledrop:
+>     environment:
+>       - CSRF_SECRET_KEY=<CSRF_비밀키>
+> ```
+> `docker run`으로 실행하면 아래 옵션을 추가하세요:
+> ```bash
+> --env CSRF_SECRET_KEY=<CSRF_비밀키> \
+> ```
+
 * 여러 개의 워커 프로세스 실행
 > 성능 향상을 위해 `--workers` 옵션을 사용하여 워커 프로세스 개수를 지정할 수 있습니다.
 > ```yaml
-> # docker-compose.yml
+> # compose.yml
 > services:
 >   teledrop:
 >     ...
 >     command: "--workers <프로세스_개수>"
 >     ...
 > ```
+> 세션 인증 정보는 데이터베이스에 저장됩니다.  
+> 여러 인스턴스/워커를 실행하면 모든 인스턴스가 동일한 데이터베이스와 파일 저장소를 공유해야 합니다.
 
 ## 문서
-* [런타임 참고사항](runtime-notes.md)
 * [인증 및 API](auth-and-api.md)
 * [마이그레이션 안내](migration.md)
 * [테스트 실행](testing.md)

@@ -12,7 +12,7 @@ Private file sharing platform for self-hosted servers, powered by REST API.
 
 ### 2. Hash User Password
 1. The password must be hashed using the Argon2 algorithm.
-> **Warning:** When setting environment variables in the `docker-compose.yml` file, make sure to replace `$` with `$$`. For example:  
+> **Warning:** When setting environment variables in the `compose.yml` file, make sure to replace `$` with `$$`. For example:  
 > ```yaml
 > WEB_PASSWORD: $$argon2id$$v=19$$m=65536,t=3,p=4$$0123456789ABCDEF$$abcdefghijklmnopqrstuvwxyz0123456789
 > ```
@@ -21,7 +21,7 @@ Private file sharing platform for self-hosted servers, powered by REST API.
 **For security reasons, it is strongly recommended to set a custom username and password before running the application.**
 
 ### 3. Run teledrop
-* Configure `docker-compose.yml` (Recommended)
+* Configure `compose.yml` (Recommended)
 ```yaml
 services:
   teledrop:
@@ -35,7 +35,7 @@ services:
     environment:
       - TZ=Asia/Seoul
       - WEB_USERNAME=<YOUR_LOGIN_USERNAME>
-      - WEB_PASSWORD=<YOUR_HASHED_LOGIN_PASSWORD>  # Use $$ instead of $ in docker-compose.yml
+      - WEB_PASSWORD=<YOUR_HASHED_LOGIN_PASSWORD>  # Use $$ instead of $ in compose.yml
 ```
 ```bash
 docker compose up -d
@@ -57,7 +57,7 @@ docker run --detach \
 * Running behind a reverse proxy
 > If teledrop is running behind a reverse proxy, add the following options to properly log the actual client IP addresses:
 > ```yaml
-> # docker-compose.yml
+> # compose.yml
 > services:
 >   teledrop:
 >     ...
@@ -65,19 +65,34 @@ docker run --detach \
 >     ...
 > ``` 
 
+* Setting `CSRF_SECRET_KEY` (recommended)
+> Set `CSRF_SECRET_KEY` when running teledrop.
+> ```yaml
+> # compose.yml
+> services:
+>   teledrop:
+>     environment:
+>       - CSRF_SECRET_KEY=<YOUR_CSRF_SECRET>
+> ```
+> If you run with `docker run`, add:
+> ```bash
+> --env CSRF_SECRET_KEY=<YOUR_CSRF_SECRET> \
+> ```
+
 * Running multiple worker processes
 > To improve performance, specify the number of worker processes using the `--workers` option:
 > ```yaml
-> # docker-compose.yml
+> # compose.yml
 > services:
 >   teledrop:
 >     ...
 >     command: "--workers <NUMBER_OF_PROCESSES>"
 >     ...
 > ```
+> Session authentication is stored in the database.  
+> If you run multiple instances/workers, all instances must share the same database and file storage.
 
 ## Documentation
-* [Runtime Notes](docs/en/runtime-notes.md)
 * [Authentication and API](docs/en/auth-and-api.md)
 * [Slug Word Pools](docs/en/slug-word-pools.md)
 * [Migration Notes](docs/en/migration.md)
