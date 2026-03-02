@@ -5,9 +5,12 @@
 * `WEB_USERNAME`, `WEB_PASSWORD`로 계정 정보를 설정
 
 기본 동작 및 확장 환경 참고:
-* `APP_MODE` 기본값은 `prod`
-* `prod`에서 `SESSION_COOKIE_SECURE`를 명시하지 않으면 기본적으로 `true`
+* `SESSION_COOKIE_SECURE` 기본값은 `true`
 * `SESSION_COOKIE_SAMESITE=none`를 사용하면 `SESSION_COOKIE_SECURE=true`가 필수
+* `APP_MODE`는 지원하지 않으며 `.env`에 있으면 시작 시 실패
+* HTTP는 로컬/내부망 용도로만 사용 (`SESSION_COOKIE_SECURE=false`), 운영 환경은 HTTPS 권장
+* `API_DOCS_ENABLED` 기본값은 `false` (로컬/개발 환경에서만 활성화 권장)
+* `CORS_ALLOW_ALL` 기본값은 `false` (로컬/개발 환경에서만 활성화 권장)
 * `CSRF_SECRET_KEY` 기본값은 프로세스별 랜덤 값
 * 멀티 워커/인스턴스에서는 공유 `CSRF_SECRET_KEY`를 설정해야 함
 

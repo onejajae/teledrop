@@ -64,14 +64,13 @@ class _TrackingAuthUow:
 
 def _settings(**overrides) -> Settings:
     base = {
-        "APP_MODE": "test",
         "WEB_USERNAME": "admin",
         "WEB_PASSWORD": PasswordHasher().hash("password"),
         "SESSION_TTL_SECONDS": 3600,
         "CSRF_SECRET_KEY": "test-csrf-secret",
     }
     base.update(overrides)
-    return Settings(**base)
+    return Settings(_env_file=None, **base)
 
 
 class TestAuthUseCase:
@@ -153,12 +152,7 @@ class TestAuthUseCase:
         with pytest.raises(ValueError):
             settings.validate_auth_configuration()
 
-        settings = _settings(APP_MODE="prod", SESSION_COOKIE_SECURE=False)
-        with pytest.raises(ValueError):
-            settings.validate_auth_configuration()
-
         settings = _settings(
-            APP_MODE="prod",
             WEB_USERNAME="custom",
             WEB_PASSWORD=PasswordHasher().hash("strong-password"),
         )
@@ -166,19 +160,16 @@ class TestAuthUseCase:
         assert settings.SESSION_COOKIE_SECURE is True
 
         settings = _settings(
-            APP_MODE="prod",
             SESSION_COOKIE_SECURE=True,
             WEB_USERNAME="admin",
         )
-        with pytest.raises(ValueError):
-            settings.validate_auth_configuration()
+        assert settings.validate_auth_configuration() is None
 
         settings = _settings(
-            APP_MODE="prod",
             SESSION_COOKIE_SECURE=True,
             WEB_USERNAME="custom",
             WEB_PASSWORD=PasswordHasher().hash("strong-password"),
-            CSRF_SECRET_KEY="prod-csrf-secret",
+            CSRF_SECRET_KEY="safe-csrf-secret",
         )
         assert settings.validate_auth_configuration() is None
 

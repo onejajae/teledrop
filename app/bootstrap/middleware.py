@@ -5,7 +5,7 @@ from app.core.config import Settings
 
 
 def register_middlewares(app: FastAPI, settings: Settings) -> None:
-    if settings.APP_MODE == "prod":
+    if not settings.CORS_ALLOW_ALL:
         return
 
     app.add_middleware(

@@ -8,9 +8,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_ignore_empty=True)
-
-    APP_MODE: Literal["prod", "dev", "test"] = "prod"
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_ignore_empty=True,
+        extra="forbid",
+    )
 
     SQLITE_HOST: str = "sqlite:///share/database.db"
 
@@ -27,15 +29,13 @@ class Settings(BaseSettings):
 
     SESSION_COOKIE_NAME: str = "session_id"
     SESSION_TTL_SECONDS: int = 60 * 60 * 24
-    SESSION_COOKIE_SECURE: bool = False
+    SESSION_COOKIE_SECURE: bool = True
     SESSION_COOKIE_SAMESITE: Literal["lax", "strict", "none"] = "lax"
     SESSION_COOKIE_PATH: str = "/"
+    API_DOCS_ENABLED: bool = False
+    CORS_ALLOW_ALL: bool = False
 
     def validate_auth_configuration(self):
-        # In prod, default to secure cookies unless explicitly overridden.
-        if self.APP_MODE == "prod" and "SESSION_COOKIE_SECURE" not in self.model_fields_set:
-            self.SESSION_COOKIE_SECURE = True
-
         if not self.CSRF_SECRET_KEY:
             raise ValueError("CSRF_SECRET_KEY must not be empty.")
 
@@ -44,20 +44,6 @@ class Settings(BaseSettings):
 
         if self.SESSION_COOKIE_SAMESITE == "none" and not self.SESSION_COOKIE_SECURE:
             raise ValueError("SESSION_COOKIE_SECURE must be true when SESSION_COOKIE_SAMESITE is 'none'.")
-
-        if self.APP_MODE == "prod":
-            if not self.SESSION_COOKIE_SECURE:
-                raise ValueError("SESSION_COOKIE_SECURE must be true in prod mode.")
-
-            is_default_password = False
-            try:
-                PasswordHasher().verify(self.WEB_PASSWORD, "password")
-                is_default_password = True
-            except Exception:
-                is_default_password = False
-
-            if self.WEB_USERNAME == "admin" and is_default_password:
-                raise ValueError("Default WEB_USERNAME/WEB_PASSWORD cannot be used in prod mode.")
 
         return None
 

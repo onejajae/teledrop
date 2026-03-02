@@ -9,13 +9,16 @@ from app.infrastructure.slug.candidate_generators import PatternWordPoolsSlugCan
 
 class _FakeSettings:
 
-    def __init__(self, *, sqlite_host: str='sqlite:///:memory:', share_directory: str='share', app_mode: str='test'):
+    def __init__(self, *, sqlite_host: str='sqlite:///:memory:', share_directory: str='share'):
         self.SQLITE_HOST = sqlite_host
         self.SHARE_DIRECTORY = share_directory
-        self.APP_MODE = app_mode
         self.DEFAULT_PAGE_SIZE = 10
         self.MAX_PAGE_SIZE = 200
         self.SESSION_TTL_SECONDS = 3600
+        self.SESSION_COOKIE_SECURE = True
+        self.SESSION_COOKIE_SAMESITE = "lax"
+        self.API_DOCS_ENABLED = False
+        self.CORS_ALLOW_ALL = False
         self.WEB_USERNAME = 'admin'
         self.WEB_PASSWORD = PasswordHasher().hash('password')
         self.CSRF_SECRET_KEY = 'test-csrf-secret'
@@ -95,9 +98,9 @@ class TestBareFastApiFallback:
 
         @app.get('/cfg')
         def read_cfg(settings=Depends(get_app_settings)):
-            return {'mode': settings.APP_MODE}
+            return {'cookie_secure': settings.SESSION_COOKIE_SECURE}
         client = TestClient(app)
-        with patch('app.bootstrap.container.get_settings', return_value=_FakeSettings(app_mode='test')):
+        with patch('app.bootstrap.container.get_settings', return_value=_FakeSettings()):
             response = client.get('/cfg')
         assert response.status_code == 200
-        assert 'mode' in response.json()
+        assert response.json() == {'cookie_secure': True}

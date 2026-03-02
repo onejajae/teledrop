@@ -5,9 +5,12 @@
 * Configure credentials with `WEB_USERNAME` and `WEB_PASSWORD`
 
 Runtime defaults and scaling notes:
-* `APP_MODE` defaults to `prod`
-* In `prod`, `SESSION_COOKIE_SECURE` defaults to `true` unless explicitly set
+* `SESSION_COOKIE_SECURE` defaults to `true`
 * If `SESSION_COOKIE_SAMESITE=none`, `SESSION_COOKIE_SECURE=true` is required
+* `APP_MODE` is not supported; if present in `.env`, startup fails
+* HTTP is for local/internal use (`SESSION_COOKIE_SECURE=false`); production should use HTTPS
+* `API_DOCS_ENABLED` defaults to `false` (enable in local/dev only)
+* `CORS_ALLOW_ALL` defaults to `false` (enable in local/dev only)
 * `CSRF_SECRET_KEY` defaults to a per-process random value
 * For multiple workers/instances, set a shared `CSRF_SECRET_KEY`
 

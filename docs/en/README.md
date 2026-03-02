@@ -18,7 +18,7 @@ Private file sharing platform for self-hosted servers, powered by REST API.
 > ```
 > This ensures that the `$` symbol is correctly escaped and not interpreted by Docker Compose.
 2. If a user account is not set, the default account credentials will be `admin/password`.  
-**In prod mode, the default `admin/password` combination is blocked. Set custom credentials before running.**
+Set custom credentials before running any deployment exposed to other users.
 
 ### 3. Run teledrop
 * Configure `compose.yml` (Recommended)
@@ -81,9 +81,17 @@ docker run --detach \
 > ```
 
 * Cookie security defaults
-> `APP_MODE` defaults to `prod`.
-> In `prod`, `SESSION_COOKIE_SECURE` defaults to `true` (if not explicitly set).
+> `SESSION_COOKIE_SECURE` defaults to `true`.
 > If `SESSION_COOKIE_SAMESITE=none`, `SESSION_COOKIE_SECURE=true` is required.
+> `APP_MODE` is not supported. If it exists in `.env`, startup fails.
+> Deployments exposed to users should run over HTTPS.
+> HTTP is supported for local development or trusted internal networks by setting:
+> ```yaml
+> environment:
+>   - SESSION_COOKIE_SECURE=false
+>   - API_DOCS_ENABLED=true
+>   - CORS_ALLOW_ALL=true
+> ```
 
 * Running multiple worker processes
 > To improve performance, specify the number of worker processes using the `--workers` option:

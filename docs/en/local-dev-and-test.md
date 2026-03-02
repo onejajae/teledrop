@@ -12,6 +12,15 @@ You can use the provided script to set up the environment, build CSS, and run th
 ./scripts/run_dev.sh
 ```
 
+## Local Development Environment Values
+For HTTP local development, set these values in `.env`:
+
+```dotenv
+SESSION_COOKIE_SECURE=false
+API_DOCS_ENABLED=true
+CORS_ALLOW_ALL=true
+```
+
 ## Manual Steps
 1. **Set up Python Environment**:
    ```bash

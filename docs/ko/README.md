@@ -19,7 +19,7 @@ REST API를 기반으로 하는 개인용 파일 공유 플랫폼
 > 이렇게 해야 `$` 기호를 올바르게 입력할 수 있습니다.
 
 2. 사용자 계정을 설정하지 않으면 기본 계정이 `admin/password`로 설정됩니다.  
-**prod 모드에서는 기본 `admin/password` 조합이 차단되므로, 실행 전에 사용자 계정을 설정해야 합니다.**
+외부 사용자에게 노출되는 환경에서는 실행 전에 사용자 계정을 반드시 변경하세요.
 
 ### 3. teledrop 실행
 * `compose.yml` 작성 (권장)
@@ -82,9 +82,17 @@ docker run --detach \
 > ```
 
 * 쿠키 보안 기본 동작
-> `APP_MODE` 기본값은 `prod`입니다.
-> `prod`에서는 `SESSION_COOKIE_SECURE`가 명시되지 않으면 기본적으로 `true`로 동작합니다.
+> `SESSION_COOKIE_SECURE` 기본값은 `true`입니다.
 > `SESSION_COOKIE_SAMESITE=none`를 쓰면 `SESSION_COOKIE_SECURE=true`가 필수입니다.
+> `APP_MODE`는 지원하지 않습니다. `.env`에 있으면 시작 시 실패합니다.
+> 외부 사용자에게 노출되는 배포 환경은 HTTPS 사용을 권장합니다.
+> 로컬 개발 또는 신뢰 가능한 내부망에서 HTTP를 사용하려면 다음과 같이 설정하세요:
+> ```yaml
+> environment:
+>   - SESSION_COOKIE_SECURE=false
+>   - API_DOCS_ENABLED=true
+>   - CORS_ALLOW_ALL=true
+> ```
 
 * 여러 개의 워커 프로세스 실행
 > 성능 향상을 위해 `--workers` 옵션을 사용하여 워커 프로세스 개수를 지정할 수 있습니다.

@@ -11,8 +11,9 @@ from app.bootstrap.runtime_paths import static_files_dir, sqlite_file_path_from_
 
 class _FakeSettings:
 
-    def __init__(self, *, app_mode: str='dev', prefix_api_base: str='/api', share_directory: str='share', sqlite_host: str='sqlite:///share/database.db'):
-        self.APP_MODE = app_mode
+    def __init__(self, *, api_docs_enabled: bool=False, cors_allow_all: bool=False, prefix_api_base: str='/api', share_directory: str='share', sqlite_host: str='sqlite:///share/database.db'):
+        self.API_DOCS_ENABLED = api_docs_enabled
+        self.CORS_ALLOW_ALL = cors_allow_all
         self.PREFIX_API_BASE = prefix_api_base
         self.SHARE_DIRECTORY = share_directory
         self.SQLITE_HOST = sqlite_host
@@ -50,16 +51,17 @@ class TestBootstrapRuntimePath:
 
 class TestCreateAppBootstrap:
 
-    def test_create_app_prod_disables_docs(self):
-        settings = _FakeSettings(app_mode='prod')
+    def test_create_app_defaults_disable_docs_and_cors(self):
+        settings = _FakeSettings()
         with patch('app.bootstrap.application.get_settings', return_value=settings):
             app = create_app()
         assert app.docs_url is None
         assert app.redoc_url is None
         assert app.openapi_url is None
+        assert not any((m.cls is CORSMiddleware for m in app.user_middleware))
 
-    def test_create_app_non_prod_enables_docs_and_cors(self):
-        settings = _FakeSettings(app_mode='dev')
+    def test_create_app_can_enable_docs_and_cors_explicitly(self):
+        settings = _FakeSettings(api_docs_enabled=True, cors_allow_all=True)
         with patch('app.bootstrap.application.get_settings', return_value=settings):
             app = create_app()
         assert app.docs_url == '/docs'
@@ -68,7 +70,7 @@ class TestCreateAppBootstrap:
         assert any((m.cls is CORSMiddleware for m in app.user_middleware))
 
     def test_create_app_mounts_static_and_registers_routes(self):
-        settings = _FakeSettings(app_mode='test', prefix_api_base='/api-x')
+        settings = _FakeSettings(prefix_api_base='/api-x')
         with patch('app.bootstrap.application.get_settings', return_value=settings):
             app = create_app()
         route_paths = [getattr(route, 'path', None) for route in app.routes]
