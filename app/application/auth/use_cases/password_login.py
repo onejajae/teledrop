@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from argon2 import PasswordHasher
 
 from app.application.auth.models import AuthSessionDTO, PasswordLoginCommand

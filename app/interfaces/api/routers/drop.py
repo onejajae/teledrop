@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from urllib import parse
 
 from fastapi import APIRouter, File, Form, Header, Query, UploadFile, status

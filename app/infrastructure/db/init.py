@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from sqlmodel import SQLModel
 
 from app.infrastructure.db.models import AuthSession, DropRecord

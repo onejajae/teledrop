@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from app.application.auth.types import AuthIdentity
 from app.application.drop.models import (
     UNSET as COMMAND_UNSET,

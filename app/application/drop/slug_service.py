@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import uuid
 
 from app.application.drop.ports import DropRepositoryPort, DropSlugCandidateGeneratorPort

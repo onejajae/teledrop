@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import Session, create_engine

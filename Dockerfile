@@ -1,5 +1,5 @@
 # 1. node base for building tailwind css
-FROM node:20-alpine AS node_builder
+FROM node:24-alpine AS node_builder
 WORKDIR /app
 COPY ui-build/package.json ui-build/package-lock.json ./ui-build/
 COPY app/interfaces/web/static ./app/interfaces/web/static
@@ -9,7 +9,7 @@ RUN npm install
 RUN npm run build:css
 
 # python base image
-FROM python:3.12-alpine AS python_base
+FROM python:3.14-alpine AS python_base
 
 # 2. dependencies install
 FROM python_base AS dependency_builder

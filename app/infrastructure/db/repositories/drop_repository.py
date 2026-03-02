@@ -1,8 +1,6 @@
-from __future__ import annotations
-
 from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import TypeVar
+from typing import List, TypeVar
 
 import anyio.to_thread
 from sqlalchemy import func
@@ -46,7 +44,7 @@ class SQLModelDropRepository(DropRepositoryPort):
         offset: int,
         sort: DropSortField,
         order: str,
-    ) -> list[DropEntity]:
+    ) -> List[DropEntity]:
         if self._session is not None:
             return self._list_in_session(
                 self._session,
@@ -131,7 +129,7 @@ class SQLModelDropRepository(DropRepositoryPort):
         offset: int,
         sort: DropSortField,
         order: str,
-    ) -> list[DropEntity]:
+    ) -> List[DropEntity]:
         return self._with_new_session(
             lambda session: self._list_in_session(
                 session,
@@ -150,7 +148,7 @@ class SQLModelDropRepository(DropRepositoryPort):
         offset: int,
         sort: DropSortField,
         order: str,
-    ) -> list[DropEntity]:
+    ) -> List[DropEntity]:
         sort_column = DropRecord.created_at
         if sort == DropSortField.TITLE:
             sort_column = func.coalesce(DropRecord.title, DropRecord.file_name)

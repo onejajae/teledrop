@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from fastapi import HTTPException, Response, status
 
 from app.domain.drop.errors import (
