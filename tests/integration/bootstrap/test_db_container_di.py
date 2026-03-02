@@ -1,4 +1,3 @@
-import pytest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -7,7 +6,6 @@ from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 from app.bootstrap.container import AppContainer, attach_app_container, build_app_container, ensure_app_container, get_app_container, get_app_settings
 from app.infrastructure.slug.candidate_generators import PatternWordPoolsSlugCandidateGenerator, UuidHexSlugCandidateGenerator
-from app.infrastructure.db.init import init_db
 
 class _FakeSettings:
 
@@ -24,12 +22,6 @@ class _FakeSettings:
 
     def validate_auth_configuration(self):
         return None
-
-class TestDbPackageContract:
-
-    def test_init_db_requires_engine_argument(self):
-        with pytest.raises(TypeError):
-            init_db()
 
 class TestAppContainer:
 

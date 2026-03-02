@@ -112,23 +112,6 @@ class TestAuthUseCase:
         with pytest.raises(LoginInvalid):
             await use_case.execute(PasswordLoginCommand(username="admin", password="wrong"))
 
-    async def test_verify_session_expired_revokes_and_raises(self):
-        repo = _InMemorySessionRepository()
-        repo.records["sid-1"] = AuthSessionRecord(
-            sid="sid-1",
-            username="tester",
-            created_at=datetime.now(timezone.utc) - timedelta(hours=2),
-            expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),
-            revoked_at=None,
-        )
-        tracking_uow = _TrackingAuthUow(repo)
-        use_case = VerifySessionUseCase(uow_factory=lambda: tracking_uow)
-
-        with pytest.raises(SessionExpired):
-            await use_case.execute(VerifySessionQuery(sid="sid-1"))
-
-        assert repo.revoked_calls == ["sid-1"]
-
     async def test_verify_session_expired_uses_uow_transaction_boundary(self):
         repo = _InMemorySessionRepository()
         repo.records["sid-1"] = AuthSessionRecord(
