@@ -7,7 +7,6 @@
   // DOM contract: selectable drop cards expose data-drop-key/data-select-key.
   const itemSelector = "[data-drop-key]";
   const hasOwn = Object.prototype.hasOwnProperty;
-  const interactiveSelector = "a, button, input, select, textarea, label, form, summary";
   const LIGHT_THEME_COLOR = "#0ea5e9";
   const DARK_THEME_COLOR = "#1d232a";
   const setDocumentTheme = (theme) => {
@@ -48,24 +47,6 @@
         item.classList.remove("is-selected");
       }
     });
-  };
-
-  const openDropDetailCard = (card) => {
-    const slug = card?.dataset.dropKey;
-    if (!slug || !document.querySelector("#main-panel")) {
-      return;
-    }
-
-    htmx.ajax("GET", "/drop-detail", {
-      values: { slug },
-      target: "#main-panel",
-      swap: "innerHTML",
-    });
-
-    const previewUrl = card.dataset.previewUrl;
-    if (previewUrl) {
-      history.pushState(null, "", previewUrl);
-    }
   };
 
   const currentDropPanelValues = () => {
@@ -164,38 +145,7 @@
       }
     }
 
-    const card = event.target.closest("[data-drop-key][data-preview-url]");
-    if (card && event.target.closest(interactiveSelector)) {
-      return;
-    }
-
     const trigger = event.target.closest("[data-select-key]");
-    if (!trigger) {
-      return;
-    }
-    setSelectedKey(trigger.dataset.selectKey || null);
-
-    if (!card) {
-      return;
-    }
-    openDropDetailCard(card);
-  });
-
-  document.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter" && event.key !== " ") {
-      return;
-    }
-    const card = event.target.closest?.("[data-drop-key][data-preview-url]");
-    if (!card) {
-      return;
-    }
-    event.preventDefault();
-    setSelectedKey(card.dataset.selectKey || null);
-    openDropDetailCard(card);
-  });
-
-  document.addEventListener("submit", (event) => {
-    const trigger = event.target.closest("form[data-select-key]");
     if (!trigger) {
       return;
     }

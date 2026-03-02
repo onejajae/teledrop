@@ -53,15 +53,13 @@ class TestWebTemplateSmoke:
         assert '비밀번호 보호' in html
         assert 'aria-label="새로고침"' in html
         assert 'aria-label="정렬 순서 변경"' in html
-        assert 'role="button"' in html
-        assert 'tabindex="0"' in html
+        assert 'class="td-drop-card block"' in html
+        assert 'href="/doc1"' in html
+        assert 'hx-get="/drop-detail?slug=doc1"' in html
         assert 'onclick="htmx.ajax(\'GET\', \'/drop-detail\'' not in html
         assert 'class="td-list-meta"' in html
-        assert 'class="td-list-action-btn"' in html
-        assert 'aria-label="다운로드"' in html
-        assert 'aria-label="상세 보기"' in html
-        assert '<span class="sm:hidden">다운로드</span>' in html
-        assert '<span class="sm:hidden">상세</span>' in html
+        assert 'class="td-list-action-btn"' not in html
+        assert 'aria-label="다운로드"' not in html
 
     def test_detail_panel_renders_unselected_password_prompt_wrong_password_and_selected_states(self):
         unselected = _render('panels/drop_detail.html', selected_key=None)
@@ -128,9 +126,7 @@ class TestWebUiContract:
         source = (static_files_dir() / 'js' / 'dashboard.js').read_text(encoding='utf-8')
         assert 'classList.add("is-selected")' in source
         assert 'classList.remove("is-selected")' in source
-        assert 'document.addEventListener("keydown"' in source
-        assert 'event.key !== "Enter" && event.key !== " "' in source
-        assert 'openDropDetailCard' in source
+        assert 'event.target.closest("[data-select-key]")' in source
         assert 'setDocumentTheme' in source
         assert 'style.colorScheme' in source
         assert 'meta[name="theme-color"]' in source

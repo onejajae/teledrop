@@ -1,5 +1,5 @@
 {% from "macros/icons.html" import icon_error, icon_success, icon_file_image, icon_file_video, icon_file_audio,
-icon_file_pdf, icon_file_generic, icon_star, icon_download, icon_eye, icon_lock, icon_refresh, icon_upload %}
+icon_file_pdf, icon_file_generic, icon_star, icon_lock, icon_refresh, icon_upload %}
 {% if drop_error_message %}
 <div class="alert alert-error shadow-lg mb-4">
   <div>
@@ -51,8 +51,10 @@ icon_file_pdf, icon_file_generic, icon_star, icon_download, icon_eye, icon_lock,
     {% if drops %}
     <div class="space-y-2">
       {% for item in drops %}
-      <article class="td-drop-card" data-drop-key="{{ item.slug }}" data-select-key="{{ item.slug }}"
-        data-preview-url="{{ drop_preview_urls[item.slug] }}" role="button" tabindex="0">
+      <a class="td-drop-card block" href="{{ drop_preview_urls[item.slug] }}"
+        hx-get="/drop-detail?slug={{ item.slug | urlencode }}" hx-target="#main-panel" hx-swap="innerHTML"
+        hx-push-url="{{ drop_preview_urls[item.slug] }}" data-drop-key="{{ item.slug }}" data-select-key="{{ item.slug }}"
+        title="상세 보기">
         <div class="flex items-start gap-3">
           <div class="pt-1 opacity-70">
             {% if item.mime_type and item.mime_type.startswith('image/') %}
@@ -91,26 +93,13 @@ icon_file_pdf, icon_file_generic, icon_star, icon_download, icon_eye, icon_lock,
             </p>
           </div>
 
-          <div class="flex shrink-0 flex-col items-stretch gap-1 sm:flex-row sm:items-center">
-            {% if item.requires_password %}
-            <span class="inline-flex items-center justify-center opacity-70 sm:px-1" title="비밀번호 보호">
-              {{ icon_lock(class="h-4 w-4") }}
-            </span>
-            {% endif %}
-            <a href="/api/drop/{{ item.slug }}" class="td-list-action-btn" download aria-label="다운로드" title="다운로드">
-              {{ icon_download() }}
-              <span class="sm:hidden">다운로드</span>
-            </a>
-            <a class="td-list-action-btn" href="{{ drop_preview_urls[item.slug] }}"
-              hx-get="/drop-detail?slug={{ item.slug | urlencode }}" hx-target="#main-panel" hx-swap="innerHTML"
-              hx-push-url="{{ drop_preview_urls[item.slug] }}"
-              aria-label="상세 보기" title="상세 보기">
-              {{ icon_eye() }}
-              <span class="sm:hidden">상세</span>
-            </a>
-          </div>
+          {% if item.requires_password %}
+          <span class="inline-flex shrink-0 items-center justify-center opacity-70 sm:px-1" title="비밀번호 보호">
+            {{ icon_lock(class="h-4 w-4") }}
+          </span>
+          {% endif %}
         </div>
-      </article>
+      </a>
       {% endfor %}
     </div>
     {% else %}

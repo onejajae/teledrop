@@ -157,10 +157,6 @@
     @apply outline-none ring-2 ring-primary/35 ring-offset-2 ring-offset-base-100;
   }
 
-  .td-list-action-btn {
-    @apply btn btn-ghost btn-xs gap-1 text-base-content/70 hover:bg-base-200 hover:text-base-content sm:btn-square sm:gap-0;
-  }
-
   .td-detail-actions {
     @apply grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-1;
   }
@@ -197,7 +193,6 @@
     @apply hover:shadow-sm;
   }
 
-  .td-list-action-btn svg,
   .td-detail-action-btn svg,
   .td-detail-owner-btn svg,
   .td-detail-owner-btn-danger svg {
