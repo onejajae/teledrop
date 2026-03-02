@@ -2,6 +2,9 @@ import io
 import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import hashlib
+
+import pytest
 
 from app.application.auth.types import AuthIdentity
 from app.application.drop.models import (
@@ -28,6 +31,7 @@ from app.application.drop.use_cases import (
     UpdateDropUseCase,
 )
 from app.domain.drop.entities import DropEntity
+from app.domain.drop.errors import DropAccessDeniedError
 from app.domain.drop.value_objects import AccessScope, DropSortField
 from app.infrastructure.storage.local_file_storage import LocalFileStorage
 
@@ -117,6 +121,11 @@ class _InMemoryDropUow:
         return None
 
 
+class _CommitFailingDropUow(_InMemoryDropUow):
+    async def commit(self):
+        raise RuntimeError("forced commit failure")
+
+
 class _StubSlugCandidateGenerator(DropSlugCandidateGeneratorPort):
     def __init__(self, candidates: list[str] | None = None):
         self._candidates = list(candidates or ["generated-slug"])
@@ -125,6 +134,37 @@ class _StubSlugCandidateGenerator(DropSlugCandidateGeneratorPort):
         if self._candidates:
             return self._candidates.pop(0)
         return "generated-slug"
+
+
+class _DeleteStorageSpy:
+    def __init__(self, staged_key: str | None = "staged-key"):
+        self.staged_key = staged_key
+        self.stage_calls: list[str] = []
+        self.rollback_calls: list[tuple[str, str]] = []
+        self.finalize_calls: list[str] = []
+        self._payloads: dict[str, bytes] = {}
+        self._counter = 0
+
+    async def write_stream(self, file_stream):
+        payload = file_stream.read()
+        storage_key = f"spy-{self._counter}"
+        self._counter += 1
+        self._payloads[storage_key] = payload
+        return storage_key, hashlib.sha256(payload).hexdigest()
+
+    async def stage_delete(self, storage_key: str) -> tuple[str, str | None]:
+        self.stage_calls.append(storage_key)
+        return storage_key, self.staged_key
+
+    async def rollback_staged_delete(self, source_key: str, staged_key: str) -> None:
+        self.rollback_calls.append((source_key, staged_key))
+
+    async def finalize_staged_delete(self, staged_key: str) -> None:
+        self.finalize_calls.append(staged_key)
+
+    async def stream_range(self, storage_key: str, start: int, end: int):
+        payload = self._payloads[storage_key]
+        yield payload[start : end + 1]
 
 
 @dataclass(slots=True)
@@ -166,6 +206,32 @@ def _build_use_cases(repo: _InMemoryRepository, temp_dir: str) -> _UseCases:
             uow_factory=uow_factory,
         ),
         availability_use_case=CheckSlugAvailabilityUseCase(slug_service=slug_service),
+    )
+
+
+async def _seed_drop(
+    repo: _InMemoryRepository,
+    *,
+    slug: str,
+    storage_key: str,
+    drop_password: str | None = "pw",
+    title: str | None = "title",
+    description: str | None = "desc",
+) -> DropEntity:
+    return await repo.create(
+        DropCreateInput(
+            slug=slug,
+            access_scope=AccessScope.PRIVATE,
+            is_favorite=False,
+            drop_password=drop_password,
+            file_name=f"{slug}.txt",
+            mime_type="text/plain",
+            size_bytes=4,
+            sha256=f"sha-{slug}",
+            storage_key=storage_key,
+            title=title,
+            description=description,
+        )
     )
 
 
@@ -277,6 +343,116 @@ class TestDropUseCases:
             assert created.slug == "cat-dance-happy"
             assert await availability_use_case.execute("another-slug")
             assert not await availability_use_case.execute("cat-dance-happy")
+
+    async def test_list_drops_requires_authenticated_identity(self):
+        repo = _InMemoryRepository()
+        use_case = ListDropsUseCase(
+            repository=repo,
+            default_page_size=10,
+            max_page_size=200,
+        )
+
+        with pytest.raises(DropAccessDeniedError):
+            await use_case.execute(
+                DropListQuery(
+                    page=1,
+                    page_size=20,
+                    sort=DropSortField.CREATED_AT,
+                    order="desc",
+                    auth=AuthIdentity(username=None),
+                )
+            )
+
+    async def test_create_normalizes_password_with_trim(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo = _InMemoryRepository()
+            use_cases = _build_use_cases(repo, temp_dir)
+
+            created = await use_cases.create_drop_use_case.execute(
+                CreateDropCommand(
+                    file_stream=io.BytesIO(b"hello"),
+                    file_name="hello.txt",
+                    mime_type="text/plain",
+                    size_bytes=5,
+                    slug="trimmed",
+                    access_scope=AccessScope.PRIVATE,
+                    drop_password="  pw  ",
+                    title=None,
+                    description=None,
+                )
+            )
+
+            assert created.requires_password
+            assert repo.items["trimmed"].drop_password == "pw"
+
+    async def test_update_distinguishes_unset_and_explicit_none(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo = _InMemoryRepository()
+            use_cases = _build_use_cases(repo, temp_dir)
+
+            await use_cases.create_drop_use_case.execute(
+                CreateDropCommand(
+                    file_stream=io.BytesIO(b"hello"),
+                    file_name="hello.txt",
+                    mime_type="text/plain",
+                    size_bytes=5,
+                    slug="k-update",
+                    access_scope=AccessScope.PRIVATE,
+                    drop_password="pw",
+                    title="original",
+                    description="before",
+                )
+            )
+
+            omitted_title = await use_cases.update_drop_use_case.execute(
+                UpdateDropCommand(
+                    slug="k-update",
+                    current_password="pw",
+                    description=None,
+                )
+            )
+            assert omitted_title.title == "original"
+            assert omitted_title.description is None
+
+            explicit_null_title = await use_cases.update_drop_use_case.execute(
+                UpdateDropCommand(
+                    slug="k-update",
+                    current_password="pw",
+                    title=None,
+                )
+            )
+            assert explicit_null_title.title is None
+
+    async def test_delete_finalizes_staged_file_on_success(self):
+        repo = _InMemoryRepository()
+        storage = _DeleteStorageSpy(staged_key="staged-1")
+        await _seed_drop(repo, slug="k-delete", storage_key="storage-k-delete")
+        use_case = DeleteDropUseCase(
+            storage=storage,
+            uow_factory=lambda: _InMemoryDropUow(repo),
+        )
+
+        await use_case.execute(DeleteDropCommand(slug="k-delete", current_password="pw"))
+
+        assert storage.stage_calls == ["storage-k-delete"]
+        assert storage.rollback_calls == []
+        assert storage.finalize_calls == ["staged-1"]
+
+    async def test_delete_rolls_back_staged_file_when_commit_fails(self):
+        repo = _InMemoryRepository()
+        storage = _DeleteStorageSpy(staged_key="staged-2")
+        await _seed_drop(repo, slug="k-rollback", storage_key="storage-k-rollback")
+        use_case = DeleteDropUseCase(
+            storage=storage,
+            uow_factory=lambda: _CommitFailingDropUow(repo),
+        )
+
+        with pytest.raises(RuntimeError, match="forced commit failure"):
+            await use_case.execute(DeleteDropCommand(slug="k-rollback", current_password="pw"))
+
+        assert storage.stage_calls == ["storage-k-rollback"]
+        assert storage.rollback_calls == [("storage-k-rollback", "staged-2")]
+        assert storage.finalize_calls == []
 
     def test_unset_singleton_is_shared_across_models_and_ports(self):
         from app.application.drop.models import UNSET as model_unset

@@ -1,0 +1,219 @@
+import io
+from datetime import datetime, timezone
+from types import SimpleNamespace
+
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from app.application.drop.models import DropDetailDTO, DropListDTO
+from app.bootstrap.container import get_app_settings
+from app.domain.drop.value_objects import AccessScope
+from app.interfaces.api.deps import (
+    get_csrf_token_service,
+    get_drop_use_cases,
+    get_revoke_session_use_case,
+    get_verify_session_use_case,
+)
+from app.interfaces.web.router import router as web_router
+
+
+class _FakeVerifySessionUseCase:
+    async def execute(self, _query) -> str:
+        return "tester"
+
+
+class _FakeCsrfService:
+    def __init__(self, *, verify_result: bool):
+        self.verify_result = verify_result
+        self.verify_calls: list[tuple[str, str | None]] = []
+
+    def verify(self, session_id: str, csrf_token: str | None) -> bool:
+        self.verify_calls.append((session_id, csrf_token))
+        return self.verify_result
+
+    def generate(self, _session_id: str) -> str:
+        return "csrf"
+
+
+class _FakeRevokeSessionUseCase:
+    def __init__(self):
+        self.calls: list[str] = []
+
+    async def execute(self, sid: str):
+        self.calls.append(sid)
+
+
+def _detail_dto(slug: str) -> DropDetailDTO:
+    now = datetime.now(timezone.utc)
+    return DropDetailDTO(
+        slug=slug,
+        title="title",
+        description=None,
+        file_name=f"{slug}.txt",
+        mime_type="text/plain",
+        size_bytes=5,
+        access_scope=AccessScope.PRIVATE,
+        is_favorite=False,
+        requires_password=False,
+        created_at=now,
+        updated_at=None,
+        sha256=f"sha-{slug}",
+    )
+
+
+class _FakeDropUseCases:
+    def __init__(self):
+        self.create_calls = []
+        self.update_calls = []
+
+        self.check_slug_availability_use_case = self._NotUsedUseCase()
+        self.get_drop_meta_use_case = self._NotUsedUseCase()
+        self.delete_drop_use_case = self._NotUsedUseCase()
+        self.create_drop_use_case = self._CreateDropUseCase(self)
+        self.update_drop_use_case = self._UpdateDropUseCase(self)
+        self.list_drops_use_case = self._ListDropsUseCase()
+
+    class _NotUsedUseCase:
+        async def execute(self, *_args, **_kwargs):
+            raise AssertionError("Unexpected use case invocation")
+
+    class _CreateDropUseCase:
+        def __init__(self, parent: "_FakeDropUseCases"):
+            self.parent = parent
+
+        async def execute(self, command):
+            self.parent.create_calls.append(command)
+            return _detail_dto(command.slug or "generated")
+
+    class _UpdateDropUseCase:
+        def __init__(self, parent: "_FakeDropUseCases"):
+            self.parent = parent
+
+        async def execute(self, command):
+            self.parent.update_calls.append(command)
+            return _detail_dto(command.slug)
+
+    class _ListDropsUseCase:
+        async def execute(self, _query):
+            return DropListDTO(items=[], page=1, page_size=200, total=0)
+
+
+def _client(
+    *,
+    drop_use_cases: _FakeDropUseCases,
+    csrf_service: _FakeCsrfService,
+    revoke_use_case: _FakeRevokeSessionUseCase,
+) -> TestClient:
+    app = FastAPI()
+    app.include_router(web_router)
+    fake_settings = SimpleNamespace(
+        SESSION_COOKIE_NAME="session_id",
+        SESSION_COOKIE_PATH="/",
+        SESSION_COOKIE_SECURE=False,
+        SESSION_COOKIE_SAMESITE="lax",
+        SESSION_TTL_SECONDS=86400,
+        DEFAULT_PAGE_SIZE=10,
+        MAX_PAGE_SIZE=200,
+    )
+
+    app.dependency_overrides[get_drop_use_cases] = lambda: drop_use_cases
+    app.dependency_overrides[get_app_settings] = lambda: fake_settings
+    app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
+    app.dependency_overrides[get_csrf_token_service] = lambda: csrf_service
+    app.dependency_overrides[get_revoke_session_use_case] = lambda: revoke_use_case
+    return TestClient(app)
+
+
+class TestWebActionRoutesIntegration:
+    def test_unauthenticated_mutation_returns_hx_redirect_for_hx_request(self):
+        drop_use_cases = _FakeDropUseCases()
+        client = _client(
+            drop_use_cases=drop_use_cases,
+            csrf_service=_FakeCsrfService(verify_result=True),
+            revoke_use_case=_FakeRevokeSessionUseCase(),
+        )
+
+        response = client.post(
+            "/actions/drop/k1/detail",
+            headers={"HX-Request": "true"},
+            data={"csrf_token": "csrf", "title": "new"},
+        )
+
+        assert response.status_code == 204
+        assert response.headers.get("HX-Redirect") == "/"
+        assert drop_use_cases.update_calls == []
+
+    def test_unauthenticated_mutation_returns_http_redirect_for_non_hx_request(self):
+        drop_use_cases = _FakeDropUseCases()
+        client = _client(
+            drop_use_cases=drop_use_cases,
+            csrf_service=_FakeCsrfService(verify_result=True),
+            revoke_use_case=_FakeRevokeSessionUseCase(),
+        )
+
+        response = client.post(
+            "/actions/drop/k1/detail",
+            data={"csrf_token": "csrf", "title": "new"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.headers["location"] == "/"
+        assert drop_use_cases.update_calls == []
+
+    def test_csrf_failure_returns_403_and_does_not_mutate(self):
+        drop_use_cases = _FakeDropUseCases()
+        csrf_service = _FakeCsrfService(verify_result=False)
+        client = _client(
+            drop_use_cases=drop_use_cases,
+            csrf_service=csrf_service,
+            revoke_use_case=_FakeRevokeSessionUseCase(),
+        )
+        client.cookies.set("session_id", "sid")
+
+        response = client.post(
+            "/actions/drop/k1/detail",
+            headers={"HX-Request": "true"},
+            data={"csrf_token": "wrong", "title": "new"},
+        )
+
+        assert response.status_code == 403
+        assert "유효하지 않은 CSRF 토큰입니다." in response.text
+        assert drop_use_cases.update_calls == []
+        assert csrf_service.verify_calls == [("sid", "wrong")]
+
+    def test_upload_non_hx_success_redirects_home(self):
+        drop_use_cases = _FakeDropUseCases()
+        csrf_service = _FakeCsrfService(verify_result=True)
+        client = _client(
+            drop_use_cases=drop_use_cases,
+            csrf_service=csrf_service,
+            revoke_use_case=_FakeRevokeSessionUseCase(),
+        )
+        client.cookies.set("session_id", "sid")
+
+        response = client.post(
+            "/actions/drop/upload",
+            data={"csrf_token": "csrf", "slug": "upload-1", "user_only": "true"},
+            files={"file": ("hello.txt", io.BytesIO(b"hello"), "text/plain")},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.headers["location"] == "/"
+        assert len(drop_use_cases.create_calls) == 1
+        assert drop_use_cases.create_calls[0].access_scope == AccessScope.PRIVATE
+
+    def test_logout_csrf_failure_returns_403_without_revoke_call(self):
+        revoke_use_case = _FakeRevokeSessionUseCase()
+        client = _client(
+            drop_use_cases=_FakeDropUseCases(),
+            csrf_service=_FakeCsrfService(verify_result=False),
+            revoke_use_case=revoke_use_case,
+        )
+        client.cookies.set("session_id", "sid")
+
+        response = client.post("/actions/auth/logout", data={"csrf_token": "bad"})
+
+        assert response.status_code == 403
+        assert revoke_use_case.calls == []

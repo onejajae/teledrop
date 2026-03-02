@@ -47,7 +47,7 @@ def invalid_range_header_exception() -> HTTPException:
 
 
 def range_not_satisfiable_exception() -> HTTPException:
-    return HTTPException(status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE)
+    return HTTPException(status_code=status.HTTP_416_RANGE_NOT_SATISFIABLE)
 
 
 def map_drop_read_exception(exc: Exception) -> HTTPException:
