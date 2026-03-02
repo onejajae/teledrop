@@ -19,7 +19,11 @@ from app.core.utils import parse_range_header
 from app.domain.drop.errors import DropAccessDeniedError, DropSlugUnavailableError
 from app.domain.drop.policies import normalize_drop_password
 from app.domain.drop.value_objects import AccessScope, DropSortField
-from app.interfaces.api.deps import DropUseCasesDep, OptionalAuthDep, RequiredAuthDep
+from app.interfaces.api.deps import (
+    DropUseCasesDep,
+    OptionalApiAuthDep,
+    RequiredApiAuthDep,
+)
 from app.interfaces.api.errors import (
     drop_list_unauthorized_exception,
     invalid_range_header_exception,
@@ -77,7 +81,7 @@ def _to_detail_response(item: DropDetailDTO) -> DropDetailResponse:
 @router.get("/availability/{slug}", response_model=SlugAvailabilityResponse)
 async def slug_availability(
     slug: str,
-    _auth_data: RequiredAuthDep,
+    _auth_data: RequiredApiAuthDep,
     use_cases: DropUseCasesDep,
 ):
     return SlugAvailabilityResponse(
@@ -87,7 +91,7 @@ async def slug_availability(
 
 @router.get("", response_model=DropListResponse)
 async def list_drops(
-    auth_data: RequiredAuthDep,
+    auth_data: RequiredApiAuthDep,
     use_cases: DropUseCasesDep,
     page: int = Query(default=1),
     page_size: int = Query(default=50),
@@ -117,7 +121,7 @@ async def list_drops(
 
 @router.post("", response_model=DropDetailResponse)
 async def upload_drop(
-    _auth_data: RequiredAuthDep,
+    _auth_data: RequiredApiAuthDep,
     use_cases: DropUseCasesDep,
     file: UploadFile = File(),
     slug: str | None = Form(default=None),
@@ -156,7 +160,7 @@ async def upload_drop(
 @router.get("/{slug}/meta", response_model=DropDetailResponse)
 async def drop_meta(
     slug: str,
-    auth_data: OptionalAuthDep,
+    auth_data: OptionalApiAuthDep,
     use_cases: DropUseCasesDep,
     drop_password: str | None = Query(default=None),
 ):
@@ -177,7 +181,7 @@ async def drop_meta(
 @router.get("/{slug}")
 async def drop_stream(
     slug: str,
-    auth_data: OptionalAuthDep,
+    auth_data: OptionalApiAuthDep,
     use_cases: DropUseCasesDep,
     disposition: str = Query(default="attachment"),
     drop_password: str | None = Query(default=None),
@@ -238,7 +242,7 @@ async def drop_stream(
 async def patch_drop(
     slug: str,
     payload: DropPatchRequest,
-    _auth_data: RequiredAuthDep,
+    _auth_data: RequiredApiAuthDep,
     use_cases: DropUseCasesDep,
 ):
     title = payload.title if "title" in payload.model_fields_set else COMMAND_UNSET
@@ -276,7 +280,7 @@ async def patch_drop(
 @router.delete("/{slug}")
 async def delete_drop(
     slug: str,
-    _auth_data: RequiredAuthDep,
+    _auth_data: RequiredApiAuthDep,
     use_cases: DropUseCasesDep,
     current_password: str | None = Query(default=None),
 ):

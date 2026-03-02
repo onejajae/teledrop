@@ -1,8 +1,14 @@
 # 인증 및 API
 
 ## 인증
-* 비밀번호 로그인만 사용
-* `WEB_USERNAME`, `WEB_PASSWORD`로 계정 정보를 설정
+* 웹 UI 접근은 비밀번호 로그인이 필요
+* 계정 정보는 `WEB_USERNAME`, `WEB_PASSWORD`로 설정
+* 보호된 REST API 엔드포인트는 다음 인증을 허용:
+  * 세션 쿠키 인증
+  * `X-API-Key: tdpk_<public_id>_<secret>`
+* API key 관리 기능은 웹 로그인 후 `/settings/api-keys`에서만 사용 가능
+* 보호된 REST API 인증 실패는 `401`과 함께 다음 헤더를 반환:
+  * `WWW-Authenticate: Session, ApiKey`
 
 기본 동작 및 확장 환경 참고:
 * `SESSION_COOKIE_SECURE` 기본값은 `true`
@@ -21,7 +27,7 @@
 
 주요 인증 엔드포인트:
 * `POST /api/auth/login`
-* `GET /api/auth/me`
+* `GET /api/auth/me` (세션 또는 API key)
 * `POST /api/auth/logout` (권장)
 * `GET /api/auth/logout` (호환)
 
@@ -37,6 +43,9 @@
 ## 웹 액션 경로(HTMX 폼)
 * `POST /actions/auth/login`
 * `POST /actions/auth/logout`
+* `POST /actions/auth/api-keys/create`
+* `POST /actions/auth/api-keys/{public_id}/revoke`
+* `POST /actions/auth/api-keys/{public_id}/delete`
 * `POST /actions/drop/upload`
 * `POST /actions/drop/{slug}/open`
 * `POST /actions/drop/{slug}/detail`
@@ -48,5 +57,6 @@
 ## HTMX SSR 미리보기 UI
 * `GET /` (로그인 + 업로드/목록/상세 관리 패널)
 * `GET /<파일_SLUG>` (대시보드 미리보기 뷰)
+* `GET /settings/api-keys` (웹 API key 관리 페이지, 로그인 필요)
 * UI의 상태 변경 요청은 CSRF 보호가 적용됩니다.
 * `CSRF_SECRET_KEY`를 변경해 배포하면, 기존에 렌더된 폼 토큰은 403으로 거부되는 것이 정상입니다.

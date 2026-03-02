@@ -93,6 +93,17 @@ docker run --detach \
 >   - CORS_ALLOW_ALL=true
 > ```
 
+* API key auth for external clients
+> Protected REST API endpoints accept either a session cookie or `X-API-Key`.
+> API key management (create/revoke/delete) is available only in the authenticated web UI:
+> `/settings/api-keys`
+> Example request:
+> ```bash
+> curl -H "X-API-Key: tdpk_<public_id>_<secret>" http://localhost:8000/api/drop
+> ```
+> API key values are shown once at creation time and cannot be retrieved again.
+> `created_by_username` is stored as an audit snapshot field.
+
 * Running multiple worker processes
 > To improve performance, specify the number of worker processes using the `--workers` option:
 > ```yaml

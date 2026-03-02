@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ko">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>teledrop - API Keys</title>
+  <meta name="description" content="teledrop API key 관리 페이지" />
+  <meta name="theme-color" content="#0ea5e9" />
+  <link rel="icon" href="/static/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png" />
+  <link rel="apple-touch-icon" href="/static/apple-icon.png" />
+  {% include "layout/theme_bootstrap_head.html" %}
+  <link href="/static/gen/output.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"
+    integrity="sha384-/TgkGk7p307TH7EXJDuUlgG3Ce1UVolAOFopFekQkkXihi5u/6OCvVKyz1W+idaz"
+    crossorigin="anonymous"></script>
+  <script src="/static/js/theme.js" defer></script>
+</head>
+
+<body class="bg-base-100 text-base-content">
+  <div class="min-h-screen">
+    <main class="mx-auto w-full max-w-screen-sm space-y-3 px-3 py-3">
+      {% include "layout/header.html" %}
+
+      <section class="card border border-base-300 bg-base-100 shadow-sm">
+        <div class="card-body gap-3">
+          <h1 class="card-title text-lg">API Keys</h1>
+
+          {% if api_keys_status_message %}
+          <div class="alert alert-success">
+            <span>{{ api_keys_status_message }}</span>
+          </div>
+          {% endif %}
+
+          {% if api_keys_error_message %}
+          <div class="alert alert-error">
+            <span>{{ api_keys_error_message }}</span>
+          </div>
+          {% endif %}
+
+          {% if created_api_key %}
+          <div class="alert alert-warning flex-col items-start gap-2">
+            <span class="font-semibold">새 API key가 발급되었습니다. 이 값은 다시 볼 수 없습니다.</span>
+            <code class="w-full overflow-x-auto rounded bg-base-200 p-2 text-xs">{{ created_api_key.key }}</code>
+          </div>
+          {% endif %}
+
+          <form method="post" action="/actions/auth/api-keys/create" class="grid gap-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
+            <label class="form-control w-full">
+              <span class="label-text mb-1">이름</span>
+              <input type="text" name="name" required maxlength="100" class="input input-bordered w-full"
+                placeholder="shortcuts" />
+            </label>
+
+            <label class="form-control w-full">
+              <span class="label-text mb-1">만료 시각 (선택)</span>
+              <input type="datetime-local" name="expires_at" class="input input-bordered w-full" />
+            </label>
+
+            <div class="card-actions justify-end">
+              <button type="submit" class="btn btn-primary btn-sm">API key 생성</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section class="card border border-base-300 bg-base-100 shadow-sm">
+        <div class="card-body gap-3">
+          <h2 class="card-title text-base">발급된 키</h2>
+
+          {% if api_keys %}
+          <div class="overflow-x-auto">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>이름</th>
+                  <th>Public ID</th>
+                  <th>생성자</th>
+                  <th>만료</th>
+                  <th>최근 사용</th>
+                  <th>상태</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in api_keys %}
+                <tr>
+                  <td>{{ item.name }}</td>
+                  <td><code>{{ item.public_id }}</code></td>
+                  <td>{{ item.created_by_username }}</td>
+                  <td>{{ item.expires_at or '-' }}</td>
+                  <td>{{ item.last_used_at or '-' }}</td>
+                  <td>
+                    {% if item.is_active %}
+                    <span class="badge badge-success badge-outline">active</span>
+                    {% else %}
+                    <span class="badge badge-error badge-outline">inactive</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div class="flex gap-1">
+                      <form method="post" action="/actions/auth/api-keys/{{ item.public_id }}/revoke">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
+                        <button type="submit" class="btn btn-ghost btn-xs">revoke</button>
+                      </form>
+                      <form method="post" action="/actions/auth/api-keys/{{ item.public_id }}/delete"
+                        onsubmit="return confirm('정말 삭제하시겠습니까?')">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
+                        <button type="submit" class="btn btn-ghost btn-xs text-error">delete</button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <p class="text-sm text-base-content/70">등록된 API key가 없습니다.</p>
+          {% endif %}
+        </div>
+      </section>
+
+      {% include "layout/footer.html" %}
+    </main>
+  </div>
+</body>
+
+</html>

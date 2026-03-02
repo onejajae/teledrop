@@ -14,47 +14,12 @@
   <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png" />
   <link rel="apple-touch-icon" href="/static/apple-icon.png" />
-  <script>
-    (function () {
-      var lightThemeColor = "#0ea5e9";
-      var darkThemeColor = "#1d232a";
-      try {
-        var stored = localStorage.getItem("color-theme");
-        var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-        var theme = stored || (prefersDark ? "dark" : "light");
-        document.documentElement.setAttribute("data-theme", theme);
-        document.documentElement.style.colorScheme = theme === "dark" ? "dark" : "light";
-        var themeColorMeta = document.querySelector('meta[name="theme-color"]');
-        if (themeColorMeta) {
-          themeColorMeta.setAttribute("content", theme === "dark" ? darkThemeColor : lightThemeColor);
-        }
-      } catch (_err) {
-        document.documentElement.setAttribute("data-theme", "light");
-        document.documentElement.style.colorScheme = "light";
-        var fallbackThemeColorMeta = document.querySelector('meta[name="theme-color"]');
-        if (fallbackThemeColorMeta) {
-          fallbackThemeColorMeta.setAttribute("content", lightThemeColor);
-        }
-      }
-    })();
-  </script>
-  <style>
-    html {
-      background-color: #ffffff;
-    }
-
-    html[data-theme="dark"] {
-      background-color: #1d232a;
-    }
-
-    body {
-      background-color: transparent;
-    }
-  </style>
+  {% include "layout/theme_bootstrap_head.html" %}
   <link href="/static/gen/output.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"
     integrity="sha384-/TgkGk7p307TH7EXJDuUlgG3Ce1UVolAOFopFekQkkXihi5u/6OCvVKyz1W+idaz"
     crossorigin="anonymous"></script>
+  <script src="/static/js/theme.js" defer></script>
   <script src="/static/js/dashboard.js" defer></script>
   <script src="/static/js/upload-panel.js" defer></script>
   <script src="/static/js/drop-detail.js" defer></script>

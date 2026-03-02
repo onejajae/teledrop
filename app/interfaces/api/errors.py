@@ -7,8 +7,8 @@ from app.domain.drop.errors import (
 )
 
 
-def _session_unauthorized_headers(set_cookie: str | None = None) -> dict[str, str]:
-    headers = {"WWW-Authenticate": "Session"}
+def _api_auth_unauthorized_headers(set_cookie: str | None = None) -> dict[str, str]:
+    headers = {"WWW-Authenticate": "Session, ApiKey"}
     if set_cookie is not None:
         headers["set-cookie"] = set_cookie
     return headers
@@ -18,16 +18,24 @@ def response_set_cookie_header(response: Response) -> str | None:
     return response.headers.get("set-cookie")
 
 
-def session_unauthorized_exception(
+def api_auth_unauthorized_exception(
     *,
     detail: str,
     set_cookie: str | None = None,
 ) -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        headers=_session_unauthorized_headers(set_cookie),
+        headers=_api_auth_unauthorized_headers(set_cookie),
         detail=detail,
     )
+
+
+def session_unauthorized_exception(
+    *,
+    detail: str,
+    set_cookie: str | None = None,
+) -> HTTPException:
+    return api_auth_unauthorized_exception(detail=detail, set_cookie=set_cookie)
 
 
 def login_invalid_exception() -> HTTPException:
@@ -39,7 +47,9 @@ def slug_unavailable_exception() -> HTTPException:
 
 
 def drop_list_unauthorized_exception() -> HTTPException:
-    return HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+    return api_auth_unauthorized_exception(
+        detail="Authentication credentials were not provided or are invalid."
+    )
 
 
 def invalid_range_header_exception() -> HTTPException:

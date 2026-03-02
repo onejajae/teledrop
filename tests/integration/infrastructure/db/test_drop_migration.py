@@ -20,6 +20,7 @@ def test_init_db_creates_current_tables():
         table_names = set(inspect(engine).get_table_names())
         assert "drops" in table_names
         assert "auth_sessions" in table_names
+        assert "auth_api_keys" in table_names
 
 
 def test_init_db_creates_slug_column_in_drops_table():

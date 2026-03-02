@@ -10,12 +10,20 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import Session
 
-from app.application.auth.ports import AuthSessionUnitOfWorkFactory
+from app.application.auth.ports import (
+    AuthApiKeyUnitOfWorkFactory,
+    AuthSessionUnitOfWorkFactory,
+)
 from app.application.auth.use_cases import (
+    CreateApiKeyUseCase,
     CreateSessionUseCase,
     CsrfTokenService,
+    DeleteApiKeyUseCase,
+    ListApiKeysUseCase,
     PasswordLoginUseCase,
+    RevokeApiKeyUseCase,
     RevokeSessionUseCase,
+    VerifyApiKeyUseCase,
     VerifySessionUseCase,
 )
 from app.application.drop.ports import DropSlugCandidateGeneratorPort, DropUnitOfWorkFactory
@@ -33,9 +41,11 @@ from app.bootstrap.runtime_paths import project_root_dir
 from app.core.config import Settings, get_settings
 from app.infrastructure.db.engine import create_db_engine, create_db_session_factory
 from app.infrastructure.db.repositories import (
+    SQLModelApiKeyRepository,
     SQLModelDropRepository,
     SQLModelSessionRepository,
 )
+from app.infrastructure.db.uow_api_key import SQLModelApiKeyUnitOfWork
 from app.infrastructure.db.uow_auth import SQLModelAuthSessionUnitOfWork
 from app.infrastructure.db.uow_drop import SQLModelDropUnitOfWork
 from app.infrastructure.slug import (
@@ -67,6 +77,11 @@ class AuthUseCaseCollection:
     create_session_use_case: CreateSessionUseCase
     verify_session_use_case: VerifySessionUseCase
     revoke_session_use_case: RevokeSessionUseCase
+    create_api_key_use_case: CreateApiKeyUseCase
+    list_api_keys_use_case: ListApiKeysUseCase
+    revoke_api_key_use_case: RevokeApiKeyUseCase
+    delete_api_key_use_case: DeleteApiKeyUseCase
+    verify_api_key_use_case: VerifyApiKeyUseCase
 
 
 @dataclass(slots=True)
@@ -150,12 +165,14 @@ def _build_drop_use_cases(
 
 def _build_auth_use_cases(
     settings: Settings,
-    repository: SQLModelSessionRepository,
-    uow_factory: AuthSessionUnitOfWorkFactory,
+    session_repository: SQLModelSessionRepository,
+    session_uow_factory: AuthSessionUnitOfWorkFactory,
+    api_key_repository: SQLModelApiKeyRepository,
+    api_key_uow_factory: AuthApiKeyUnitOfWorkFactory,
 ) -> AuthUseCaseCollection:
     create_session_use_case = CreateSessionUseCase(
         session_ttl_seconds=settings.SESSION_TTL_SECONDS,
-        repository=repository,
+        repository=session_repository,
     )
     return AuthUseCaseCollection(
         password_login_use_case=PasswordLoginUseCase(
@@ -165,10 +182,25 @@ def _build_auth_use_cases(
         ),
         create_session_use_case=create_session_use_case,
         verify_session_use_case=VerifySessionUseCase(
-            uow_factory=uow_factory,
+            uow_factory=session_uow_factory,
         ),
         revoke_session_use_case=RevokeSessionUseCase(
-            uow_factory=uow_factory,
+            uow_factory=session_uow_factory,
+        ),
+        create_api_key_use_case=CreateApiKeyUseCase(
+            repository=api_key_repository,
+        ),
+        list_api_keys_use_case=ListApiKeysUseCase(
+            repository=api_key_repository,
+        ),
+        revoke_api_key_use_case=RevokeApiKeyUseCase(
+            uow_factory=api_key_uow_factory,
+        ),
+        delete_api_key_use_case=DeleteApiKeyUseCase(
+            uow_factory=api_key_uow_factory,
+        ),
+        verify_api_key_use_case=VerifyApiKeyUseCase(
+            uow_factory=api_key_uow_factory,
         ),
     )
 
@@ -194,13 +226,19 @@ def build_app_container(settings: Settings) -> AppContainer:
     )
 
     session_repository = SQLModelSessionRepository(db_session_factory)
-    auth_uow_factory: AuthSessionUnitOfWorkFactory = (
+    session_uow_factory: AuthSessionUnitOfWorkFactory = (
         lambda: SQLModelAuthSessionUnitOfWork(db_session_factory)
+    )
+    api_key_repository = SQLModelApiKeyRepository(db_session_factory)
+    api_key_uow_factory: AuthApiKeyUnitOfWorkFactory = (
+        lambda: SQLModelApiKeyUnitOfWork(db_session_factory)
     )
     auth_use_cases = _build_auth_use_cases(
         settings=settings,
-        repository=session_repository,
-        uow_factory=auth_uow_factory,
+        session_repository=session_repository,
+        session_uow_factory=session_uow_factory,
+        api_key_repository=api_key_repository,
+        api_key_uow_factory=api_key_uow_factory,
     )
 
     return AppContainer(

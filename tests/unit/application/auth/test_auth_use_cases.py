@@ -3,13 +3,34 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from argon2 import PasswordHasher
 
-from app.application.auth.models import PasswordLoginCommand, VerifySessionQuery
-from app.application.auth.ports import AuthSessionCreateInput, AuthSessionRecord
+from app.application.auth.models import (
+    CreateApiKeyCommand,
+    DeleteApiKeyCommand,
+    PasswordLoginCommand,
+    RevokeApiKeyCommand,
+    VerifyApiKeyQuery,
+    VerifySessionQuery,
+)
+from app.application.auth.ports import (
+    AuthApiKeyCreateInput,
+    AuthApiKeyRecord,
+    AuthSessionCreateInput,
+    AuthSessionRecord,
+)
 from app.application.auth.use_cases.csrf import CsrfTokenService
+from app.application.auth.use_cases.api_key import (
+    API_KEY_PREFIX,
+    CreateApiKeyUseCase,
+    DeleteApiKeyUseCase,
+    ListApiKeysUseCase,
+    RevokeApiKeyUseCase,
+    VerifyApiKeyUseCase,
+    parse_api_key_token,
+)
 from app.application.auth.use_cases.password_login import PasswordLoginUseCase
 from app.application.auth.use_cases.session import CreateSessionUseCase, VerifySessionUseCase
 from app.core.config import Settings
-from app.domain.auth.errors import LoginInvalid, SessionExpired
+from app.domain.auth.errors import ApiKeyInvalid, LoginInvalid, SessionExpired
 
 
 class _InMemorySessionRepository:
@@ -42,6 +63,80 @@ class _InMemorySessionRepository:
 
 class _TrackingAuthUow:
     def __init__(self, repository: _InMemorySessionRepository):
+        self.repository = repository
+        self.entered = False
+        self.exited = False
+        self.commit_calls = 0
+
+    async def __aenter__(self):
+        self.entered = True
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        self.exited = True
+        return None
+
+    async def commit(self):
+        self.commit_calls += 1
+
+    async def rollback(self):
+        return None
+
+
+class _InMemoryApiKeyRepository:
+    def __init__(self):
+        self.records: dict[str, AuthApiKeyRecord] = {}
+        self.touch_calls: list[tuple[str, datetime]] = []
+
+    async def create(self, data: AuthApiKeyCreateInput) -> AuthApiKeyRecord:
+        record = AuthApiKeyRecord(
+            public_id=data.public_id,
+            name=data.name,
+            created_by_username=data.created_by_username,
+            key_hash=data.key_hash,
+            created_at=data.created_at,
+            expires_at=data.expires_at,
+            last_used_at=None,
+            revoked_at=None,
+        )
+        self.records[data.public_id] = record
+        return record
+
+    async def list_all(self) -> list[AuthApiKeyRecord]:
+        return list(self.records.values())
+
+    async def get_by_public_id(self, public_id: str) -> AuthApiKeyRecord | None:
+        return self.records.get(public_id)
+
+    async def touch_last_used_at(
+        self,
+        public_id: str,
+        used_at: datetime,
+    ) -> AuthApiKeyRecord | None:
+        self.touch_calls.append((public_id, used_at))
+        record = self.records.get(public_id)
+        if record is None:
+            return None
+        record.last_used_at = used_at
+        return record
+
+    async def revoke_by_public_id(
+        self,
+        public_id: str,
+        revoked_at: datetime,
+    ) -> AuthApiKeyRecord | None:
+        record = self.records.get(public_id)
+        if record is None:
+            return None
+        record.revoked_at = revoked_at
+        return record
+
+    async def delete_by_public_id(self, public_id: str) -> bool:
+        return self.records.pop(public_id, None) is not None
+
+
+class _TrackingApiKeyUow:
+    def __init__(self, repository: _InMemoryApiKeyRepository):
         self.repository = repository
         self.entered = False
         self.exited = False
@@ -176,3 +271,96 @@ class TestAuthUseCase:
         settings = _settings(CSRF_SECRET_KEY="")
         with pytest.raises(ValueError):
             settings.validate_auth_configuration()
+
+    async def test_create_api_key_list_and_verify_flow(self):
+        repo = _InMemoryApiKeyRepository()
+        create_use_case = CreateApiKeyUseCase(repository=repo)
+
+        created = await create_use_case.execute(
+            CreateApiKeyCommand(
+                name="shortcuts",
+                created_by_username="admin",
+                expires_at=None,
+            )
+        )
+        assert created.key.startswith(f"{API_KEY_PREFIX}_")
+
+        listed = await ListApiKeysUseCase(repository=repo).execute()
+        assert len(listed) == 1
+        assert listed[0].public_id == created.public_id
+
+        verify_use_case = VerifyApiKeyUseCase(uow_factory=lambda: _TrackingApiKeyUow(repo))
+        username = await verify_use_case.execute(VerifyApiKeyQuery(api_key=created.key))
+        assert username == "admin"
+
+    async def test_verify_api_key_updates_last_used_and_commits_once(self):
+        repo = _InMemoryApiKeyRepository()
+        create_use_case = CreateApiKeyUseCase(repository=repo)
+        created = await create_use_case.execute(
+            CreateApiKeyCommand(
+                name="mobile",
+                created_by_username="admin",
+                expires_at=None,
+            )
+        )
+        tracking_uow = _TrackingApiKeyUow(repo)
+        use_case = VerifyApiKeyUseCase(uow_factory=lambda: tracking_uow)
+
+        username = await use_case.execute(VerifyApiKeyQuery(api_key=created.key))
+
+        assert username == "admin"
+        assert tracking_uow.entered
+        assert tracking_uow.exited
+        assert tracking_uow.commit_calls == 1
+        assert repo.touch_calls
+
+    async def test_verify_api_key_rejects_revoked_or_malformed(self):
+        repo = _InMemoryApiKeyRepository()
+        create_use_case = CreateApiKeyUseCase(repository=repo)
+        created = await create_use_case.execute(
+            CreateApiKeyCommand(
+                name="revoked",
+                created_by_username="admin",
+                expires_at=None,
+            )
+        )
+        record = repo.records[created.public_id]
+        record.revoked_at = datetime.now(timezone.utc)
+
+        use_case = VerifyApiKeyUseCase(uow_factory=lambda: _TrackingApiKeyUow(repo))
+        with pytest.raises(ApiKeyInvalid):
+            await use_case.execute(VerifyApiKeyQuery(api_key=created.key))
+
+        with pytest.raises(ApiKeyInvalid):
+            await use_case.execute(VerifyApiKeyQuery(api_key="bad-token"))
+
+    async def test_revoke_and_delete_api_key_use_cases(self):
+        repo = _InMemoryApiKeyRepository()
+        create_use_case = CreateApiKeyUseCase(repository=repo)
+        created = await create_use_case.execute(
+            CreateApiKeyCommand(
+                name="to-remove",
+                created_by_username="admin",
+                expires_at=None,
+            )
+        )
+        revoke_uow = _TrackingApiKeyUow(repo)
+        delete_uow = _TrackingApiKeyUow(repo)
+
+        revoked = await RevokeApiKeyUseCase(uow_factory=lambda: revoke_uow).execute(
+            RevokeApiKeyCommand(public_id=created.public_id)
+        )
+        assert revoked.revoked_at is not None
+        assert revoke_uow.commit_calls == 1
+
+        await DeleteApiKeyUseCase(uow_factory=lambda: delete_uow).execute(
+            DeleteApiKeyCommand(public_id=created.public_id)
+        )
+        assert delete_uow.commit_calls == 1
+        assert created.public_id not in repo.records
+
+    def test_parse_api_key_token_rejects_invalid_shapes(self):
+        with pytest.raises(ApiKeyInvalid):
+            parse_api_key_token("tdpk_onlyprefix")
+        with pytest.raises(ApiKeyInvalid):
+            parse_api_key_token("wrong_x_y")

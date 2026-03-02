@@ -8,3 +8,11 @@ class SessionExpired(Exception):
 
 class SessionInvalid(Exception):
     pass
+
+
+class ApiKeyInvalid(Exception):
+    pass
+
+
+class ApiKeyNotFound(Exception):
+    pass

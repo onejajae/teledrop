@@ -21,6 +21,7 @@ class TestWebTemplateSmoke:
         assert '파일 업로드' in html
         assert '업로드한 파일이 없습니다.' in html
         assert 'id="drop-panel"' in html
+        assert 'href="/settings/api-keys"' in html
 
     def test_auth_panel_renders_error_state(self):
         html = _render('panels/auth.html', auth_error_message='로그인 실패')
@@ -101,15 +102,31 @@ class TestWebTemplateSmoke:
 
 class TestWebUiContract:
 
-    def test_dashboard_page_bootstraps_theme_before_css(self):
-        source = (template_dir() / 'pages' / 'dashboard.html').read_text(encoding='utf-8')
-        assert 'localStorage.getItem("color-theme")' in source
-        assert 'prefers-color-scheme: dark' in source
-        assert 'document.documentElement.setAttribute("data-theme", theme)' in source
-        assert 'document.documentElement.style.colorScheme' in source
-        assert 'meta[name="theme-color"]' in source
-        assert source.index('localStorage.getItem("color-theme")') < source.index('/static/gen/output.css')
-        assert '<html lang="ko" data-theme="light">' not in source
+    def test_dashboard_and_api_keys_pages_bootstrap_theme_before_css(self):
+        dashboard_html = _render(
+            'pages/dashboard.html',
+            selected_key=None,
+            is_login=False,
+            csrf_token=None,
+            auth_error_message=None,
+        )
+        api_keys_html = _render(
+            'pages/api_keys.html',
+            is_login=True,
+            csrf_token='csrf',
+            api_keys=[],
+            api_keys_status_message=None,
+            api_keys_error_message=None,
+            created_api_key=None,
+        )
+        for html in (dashboard_html, api_keys_html):
+            assert 'localStorage.getItem("color-theme")' in html
+            assert 'prefers-color-scheme: dark' in html
+            assert 'document.documentElement.setAttribute("data-theme", theme)' in html
+            assert 'document.documentElement.style.colorScheme' in html
+            assert 'meta[name="theme-color"]' in html
+            assert html.index('localStorage.getItem("color-theme")') < html.index('/static/gen/output.css')
+            assert '<script src="/static/js/theme.js" defer></script>' in html
 
     def test_theme_toggle_markup_uses_button_with_aria_pressed(self):
         header = (template_dir() / 'layout' / 'header.html').read_text(encoding='utf-8')
@@ -127,10 +144,18 @@ class TestWebUiContract:
         assert 'classList.add("is-selected")' in source
         assert 'classList.remove("is-selected")' in source
         assert 'event.target.closest("[data-select-key]")' in source
-        assert 'setDocumentTheme' in source
-        assert 'style.colorScheme' in source
-        assert 'meta[name="theme-color"]' in source
         assert 'reservedPaths' not in source
+        assert 'setDocumentTheme' not in source
+
+    def test_theme_js_handles_theme_toggle_and_meta_color(self):
+        source = (static_files_dir() / 'js' / 'theme.js').read_text(encoding='utf-8')
+        assert 'setDocumentTheme' in source
+        assert 'localStorage.getItem("color-theme")' in source
+        assert 'localStorage.setItem("color-theme", nextTheme)' in source
+        assert 'document.documentElement.style.colorScheme' in source
+        assert 'meta[name="theme-color"]' in source
+        assert 'event.target.closest("#theme-toggle")' in source
+        assert 'window.__teledropThemeInitialized' in source
 
     def test_upload_panel_js_uses_user_facing_link_address_messages(self):
         source = (static_files_dir() / 'js' / 'upload-panel.js').read_text(encoding='utf-8')
@@ -163,3 +188,45 @@ class TestWebUiContract:
         assert 'mask: url("/static/images/logo.svg")' in source
         assert '#374151' in source
         assert '#e5e7eb' in source
+
+    def test_css_theme_tokens_follow_main_palette_mapping(self):
+        source = (static_files_dir() / 'css' / 'input.css').read_text(encoding='utf-8')
+        assert '--color-primary: #0ea5e9;' in source
+        assert '--color-primary: #38bdf8;' in source
+        assert '--color-secondary: #4b5563;' in source
+        assert '--color-secondary: #9ca3af;' in source
+        assert '--color-accent: #fcd34d;' in source
+        assert '--color-accent: #fde047;' in source
+        assert '--color-neutral: #374151;' in source
+        assert '--color-neutral: #1f2937;' in source
+        assert '--color-base-100: #ffffff;' in source
+        assert '--color-base-100: #1f2937;' in source
+        assert '--color-base-200: #f3f4f6;' in source
+        assert '--color-base-200: #374151;' in source
+        assert '--color-base-300: #d1d5db;' in source
+        assert '--color-base-300: #4b5563;' in source
+        assert '--color-base-content: #374151;' in source
+        assert '--color-base-content: #f3f4f6;' in source
+        assert '--color-info: #38bdf8;' in source
+        assert '--color-info-content: #0c4a6e;' in source
+        assert '--color-success: #22c55e;' in source
+        assert '--color-success: #4ade80;' in source
+        assert '--color-warning: #fcd34d;' in source
+        assert '--color-warning: #fde047;' in source
+        assert '--color-error: #ef4444;' in source
+        assert '--color-error: #f43f5e;' in source
+        assert '--color-error-content: #ffffff;' in source
+
+    def test_api_keys_page_renders_table_and_create_form(self):
+        html = _render(
+            'pages/api_keys.html',
+            is_login=True,
+            csrf_token='csrf',
+            api_keys=[],
+            api_keys_status_message=None,
+            api_keys_error_message=None,
+            created_api_key=None,
+        )
+        assert 'API key 생성' in html
+        assert 'name="expires_at"' in html
+        assert '등록된 API key가 없습니다.' in html

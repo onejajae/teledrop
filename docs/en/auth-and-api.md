@@ -1,8 +1,14 @@
 # Authentication and API
 
 ## Authentication
-* Password login only
-* Configure credentials with `WEB_USERNAME` and `WEB_PASSWORD`
+* Password login is required for web UI access
+* Configure account credentials with `WEB_USERNAME` and `WEB_PASSWORD`
+* Protected REST API endpoints accept:
+  * session cookie authentication
+  * `X-API-Key: tdpk_<public_id>_<secret>`
+* API key management is web-login only (`/settings/api-keys`)
+* Authentication failures for protected REST API return `401` with:
+  * `WWW-Authenticate: Session, ApiKey`
 
 Runtime defaults and scaling notes:
 * `SESSION_COOKIE_SECURE` defaults to `true`
@@ -21,7 +27,7 @@ Drop link password policy:
 
 Useful auth endpoints:
 * `POST /api/auth/login`
-* `GET /api/auth/me`
+* `GET /api/auth/me` (session or API key)
 * `POST /api/auth/logout` (recommended)
 * `GET /api/auth/logout` (compatible)
 
@@ -37,6 +43,9 @@ Useful auth endpoints:
 ## Web Action Paths (HTMX Forms)
 * `POST /actions/auth/login`
 * `POST /actions/auth/logout`
+* `POST /actions/auth/api-keys/create`
+* `POST /actions/auth/api-keys/{public_id}/revoke`
+* `POST /actions/auth/api-keys/{public_id}/delete`
 * `POST /actions/drop/upload`
 * `POST /actions/drop/{slug}/open`
 * `POST /actions/drop/{slug}/detail`
@@ -48,5 +57,6 @@ Useful auth endpoints:
 ## HTMX SSR Preview UI
 * `GET /` (login + upload/list/detail management panel)
 * `GET /<FILE_SLUG>` (dashboard preview view)
+* `GET /settings/api-keys` (web API key management page; login required)
 * UI write actions use CSRF-protected form submissions.
 * After deploying a new `CSRF_SECRET_KEY`, previously rendered form tokens are expected to fail (403).

@@ -18,10 +18,10 @@ from app.domain.drop.errors import (
 )
 from app.domain.drop.policies import normalize_drop_password
 from app.domain.drop.value_objects import AccessScope
-from app.interfaces.api.deps import (
+from app.interfaces.web.deps import (
     CsrfTokenServiceDep,
     DropUseCasesDep,
-    OptionalAuthDep,
+    OptionalSessionAuthDep,
 )
 from app.interfaces.web.action_support import (
     drop_panel_success_or_redirect,
@@ -122,7 +122,7 @@ async def ui_open_drop_detail(
     slug: str,
     request: Request,
     settings: SettingsDep,
-    auth_data: OptionalAuthDep,
+    auth_data: OptionalSessionAuthDep,
     csrf_service: CsrfTokenServiceDep,
     drop_use_cases: DropUseCasesDep,
     password: str | None = Form(default=None),
@@ -169,7 +169,7 @@ async def ui_open_drop_detail(
 async def ui_upload(
     request: Request,
     settings: SettingsDep,
-    auth_data: OptionalAuthDep,
+    auth_data: OptionalSessionAuthDep,
     csrf_service: CsrfTokenServiceDep,
     drop_use_cases: DropUseCasesDep,
     file: UploadFile = File(),
@@ -244,7 +244,7 @@ async def ui_update_drop_detail(
     slug: str,
     request: Request,
     settings: SettingsDep,
-    auth_data: OptionalAuthDep,
+    auth_data: OptionalSessionAuthDep,
     csrf_service: CsrfTokenServiceDep,
     drop_use_cases: DropUseCasesDep,
     title: str | None = Form(default=None),
@@ -277,7 +277,7 @@ async def ui_update_drop_favorite(
     slug: str,
     request: Request,
     settings: SettingsDep,
-    auth_data: OptionalAuthDep,
+    auth_data: OptionalSessionAuthDep,
     csrf_service: CsrfTokenServiceDep,
     drop_use_cases: DropUseCasesDep,
     favorite: bool = Form(),
@@ -308,7 +308,7 @@ async def ui_update_drop_access(
     slug: str,
     request: Request,
     settings: SettingsDep,
-    auth_data: OptionalAuthDep,
+    auth_data: OptionalSessionAuthDep,
     csrf_service: CsrfTokenServiceDep,
     drop_use_cases: DropUseCasesDep,
     user_only: bool = Form(),
@@ -340,7 +340,7 @@ async def ui_update_drop_password(
     slug: str,
     request: Request,
     settings: SettingsDep,
-    auth_data: OptionalAuthDep,
+    auth_data: OptionalSessionAuthDep,
     csrf_service: CsrfTokenServiceDep,
     drop_use_cases: DropUseCasesDep,
     new_password: str | None = Form(default=None),
@@ -372,7 +372,7 @@ async def ui_delete_drop(
     slug: str,
     request: Request,
     settings: SettingsDep,
-    auth_data: OptionalAuthDep,
+    auth_data: OptionalSessionAuthDep,
     csrf_service: CsrfTokenServiceDep,
     drop_use_cases: DropUseCasesDep,
     password: str | None = Form(default=None),

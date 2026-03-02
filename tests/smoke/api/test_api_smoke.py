@@ -5,15 +5,27 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from app.application.drop.models import DropDetailDTO, DropListDTO, DropListItemDTO, UNSET
 from app.bootstrap.container import get_app_settings
+from app.domain.auth.errors import ApiKeyInvalid
 from app.domain.drop.errors import DropAccessDeniedError, DropNotFoundError, DropPasswordInvalidError
 from app.domain.drop.value_objects import AccessScope
-from app.interfaces.api.deps import get_drop_use_cases, get_verify_session_use_case
+from app.interfaces.api.deps import (
+    get_drop_use_cases,
+    get_verify_api_key_use_case,
+    get_verify_session_use_case,
+)
 from app.interfaces.api.router import api_router
 
 class _FakeVerifySessionUseCase:
 
     async def execute(self, _query) -> str:
         return 'tester'
+
+
+class _FakeVerifyApiKeyUseCase:
+    async def execute(self, query) -> str:
+        if query.api_key == "tdpk_public_secret":
+            return "tester"
+        raise ApiKeyInvalid()
 
 class _FakeDropUseCases:
 
@@ -137,6 +149,7 @@ class TestApiSmoke:
         app.dependency_overrides[get_drop_use_cases] = lambda: fake_use_cases
         app.dependency_overrides[get_app_settings] = lambda: fake_settings
         app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
+        app.dependency_overrides[get_verify_api_key_use_case] = lambda: _FakeVerifyApiKeyUseCase()
         client = TestClient(app)
         client.cookies.set('session_id', 'sid')
         available_before_upload = client.get('/api/drop/availability/k1')
@@ -172,8 +185,47 @@ class TestApiSmoke:
         app.dependency_overrides[get_drop_use_cases] = lambda: fake_use_cases
         app.dependency_overrides[get_app_settings] = lambda: fake_settings
         app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
+        app.dependency_overrides[get_verify_api_key_use_case] = lambda: _FakeVerifyApiKeyUseCase()
         client = TestClient(app)
         response = client.get('/api/drop')
         assert response.status_code == 401
-        assert response.headers.get('www-authenticate') == 'Session'
+        assert response.headers.get('www-authenticate') == 'Session, ApiKey'
         assert 'session_id=' in response.headers.get('set-cookie', '')
+
+    def test_drop_crud_flow_with_api_key(self):
+        app = FastAPI()
+        app.include_router(api_router, prefix='/api')
+        fake_use_cases = _FakeDropUseCases()
+        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
+        app.dependency_overrides[get_drop_use_cases] = lambda: fake_use_cases
+        app.dependency_overrides[get_app_settings] = lambda: fake_settings
+        app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
+        app.dependency_overrides[get_verify_api_key_use_case] = lambda: _FakeVerifyApiKeyUseCase()
+        client = TestClient(app)
+
+        headers = {"X-API-Key": "tdpk_public_secret"}
+        upload = client.post('/api/drop', headers=headers, data={'slug': 'k2', 'access_scope': 'private', 'drop_password': 'pw'}, files={'file': ('hello.txt', io.BytesIO(b'hello world'), 'text/plain')})
+        assert upload.status_code == 200
+
+        listed = client.get('/api/drop', headers=headers)
+        assert listed.status_code == 200
+        assert listed.json()['total'] == 1
+
+        patched = client.patch('/api/drop/k2', headers=headers, json={'title': 'updated', 'current_password': 'pw'})
+        assert patched.status_code == 200
+
+        deleted = client.delete('/api/drop/k2?current_password=pw', headers=headers)
+        assert deleted.status_code == 200
+
+    def test_auth_me_accepts_api_key(self):
+        app = FastAPI()
+        app.include_router(api_router, prefix='/api')
+        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
+        app.dependency_overrides[get_app_settings] = lambda: fake_settings
+        app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
+        app.dependency_overrides[get_verify_api_key_use_case] = lambda: _FakeVerifyApiKeyUseCase()
+        client = TestClient(app)
+
+        response = client.get('/api/auth/me', headers={"X-API-Key": "tdpk_public_secret"})
+        assert response.status_code == 200
+        assert response.json() == 'tester'

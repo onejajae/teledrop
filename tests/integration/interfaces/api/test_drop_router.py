@@ -7,19 +7,31 @@ from fastapi.testclient import TestClient
 
 from app.application.drop.models import DropDetailDTO, UNSET
 from app.bootstrap.container import get_app_settings
+from app.domain.auth.errors import ApiKeyInvalid
 from app.domain.drop.errors import (
     DropAccessDeniedError,
     DropNotFoundError,
     DropPasswordInvalidError,
 )
 from app.domain.drop.value_objects import AccessScope
-from app.interfaces.api.deps import get_drop_use_cases, get_verify_session_use_case
+from app.interfaces.api.deps import (
+    get_drop_use_cases,
+    get_verify_api_key_use_case,
+    get_verify_session_use_case,
+)
 from app.interfaces.api.router import api_router
 
 
 class _FakeVerifySessionUseCase:
     async def execute(self, _query) -> str:
         return "tester"
+
+
+class _FakeVerifyApiKeyUseCase:
+    async def execute(self, query) -> str:
+        if query.api_key == "tdpk_public_secret":
+            return "tester"
+        raise ApiKeyInvalid()
 
 
 def _detail_dto(
@@ -147,6 +159,7 @@ def _client(fake_use_cases: _FakeDropUseCases) -> TestClient:
     app.dependency_overrides[get_drop_use_cases] = lambda: fake_use_cases
     app.dependency_overrides[get_app_settings] = lambda: fake_settings
     app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
+    app.dependency_overrides[get_verify_api_key_use_case] = lambda: _FakeVerifyApiKeyUseCase()
     return TestClient(app)
 
 

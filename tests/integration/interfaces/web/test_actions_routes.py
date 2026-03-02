@@ -7,10 +7,15 @@ from fastapi.testclient import TestClient
 
 from app.application.drop.models import DropDetailDTO, DropListDTO
 from app.bootstrap.container import get_app_settings
+from app.domain.auth.errors import ApiKeyNotFound
 from app.domain.drop.value_objects import AccessScope
 from app.interfaces.api.deps import (
+    get_create_api_key_use_case,
     get_csrf_token_service,
+    get_delete_api_key_use_case,
     get_drop_use_cases,
+    get_list_api_keys_use_case,
+    get_revoke_api_key_use_case,
     get_revoke_session_use_case,
     get_verify_session_use_case,
 )
@@ -41,6 +46,63 @@ class _FakeRevokeSessionUseCase:
 
     async def execute(self, sid: str):
         self.calls.append(sid)
+
+
+class _FakeApiKeyUseCases:
+    def __init__(self):
+        self.items = []
+        self.create_api_key_use_case = self._CreateApiKeyUseCase(self)
+        self.list_api_keys_use_case = self._ListApiKeysUseCase(self)
+        self.revoke_api_key_use_case = self._RevokeApiKeyUseCase(self)
+        self.delete_api_key_use_case = self._DeleteApiKeyUseCase(self)
+
+    class _CreateApiKeyUseCase:
+        def __init__(self, parent: "_FakeApiKeyUseCases"):
+            self.parent = parent
+
+        async def execute(self, command):
+            now = datetime.now(timezone.utc)
+            item = SimpleNamespace(
+                public_id="p1",
+                name=command.name,
+                created_by_username=command.created_by_username,
+                created_at=now,
+                expires_at=command.expires_at,
+                last_used_at=None,
+                revoked_at=None,
+                key="tdpk_p1_secret",
+            )
+            self.parent.items.append(item)
+            return item
+
+    class _ListApiKeysUseCase:
+        def __init__(self, parent: "_FakeApiKeyUseCases"):
+            self.parent = parent
+
+        async def execute(self):
+            return list(self.parent.items)
+
+    class _RevokeApiKeyUseCase:
+        def __init__(self, parent: "_FakeApiKeyUseCases"):
+            self.parent = parent
+
+        async def execute(self, command):
+            for item in self.parent.items:
+                if item.public_id == command.public_id:
+                    item.revoked_at = datetime.now(timezone.utc)
+                    return item
+            raise ApiKeyNotFound()
+
+    class _DeleteApiKeyUseCase:
+        def __init__(self, parent: "_FakeApiKeyUseCases"):
+            self.parent = parent
+
+        async def execute(self, command):
+            for idx, item in enumerate(self.parent.items):
+                if item.public_id == command.public_id:
+                    self.parent.items.pop(idx)
+                    return None
+            raise ApiKeyNotFound()
 
 
 def _detail_dto(slug: str) -> DropDetailDTO:
@@ -101,6 +163,7 @@ class _FakeDropUseCases:
 def _client(
     *,
     drop_use_cases: _FakeDropUseCases,
+    api_key_use_cases: _FakeApiKeyUseCases,
     csrf_service: _FakeCsrfService,
     revoke_use_case: _FakeRevokeSessionUseCase,
 ) -> TestClient:
@@ -121,6 +184,18 @@ def _client(
     app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
     app.dependency_overrides[get_csrf_token_service] = lambda: csrf_service
     app.dependency_overrides[get_revoke_session_use_case] = lambda: revoke_use_case
+    app.dependency_overrides[get_create_api_key_use_case] = (
+        lambda: api_key_use_cases.create_api_key_use_case
+    )
+    app.dependency_overrides[get_list_api_keys_use_case] = (
+        lambda: api_key_use_cases.list_api_keys_use_case
+    )
+    app.dependency_overrides[get_revoke_api_key_use_case] = (
+        lambda: api_key_use_cases.revoke_api_key_use_case
+    )
+    app.dependency_overrides[get_delete_api_key_use_case] = (
+        lambda: api_key_use_cases.delete_api_key_use_case
+    )
     return TestClient(app)
 
 
@@ -129,6 +204,7 @@ class TestWebActionRoutesIntegration:
         drop_use_cases = _FakeDropUseCases()
         client = _client(
             drop_use_cases=drop_use_cases,
+            api_key_use_cases=_FakeApiKeyUseCases(),
             csrf_service=_FakeCsrfService(verify_result=True),
             revoke_use_case=_FakeRevokeSessionUseCase(),
         )
@@ -147,6 +223,7 @@ class TestWebActionRoutesIntegration:
         drop_use_cases = _FakeDropUseCases()
         client = _client(
             drop_use_cases=drop_use_cases,
+            api_key_use_cases=_FakeApiKeyUseCases(),
             csrf_service=_FakeCsrfService(verify_result=True),
             revoke_use_case=_FakeRevokeSessionUseCase(),
         )
@@ -166,6 +243,7 @@ class TestWebActionRoutesIntegration:
         csrf_service = _FakeCsrfService(verify_result=False)
         client = _client(
             drop_use_cases=drop_use_cases,
+            api_key_use_cases=_FakeApiKeyUseCases(),
             csrf_service=csrf_service,
             revoke_use_case=_FakeRevokeSessionUseCase(),
         )
@@ -187,6 +265,7 @@ class TestWebActionRoutesIntegration:
         csrf_service = _FakeCsrfService(verify_result=True)
         client = _client(
             drop_use_cases=drop_use_cases,
+            api_key_use_cases=_FakeApiKeyUseCases(),
             csrf_service=csrf_service,
             revoke_use_case=_FakeRevokeSessionUseCase(),
         )
@@ -208,6 +287,7 @@ class TestWebActionRoutesIntegration:
         revoke_use_case = _FakeRevokeSessionUseCase()
         client = _client(
             drop_use_cases=_FakeDropUseCases(),
+            api_key_use_cases=_FakeApiKeyUseCases(),
             csrf_service=_FakeCsrfService(verify_result=False),
             revoke_use_case=revoke_use_case,
         )
@@ -217,3 +297,67 @@ class TestWebActionRoutesIntegration:
 
         assert response.status_code == 403
         assert revoke_use_case.calls == []
+
+    def test_api_key_actions_require_login_and_csrf(self):
+        api_key_use_cases = _FakeApiKeyUseCases()
+        client = _client(
+            drop_use_cases=_FakeDropUseCases(),
+            api_key_use_cases=api_key_use_cases,
+            csrf_service=_FakeCsrfService(verify_result=True),
+            revoke_use_case=_FakeRevokeSessionUseCase(),
+        )
+
+        no_login = client.post(
+            "/actions/auth/api-keys/create",
+            data={"csrf_token": "csrf", "name": "mobile"},
+            follow_redirects=False,
+        )
+        assert no_login.status_code == 302
+        assert no_login.headers["location"] == "/"
+
+        client = _client(
+            drop_use_cases=_FakeDropUseCases(),
+            api_key_use_cases=api_key_use_cases,
+            csrf_service=_FakeCsrfService(verify_result=False),
+            revoke_use_case=_FakeRevokeSessionUseCase(),
+        )
+        client.cookies.set("session_id", "sid")
+        csrf_fail = client.post(
+            "/actions/auth/api-keys/create",
+            data={"csrf_token": "bad", "name": "mobile"},
+        )
+        assert csrf_fail.status_code == 403
+
+    def test_api_key_create_revoke_delete_flow(self):
+        api_key_use_cases = _FakeApiKeyUseCases()
+        client = _client(
+            drop_use_cases=_FakeDropUseCases(),
+            api_key_use_cases=api_key_use_cases,
+            csrf_service=_FakeCsrfService(verify_result=True),
+            revoke_use_case=_FakeRevokeSessionUseCase(),
+        )
+        client.cookies.set("session_id", "sid")
+
+        created = client.post(
+            "/actions/auth/api-keys/create",
+            data={"csrf_token": "csrf", "name": "mobile"},
+        )
+        assert created.status_code == 200
+        assert "tdpk_p1_secret" in created.text
+        assert len(api_key_use_cases.items) == 1
+
+        revoked = client.post(
+            "/actions/auth/api-keys/p1/revoke",
+            data={"csrf_token": "csrf"},
+        )
+        assert revoked.status_code == 200
+        assert "폐기되었습니다" in revoked.text
+        assert api_key_use_cases.items[0].revoked_at is not None
+
+        deleted = client.post(
+            "/actions/auth/api-keys/p1/delete",
+            data={"csrf_token": "csrf"},
+        )
+        assert deleted.status_code == 200
+        assert "삭제되었습니다" in deleted.text
+        assert api_key_use_cases.items == []

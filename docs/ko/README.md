@@ -94,6 +94,17 @@ docker run --detach \
 >   - CORS_ALLOW_ALL=true
 > ```
 
+* 외부 클라이언트용 API key 인증
+> 보호된 REST API 엔드포인트는 세션 쿠키 또는 `X-API-Key` 인증을 허용합니다.
+> API key 생성/폐기/삭제 관리는 로그인된 웹 UI에서만 가능합니다:
+> `/settings/api-keys`
+> 요청 예시:
+> ```bash
+> curl -H "X-API-Key: tdpk_<public_id>_<secret>" http://localhost:8000/api/drop
+> ```
+> API key 원문은 생성 시점에만 1회 표시되며 이후 재조회할 수 없습니다.
+> `created_by_username`는 감사 추적용 스냅샷 필드로 저장됩니다.
+
 * 여러 개의 워커 프로세스 실행
 > 성능 향상을 위해 `--workers` 옵션을 사용하여 워커 프로세스 개수를 지정할 수 있습니다.
 > ```yaml

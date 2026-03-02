@@ -6,9 +6,9 @@ from app.core.auth import clear_session_cookie, get_session_id_from_request, set
 from app.domain.auth.errors import LoginInvalid
 from app.interfaces.api.errors import login_invalid_exception
 from app.interfaces.api.deps import (
-    AuthDep,
-    OptionalAuthDep,
+    OptionalSessionAuthDep,
     PasswordLoginUseCaseDep,
+    RequiredApiAuthDep,
     RevokeSessionUseCaseDep,
 )
 
@@ -38,7 +38,7 @@ async def login(
 
 @router.get("/me")
 async def get_user_info(
-    auth_data: AuthDep,
+    auth_data: RequiredApiAuthDep,
 ):
     return auth_data.username
 
@@ -48,7 +48,7 @@ async def logout(
     request: Request,
     response: Response,
     settings: SettingsDep,
-    _auth_data: OptionalAuthDep,
+    _auth_data: OptionalSessionAuthDep,
     revoke_session_use_case: RevokeSessionUseCaseDep,
 ):
     session_id = get_session_id_from_request(request, settings)
@@ -62,7 +62,7 @@ async def logout_post(
     request: Request,
     response: Response,
     settings: SettingsDep,
-    _auth_data: OptionalAuthDep,
+    _auth_data: OptionalSessionAuthDep,
     revoke_session_use_case: RevokeSessionUseCaseDep,
 ):
     session_id = get_session_id_from_request(request, settings)

@@ -2,12 +2,15 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse
 
 from app.bootstrap.container import SettingsDep
-from app.interfaces.api.deps import (
+from app.interfaces.web.deps import (
     CsrfTokenServiceDep,
     DropUseCasesDep,
-    OptionalAuthDep,
+    ListApiKeysUseCaseDep,
+    OptionalSessionAuthDep,
 )
+from app.interfaces.web.presenters.api_keys_page import render_api_keys_page
 from app.interfaces.web.presenters.auth_panel import render_auth_panel
+from app.interfaces.web.presenters.common import unauthorized_ui_response
 from app.interfaces.web.presenters.dashboard import render_dashboard_page
 from app.interfaces.web.presenters.detail_panel import render_detail_panel
 from app.interfaces.web.presenters.drop_panel import render_drop_panel
@@ -21,7 +24,7 @@ router = APIRouter()
 async def ui(
     request: Request,
     settings: SettingsDep,
-    auth_data: OptionalAuthDep,
+    auth_data: OptionalSessionAuthDep,
     csrf_service: CsrfTokenServiceDep,
     drop_use_cases: DropUseCasesDep,
     slug: str | None = Query(default=None),
@@ -46,7 +49,7 @@ async def ui(
 async def ui_auth_panel(
     request: Request,
     settings: SettingsDep,
-    auth_data: OptionalAuthDep,
+    auth_data: OptionalSessionAuthDep,
     csrf_service: CsrfTokenServiceDep,
 ):
     return render_auth_panel(
@@ -61,7 +64,7 @@ async def ui_auth_panel(
 async def ui_drop_panel(
     request: Request,
     settings: SettingsDep,
-    auth_data: OptionalAuthDep,
+    auth_data: OptionalSessionAuthDep,
     csrf_service: CsrfTokenServiceDep,
     drop_use_cases: DropUseCasesDep,
     slug: str | None = Query(default=None),
@@ -84,7 +87,7 @@ async def ui_drop_panel(
 async def ui_upload_panel(
     request: Request,
     settings: SettingsDep,
-    auth_data: OptionalAuthDep,
+    auth_data: OptionalSessionAuthDep,
     csrf_service: CsrfTokenServiceDep,
     slug: str | None = Query(default=None),
 ):
@@ -101,7 +104,7 @@ async def ui_upload_panel(
 async def ui_drop_detail(
     request: Request,
     settings: SettingsDep,
-    auth_data: OptionalAuthDep,
+    auth_data: OptionalSessionAuthDep,
     csrf_service: CsrfTokenServiceDep,
     drop_use_cases: DropUseCasesDep,
     slug: str | None = Query(default=None),
@@ -118,12 +121,32 @@ async def ui_drop_detail(
     )
 
 
+@router.get("/settings/api-keys", response_class=HTMLResponse)
+async def ui_api_keys(
+    request: Request,
+    settings: SettingsDep,
+    auth_data: OptionalSessionAuthDep,
+    csrf_service: CsrfTokenServiceDep,
+    list_api_keys_use_case: ListApiKeysUseCaseDep,
+):
+    if not auth_data.username:
+        return unauthorized_ui_response(request)
+
+    return await render_api_keys_page(
+        request=request,
+        auth_data=auth_data,
+        csrf_service=csrf_service,
+        list_api_keys_use_case=list_api_keys_use_case,
+        settings=settings,
+    )
+
+
 @router.get("/{slug}", response_class=HTMLResponse)
 async def ui_preview(
     request: Request,
     slug: str,
     settings: SettingsDep,
-    auth_data: OptionalAuthDep,
+    auth_data: OptionalSessionAuthDep,
     csrf_service: CsrfTokenServiceDep,
     drop_use_cases: DropUseCasesDep,
     password: str | None = Query(default=None),

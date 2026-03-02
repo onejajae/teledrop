@@ -2,10 +2,13 @@
   <div class="flex items-center justify-between">
     <div>
       {% if is_login %}
-      <form method="post" action="/actions/auth/logout" hx-post="/actions/auth/logout" hx-swap="none">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
-        <button type="submit" class="btn btn-ghost btn-sm normal-case">로그아웃</button>
-      </form>
+      <div class="flex items-center gap-1">
+        <a href="/settings/api-keys" class="btn btn-ghost btn-sm normal-case">API Keys</a>
+        <form method="post" action="/actions/auth/logout" hx-post="/actions/auth/logout" hx-swap="none">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
+          <button type="submit" class="btn btn-ghost btn-sm normal-case">로그아웃</button>
+        </form>
+      </div>
       {% endif %}
     </div>
     <div class="flex items-center gap-1">
