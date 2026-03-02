@@ -5,7 +5,6 @@ from fastapi import Depends, Request, Response
 from app.application.auth.models import VerifySessionQuery
 from app.application.auth.types import AuthIdentity
 from app.application.auth.use_cases import (
-    CreateSessionUseCase,
     PasswordLoginUseCase,
     RevokeSessionUseCase,
     VerifySessionUseCase,
@@ -17,12 +16,6 @@ from app.interfaces.api.errors import (
     response_set_cookie_header,
     session_unauthorized_exception,
 )
-
-
-def get_create_session_use_case(
-    auth_use_cases: AuthUseCasesDep,
-) -> CreateSessionUseCase:
-    return auth_use_cases.create_session_use_case
 
 
 def get_verify_session_use_case(
@@ -93,7 +86,6 @@ __all__ = [
     "PasswordLoginUseCaseDep",
     "RequiredAuthDep",
     "RevokeSessionUseCaseDep",
-    "get_create_session_use_case",
     "get_password_login_use_case",
     "get_revoke_session_use_case",
     "get_verify_session_use_case",

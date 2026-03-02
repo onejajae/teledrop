@@ -33,6 +33,7 @@ from app.domain.drop.policies import (
     normalize_drop_password,
 )
 from app.domain.drop.value_objects import AccessScope
+from app.core.utils import normalize_pagination
 
 
 def _assert_access(drop: DropEntity, auth: AuthIdentity | None):
@@ -141,9 +142,12 @@ class ListDropsUseCase:
         if query.auth.username is None:
             raise DropAccessDeniedError()
 
-        page = max(query.page, 1)
-        page_size = query.page_size or self.default_page_size
-        page_size = min(max(page_size, 1), self.max_page_size)
+        page, page_size = normalize_pagination(
+            page=query.page,
+            page_size=query.page_size,
+            default_page_size=self.default_page_size,
+            max_page_size=self.max_page_size,
+        )
 
         total = await self.repository.count()
         items = await self.repository.list(

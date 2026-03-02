@@ -24,7 +24,3 @@ class DropEntity:
     @property
     def requires_password(self) -> bool:
         return bool(self.drop_password)
-
-    @property
-    def is_private(self) -> bool:
-        return self.access_scope == AccessScope.PRIVATE

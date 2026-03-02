@@ -269,5 +269,4 @@ def get_auth_use_cases(request: Request) -> AuthUseCaseCollection:
 
 AppContainerDep = Annotated[AppContainer, Depends(get_app_container)]
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
-DropUseCasesDep = Annotated[DropUseCaseCollection, Depends(get_drop_use_cases)]
 AuthUseCasesDep = Annotated[AuthUseCaseCollection, Depends(get_auth_use_cases)]

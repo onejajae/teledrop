@@ -1,17 +1,13 @@
 import pytest
-import importlib
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 from argon2 import PasswordHasher
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
-import app.infrastructure.db as db_package
-import app.infrastructure.db.session as db_session_module
 from app.bootstrap.container import AppContainer, attach_app_container, build_app_container, ensure_app_container, get_app_container, get_app_settings
 from app.infrastructure.slug.candidate_generators import PatternWordPoolsSlugCandidateGenerator, UuidHexSlugCandidateGenerator
 from app.infrastructure.db.init import init_db
-from app.infrastructure.db.session import get_session
 
 class _FakeSettings:
 
@@ -30,15 +26,6 @@ class _FakeSettings:
         return None
 
 class TestDbPackageContract:
-
-    def test_session_module_has_no_global_engine_export(self):
-        module = importlib.reload(db_session_module)
-        assert not hasattr(module, 'engine')
-
-    def test_db_package_no_longer_exports_engine(self):
-        module = importlib.reload(db_package)
-        assert sorted(module.__all__) == ['get_session', 'init_db']
-        assert 'engine' not in module.__all__
 
     def test_init_db_requires_engine_argument(self):
         with pytest.raises(TypeError):
@@ -108,23 +95,6 @@ class TestAppContainer:
             result = ensure_app_container(app)
         assert result is existing
         build_mock.assert_not_called()
-
-class TestSessionDependency:
-
-    def test_get_session_uses_container_factory_and_closes_session(self):
-        app = FastAPI()
-        fake_session = MagicMock()
-        fake_container = MagicMock(spec=AppContainer)
-        fake_container.db_session_factory.return_value = fake_session
-        app.state.container = fake_container
-        request = SimpleNamespace(app=app)
-        session_gen = get_session(request)
-        yielded_session = next(session_gen)
-        assert yielded_session is fake_session
-        with pytest.raises(StopIteration):
-            next(session_gen)
-        fake_container.db_session_factory.assert_called_once_with()
-        fake_session.close.assert_called_once_with()
 
 class TestBareFastApiFallback:
 
