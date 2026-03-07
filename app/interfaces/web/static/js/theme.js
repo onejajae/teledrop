@@ -4,15 +4,41 @@
   }
   window.__teledropThemeInitialized = true;
 
-  const LIGHT_THEME_COLOR = "#0ea5e9";
-  const DARK_THEME_COLOR = "#1f2937";
+  const root = document.documentElement;
+
+  const getThemeConfig = () => ({
+    lightThemeColor: root.dataset.themeColorLight,
+    darkThemeColor: root.dataset.themeColorDark,
+    lightSurface: root.dataset.themeSurfaceLight,
+    darkSurface: root.dataset.themeSurfaceDark,
+  });
+
+  const syncThemeSurface = () => {
+    const { lightSurface, darkSurface } = getThemeConfig();
+    if (lightSurface) {
+      root.style.setProperty("--td-theme-surface-light", lightSurface);
+    }
+    if (darkSurface) {
+      root.style.setProperty("--td-theme-surface-dark", darkSurface);
+    }
+  };
+
+  const resolveThemeColor = (theme, { lightThemeColor, darkThemeColor }) => {
+    if (theme === "dark") {
+      return darkThemeColor || lightThemeColor;
+    }
+    return lightThemeColor || darkThemeColor;
+  };
 
   const setDocumentTheme = (theme) => {
-    document.documentElement.setAttribute("data-theme", theme);
-    document.documentElement.style.colorScheme = theme === "dark" ? "dark" : "light";
+    const themeConfig = getThemeConfig();
+    syncThemeSurface();
+    root.setAttribute("data-theme", theme);
+    root.style.colorScheme = theme === "dark" ? "dark" : "light";
     const themeColorMeta = document.querySelector('meta[name="theme-color"]');
-    if (themeColorMeta) {
-      themeColorMeta.setAttribute("content", theme === "dark" ? DARK_THEME_COLOR : LIGHT_THEME_COLOR);
+    const themeColor = resolveThemeColor(theme, themeConfig);
+    if (themeColorMeta && themeColor) {
+      themeColorMeta.setAttribute("content", themeColor);
     }
   };
 
@@ -27,7 +53,7 @@
   const syncThemeToggle = () => {
     const toggle = document.getElementById("theme-toggle");
     if (toggle) {
-      const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+      const isDark = root.getAttribute("data-theme") === "dark";
       toggle.classList.toggle("swap-active", isDark);
       toggle.setAttribute("aria-pressed", String(isDark));
     }
@@ -39,7 +65,7 @@
     if (!toggle) {
       return;
     }
-    const currentTheme = document.documentElement.getAttribute("data-theme");
+    const currentTheme = root.getAttribute("data-theme");
     const nextTheme = currentTheme === "dark" ? "light" : "dark";
     setDocumentTheme(nextTheme);
     localStorage.setItem("color-theme", nextTheme);
@@ -48,6 +74,7 @@
 
   window.__teledropSetDocumentTheme = setDocumentTheme;
 
+  syncThemeSurface();
   applyThemePreference();
   syncThemeToggle();
 })();

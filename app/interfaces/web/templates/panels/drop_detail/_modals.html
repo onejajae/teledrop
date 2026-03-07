@@ -1,71 +1,24 @@
-<dialog id="detail-edit-modal" class="modal">
-  <div class="modal-box">
-    <h3 class="text-base font-semibold">메타데이터 수정</h3>
-    <form method="post" action="/actions/drop/{{ selected_key }}/detail"
-      {% if detail_mode != 'manage' %}hx-post="/actions/drop/{{ selected_key }}/detail" hx-swap="none"
-      data-td-success="refresh-panels" data-td-close-dialog-id="detail-edit-modal"{% endif %}
-      class="mt-4 space-y-3">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
-      <input type="hidden" name="password" value="{{ selected_password or '' }}" />
-      <div class="w-full space-y-1">
-        <label class="block text-sm" for="detail-edit-title">
-          제목
-        </label>
-        <input type="text" id="detail-edit-title" name="title" value="{{ selected_drop.title or '' }}"
-          class="input input-bordered input-sm" />
-      </div>
-      <div class="w-full space-y-1">
-        <label class="block text-sm" for="detail-edit-description">
-          내용
-        </label>
-        <textarea id="detail-edit-description" name="description" rows="3"
-          class="textarea textarea-bordered">{{ selected_drop.description or '' }}</textarea>
-      </div>
-      <div class="modal-action">
-        <button type="button" class="btn btn-ghost btn-sm"
-          data-td-action="close-dialog" data-td-dialog-id="detail-edit-modal">취소</button>
-        <button type="submit" class="btn btn-primary btn-sm">저장</button>
-      </div>
-    </form>
-  </div>
-  <form method="dialog" class="modal-backdrop">
-    <button>닫기</button>
-  </form>
-</dialog>
+{% from "macros/components.html" import modal_form %}
+{% from "macros/ui.html" import field, text_input, textarea_input %}
+{% call modal_form("detail-edit-modal", "메타데이터 수정", "/actions/drop/" ~ selected_key ~ "/detail", "저장", form_attrs=('hx-post="/actions/drop/' ~ selected_key ~ '/detail" hx-swap="none" data-td-success="refresh-panels" data-td-close-dialog-id="detail-edit-modal"') if detail_mode != 'manage' else "") %}
+  <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
+  <input type="hidden" name="password" value="{{ selected_password or '' }}" />
+  {% call field("제목", "detail-edit-title") %}
+    {{ text_input("title", input_id="detail-edit-title", value=selected_drop.title or '', classes="input-sm") }}
+  {% endcall %}
+  {% call field("내용", "detail-edit-description") %}
+    {{ textarea_input("description", input_id="detail-edit-description", value=selected_drop.description or '') }}
+  {% endcall %}
+{% endcall %}
 
-<dialog id="detail-password-modal" class="modal">
-  <div class="modal-box">
-    <h3 class="text-base font-semibold">비밀번호 설정</h3>
-    <p class="text-xs opacity-70">비워두면 비밀번호를 해제합니다.</p>
-    <form id="detail-password-form" method="post" action="/actions/drop/{{ selected_key }}/password"
-      {% if detail_mode != 'manage' %}hx-post="/actions/drop/{{ selected_key }}/password" hx-swap="none"
-      data-td-success="refresh-panels-reset-password" data-td-close-dialog-id="detail-password-modal"{% endif %}
-      class="mt-4 space-y-3">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
-      <input type="hidden" name="current_password" value="{{ selected_password or '' }}" />
-      <div class="w-full space-y-1">
-        <label class="block text-sm" for="detail-password-new">
-          새 비밀번호
-        </label>
-        <input id="detail-password-new" type="password" name="new_password" class="input input-bordered input-sm"
-          placeholder="•••••" />
-      </div>
-      <div class="w-full space-y-1">
-        <label class="block text-sm" for="detail-password-confirm">
-          비밀번호 확인
-        </label>
-        <input id="detail-password-confirm" type="password" class="input input-bordered input-sm"
-          placeholder="•••••" />
-      </div>
-      <p id="detail-password-mismatch" class="hidden text-xs text-error">비밀번호가 일치하지 않습니다.</p>
-      <div class="modal-action">
-        <button type="button" class="btn btn-ghost btn-sm"
-          data-td-action="close-dialog" data-td-dialog-id="detail-password-modal">취소</button>
-        <button id="detail-password-submit" type="submit" class="btn btn-primary btn-sm" disabled>적용</button>
-      </div>
-    </form>
-  </div>
-  <form method="dialog" class="modal-backdrop">
-    <button>닫기</button>
-  </form>
-</dialog>
+{% call modal_form("detail-password-modal", "비밀번호 설정", "/actions/drop/" ~ selected_key ~ "/password", "적용", description="비워두면 비밀번호를 해제합니다.", form_id="detail-password-form", form_attrs=('hx-post="/actions/drop/' ~ selected_key ~ '/password" hx-swap="none" data-td-success="refresh-panels-reset-password" data-td-close-dialog-id="detail-password-modal"') if detail_mode != 'manage' else "", submit_id="detail-password-submit", submit_disabled=true) %}
+  <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
+  <input type="hidden" name="current_password" value="{{ selected_password or '' }}" />
+  {% call field("새 비밀번호", "detail-password-new") %}
+    {{ text_input("new_password", input_id="detail-password-new", input_type="password", placeholder="•••••", classes="input-sm") }}
+  {% endcall %}
+  {% call field("비밀번호 확인", "detail-password-confirm") %}
+    {{ text_input("confirm_password", input_id="detail-password-confirm", input_type="password", placeholder="•••••", classes="input-sm") }}
+  {% endcall %}
+  <p id="detail-password-mismatch" class="hidden text-xs text-error">비밀번호가 일치하지 않습니다.</p>
+{% endcall %}

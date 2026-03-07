@@ -1,205 +1,22 @@
-@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
 @import "../../../../../ui-build/node_modules/tailwindcss/index.css";
-@plugin "../../../../../ui-build/node_modules/daisyui/index.js" {
-  themes: false;
-}
-@plugin "../../../../../ui-build/node_modules/daisyui/theme/index.js" {
-  name: "light";
-  default: true;
-  color-scheme: light;
-  --color-primary: #0ea5e9;
-  --color-primary-content: #ffffff;
-  --color-secondary: #4b5563;
-  --color-secondary-content: #ffffff;
-  --color-accent: #fcd34d;
-  --color-accent-content: #1f2937;
-  --color-neutral: #374151;
-  --color-neutral-content: #f3f4f6;
-  --color-base-100: #ffffff;
-  --color-base-200: #f3f4f6;
-  --color-base-300: #d1d5db;
-  --color-base-content: #374151;
-  --color-info: #38bdf8;
-  --color-info-content: #0c4a6e;
-  --color-success: #22c55e;
-  --color-success-content: #14532d;
-  --color-warning: #fcd34d;
-  --color-warning-content: #78350f;
-  --color-error: #ef4444;
-  --color-error-content: #ffffff;
-}
-@plugin "../../../../../ui-build/node_modules/daisyui/theme/index.js" {
-  name: "dark";
-  prefersdark: true;
-  color-scheme: dark;
-  --color-primary: #38bdf8;
-  --color-primary-content: #0c4a6e;
-  --color-secondary: #9ca3af;
-  --color-secondary-content: #1f2937;
-  --color-accent: #fde047;
-  --color-accent-content: #1f2937;
-  --color-neutral: #1f2937;
-  --color-neutral-content: #e5e7eb;
-  --color-base-100: #1f2937;
-  --color-base-200: #374151;
-  --color-base-300: #4b5563;
-  --color-base-content: #f3f4f6;
-  --color-info: #38bdf8;
-  --color-info-content: #0c4a6e;
-  --color-success: #4ade80;
-  --color-success-content: #14532d;
-  --color-warning: #fde047;
-  --color-warning-content: #78350f;
-  --color-error: #f43f5e;
-  --color-error-content: #ffffff;
-}
+@import "./generated/theme-tokens.css";
 @source "../../templates/**/*.html";
 @source "../**/*.js";
 
-:root,
-[data-theme] {
-  --td-theme-transition: 0.2s;
-  --animation-btn: 0.2s;
-  --animation-input: 0.2s;
-  --btn-focus-scale: 0.97;
-}
-
 @layer base {
-  html {
-    font-family: "Pretendard", system-ui, sans-serif;
-    overflow-y: scroll;
-  }
-
-  body {
-    transition: background-color var(--td-theme-transition) ease, color var(--td-theme-transition) ease;
-  }
-
-  /* Keep theme token changes visually consistent across SSR panels and DaisyUI controls. */
-  .td-section,
-  .td-drop-card,
+  .card,
+  .hero,
   .btn,
   .input,
   .select,
   .textarea,
   .join-item,
   .alert,
-  .badge {
+  .badge,
+  .progress,
+  .modal-box {
     transition-property: background-color, border-color, color, box-shadow, outline-color, opacity, transform;
-    transition-duration: var(--td-theme-transition);
+    transition-duration: 0.2s;
     transition-timing-function: ease;
-  }
-}
-
-@layer components {
-  /* 원래 Svelte Section.svelte: bg-gray-100 dark:bg-gray-700 rounded-xl shadow-xl */
-  .td-section {
-    @apply w-full rounded-xl bg-base-200 shadow-xl;
-  }
-
-  .td-section-body {
-    @apply space-y-3 p-4 sm:p-6;
-  }
-
-  .td-section-title {
-    @apply text-lg font-semibold;
-  }
-
-  .td-logo-wordmark {
-    @apply block w-full;
-    aspect-ratio: 1100 / 230;
-    background-color: #374151; /* Tailwind gray-700 (main logo light mode) */
-    -webkit-mask: url("/static/images/logo.svg") center / contain no-repeat;
-    mask: url("/static/images/logo.svg") center / contain no-repeat;
-    transition: background-color var(--td-theme-transition) ease, opacity var(--td-theme-transition) ease;
-  }
-
-  /* Match main branch Logo.svelte colors: fill-gray-700 / dark:fill-gray-200. */
-  html[data-theme="light"] .td-logo-wordmark {
-    background-color: #374151; /* gray-700 */
-    opacity: 1;
-  }
-
-  html[data-theme="dark"] .td-logo-wordmark {
-    background-color: #e5e7eb; /* gray-200 */
-    opacity: 1;
-  }
-
-  .td-list-title {
-    @apply flex items-center gap-1 text-sm font-semibold leading-5 sm:text-base;
-  }
-
-  .td-list-file-subline {
-    @apply mt-0.5 truncate text-xs leading-4 opacity-60;
-  }
-
-  .td-list-meta {
-    @apply mt-0.5 truncate text-xs leading-4 opacity-70;
-  }
-
-  /* 파일 목록 카드 hover 효과 */
-  .td-drop-card {
-    @apply cursor-pointer rounded-box border border-base-300 bg-base-100 px-3 py-3 shadow-sm transition-all duration-200 ease-out hover:-translate-y-px hover:border-base-content/10 hover:shadow-md;
-  }
-
-  .td-drop-card.is-selected {
-    @apply border-primary bg-base-100 shadow-md ring-1 ring-primary/20;
-  }
-
-  .td-drop-card.is-selected .td-list-meta {
-    @apply opacity-90;
-  }
-
-  .td-drop-card.is-selected .td-list-file-subline {
-    @apply opacity-70;
-  }
-
-  .td-drop-card:focus-visible {
-    @apply outline-none ring-2 ring-primary/35 ring-offset-2 ring-offset-base-100;
-  }
-
-  .td-detail-actions {
-    @apply grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-1;
-  }
-
-  .td-detail-owner-actions {
-    @apply flex flex-wrap items-center gap-1 sm:justify-end;
-  }
-
-  .td-detail-owner-form {
-    @apply inline-flex;
-  }
-
-  .td-detail-owner-btn {
-    @apply btn btn-ghost btn-sm btn-square text-base-content/70 hover:bg-base-300/80 hover:text-base-content;
-  }
-
-  .td-detail-owner-btn-danger {
-    @apply btn btn-error btn-sm btn-square hover:shadow-sm;
-  }
-
-  .td-detail-action-btn {
-    @apply btn btn-sm w-full justify-start sm:btn-square sm:justify-center;
-  }
-
-  .td-detail-action-btn-ghost {
-    @apply text-base-content/70 hover:bg-base-300/80 hover:text-base-content;
-  }
-
-  .td-detail-action-btn-outline {
-    @apply hover:border-base-content/20 hover:bg-base-200;
-  }
-
-  .td-detail-action-btn-danger {
-    @apply hover:shadow-sm;
-  }
-
-  .td-detail-action-btn svg,
-  .td-detail-owner-btn svg,
-  .td-detail-owner-btn-danger svg {
-    @apply h-4 w-4 shrink-0;
-  }
-
-  .td-file-info-icon {
-    @apply flex h-12 w-12 items-center justify-center;
   }
 }

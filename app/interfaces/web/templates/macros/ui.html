@@ -1,0 +1,144 @@
+{% from "macros/icons.html" import icon_check_circle, icon_information_circle, icon_x_circle %}
+
+{% macro status_icon(tone="info", classes="") -%}
+  {% if tone == "error" %}
+    {{ icon_x_circle(class=classes or "h-6 w-6") }}
+  {% elif tone == "success" %}
+    {{ icon_check_circle(class=classes or "h-6 w-6") }}
+  {% else %}
+    {{ icon_information_circle(class=classes or "h-6 w-6") }}
+  {% endif %}
+{%- endmacro %}
+
+{% macro section(compact=false, classes="", body_classes="", attrs="") -%}
+<section class="card bg-base-200 shadow-xl{{ ' ' ~ classes if classes }}"{% if attrs %} {{ attrs | safe }}{% endif %}>
+  <div class="card-body gap-3{{ ' p-4 sm:p-5' if compact else ' p-4 sm:p-6' }}{{ ' ' ~ body_classes if body_classes }}">
+    {% if caller is defined %}{{ caller() }}{% endif %}
+  </div>
+</section>
+{%- endmacro %}
+
+{% macro section_header(title, description=None, level="h2", centered=false, classes="") -%}
+<div class="{% if centered %}flex flex-col items-center gap-3 text-center{% else %}flex flex-wrap items-start justify-between gap-3{% endif %}{{ ' ' ~ classes if classes }}">
+  <div class="space-y-1">
+    <{{ level }} class="card-title text-lg leading-tight">{{ title }}</{{ level }}>
+    {% if description %}
+    <p class="text-sm opacity-70">{{ description }}</p>
+    {% endif %}
+  </div>
+  {% if caller is defined %}
+  <div class="flex flex-wrap items-center gap-2">
+    {{ caller() }}
+  </div>
+  {% endif %}
+</div>
+{%- endmacro %}
+
+{% macro alert(message=None, tone="info", title=None, classes="", attrs="") -%}
+<div role="alert" class="alert alert-{{ tone }}{{ ' ' ~ classes if classes }}"{% if attrs %} {{ attrs | safe }}{% endif %}>
+  {% if caller is defined %}
+    {{ caller() }}
+  {% else %}
+  {{ status_icon(tone) }}
+  <span>
+    {% if title %}
+      <span class="font-semibold">{{ title }}</span>
+      {% if message %}<span class="ml-1">{{ message }}</span>{% endif %}
+    {% else %}
+      {{ message }}
+    {% endif %}
+  </span>
+  {% endif %}
+</div>
+{%- endmacro %}
+
+{% macro button(label=None, href=None, kind=None, size=None, square=false, block=false, normal_case=false, classes="", attrs="", type="button", disabled=false) -%}
+{% set class_name = "btn" ~ (" btn-" ~ kind if kind else "") ~ (" btn-" ~ size if size else "") ~ (" btn-square" if square else "") ~ (" btn-block" if block else "") ~ (" normal-case" if normal_case else "") ~ (" " ~ classes if classes else "") %}
+{% if href %}
+<a href="{{ href }}" class="{{ class_name }}"{% if attrs %} {{ attrs | safe }}{% endif %}>
+  {% if caller is defined %}{{ caller() }}{% else %}{{ label }}{% endif %}
+</a>
+{% else %}
+<button type="{{ type }}" class="{{ class_name }}"{% if disabled %} disabled{% endif %}{% if attrs %} {{ attrs | safe }}{% endif %}>
+  {% if caller is defined %}{{ caller() }}{% else %}{{ label }}{% endif %}
+</button>
+{% endif %}
+{%- endmacro %}
+
+{% macro icon_button(label=None, href=None, kind="ghost", size="sm", classes="", attrs="", type="button", disabled=false) -%}
+  {% call button(label=label, href=href, kind=kind, size=size, square=true, classes=classes, attrs=attrs, type=type, disabled=disabled) %}
+    {% if caller is defined %}
+      {{ caller() }}
+    {% elif label %}
+      <span class="sr-only">{{ label }}</span>
+    {% endif %}
+  {% endcall %}
+{%- endmacro %}
+
+{% macro badge(label, tone=None, appearance=None, classes="") -%}
+<span class="badge{{ ' badge-' ~ tone if tone }}{{ ' badge-' ~ appearance if appearance }}{{ ' ' ~ classes if classes }}">{{ label }}</span>
+{%- endmacro %}
+
+{% macro field(label, for_id=None, hint=None, classes="", label_classes="") -%}
+<fieldset class="fieldset w-full{{ ' ' ~ classes if classes }}">
+  <legend class="fieldset-legend{{ ' ' ~ label_classes if label_classes }}">{{ label }}</legend>
+  {% if caller is defined %}{{ caller() }}{% endif %}
+  {% if hint %}
+  <p class="label text-base-content/70">{{ hint }}</p>
+  {% endif %}
+</fieldset>
+{%- endmacro %}
+
+{% macro text_input(name, input_id=None, input_type="text", value=None, placeholder=None, autocomplete=None, required=false, classes="w-full", attrs="") -%}
+<input type="{{ input_type }}" name="{{ name }}" {% if input_id %}id="{{ input_id }}"{% endif %}{% if value is not none %} value="{{ value }}"{% endif %}{% if placeholder %} placeholder="{{ placeholder }}"{% endif %}{% if autocomplete %} autocomplete="{{ autocomplete }}"{% endif %}{% if required %} required{% endif %} class="input {{ classes }}"{% if attrs %} {{ attrs | safe }}{% endif %} />
+{%- endmacro %}
+
+{% macro select_input(name, options, input_id=None, selected=None, classes="w-full", attrs="") -%}
+<select name="{{ name }}" {% if input_id %}id="{{ input_id }}"{% endif %} class="select {{ classes }}"{% if attrs %} {{ attrs | safe }}{% endif %}>
+  {% for option in options %}
+    {% if option is string %}
+      {% set option_value = option %}
+      {% set option_label = option %}
+    {% elif option is mapping %}
+      {% set option_value = option["value"] %}
+      {% set option_label = option["label"] %}
+    {% else %}
+      {% set option_value = option.value %}
+      {% set option_label = option.label %}
+    {% endif %}
+  <option value="{{ option_value }}" {% if option_value == selected %}selected{% endif %}>{{ option_label }}</option>
+  {% endfor %}
+</select>
+{%- endmacro %}
+
+{% macro textarea_input(name, input_id=None, value=None, rows=3, placeholder=None, classes="w-full", attrs="") -%}
+<textarea name="{{ name }}" {% if input_id %}id="{{ input_id }}"{% endif %} rows="{{ rows }}" class="textarea {{ classes }}"{% if placeholder %} placeholder="{{ placeholder }}"{% endif %}{% if attrs %} {{ attrs | safe }}{% endif %}>{{ value or '' }}</textarea>
+{%- endmacro %}
+
+{% macro surface_card(tag="article", classes="", body_classes="", attrs="") -%}
+<{{ tag }} class="card border border-base-300 bg-base-100 shadow-sm{{ ' ' ~ classes if classes }}"{% if attrs %} {{ attrs | safe }}{% endif %}>
+  <div class="card-body gap-3 p-4{{ ' ' ~ body_classes if body_classes else '' }}">
+    {% if caller is defined %}{{ caller() }}{% endif %}
+  </div>
+</{{ tag }}>
+{%- endmacro %}
+
+{% macro code_block(text, classes="") -%}
+<pre class="rounded-box bg-base-100/70 px-3 py-3 text-xs{{ ' ' ~ classes if classes }}"><code>{{ text }}</code></pre>
+{%- endmacro %}
+
+{% macro empty_state(title, description=None, icon_html=None, classes="") -%}
+<div class="hero rounded-box border border-base-300 bg-base-100{{ ' ' ~ classes if classes }}">
+  <div class="hero-content py-10 text-center">
+    <div class="max-w-md space-y-3">
+      {% if icon_html %}
+      <div class="flex justify-center">{{ icon_html }}</div>
+      {% endif %}
+      <p class="text-lg font-semibold">{{ title }}</p>
+      {% if description %}
+      <p class="text-sm opacity-70">{{ description }}</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{%- endmacro %}

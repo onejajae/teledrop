@@ -50,6 +50,15 @@ def _client() -> TestClient:
 
 
 class TestWebPagesRoutes:
+    def test_dev_components_renders_for_anonymous_user(self):
+        client = _client()
+
+        response = client.get("/dev/components")
+
+        assert response.status_code == 200
+        assert "Web Components" in response.text
+        assert "Drop Composites" in response.text
+
     def test_settings_api_keys_requires_login(self):
         client = _client()
 

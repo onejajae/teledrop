@@ -1,0 +1,33 @@
+{% set page_title = page_title if page_title is defined else "teledrop" %}
+{% set page_description = page_description if page_description is defined else none %}
+{% set og_title = og_title if og_title is defined else none %}
+{% set og_description = og_description if og_description is defined else none %}
+{% set og_type = og_type if og_type is defined else none %}
+{% set include_htmx = include_htmx if include_htmx is defined else true %}
+{% set main_classes = main_classes if main_classes is defined else "mx-auto w-full max-w-screen-sm space-y-3 px-3 py-3" %}
+{% set theme_color_light = theme_color_light if theme_color_light is defined else web_theme.light.theme_color %}
+{% set theme_color_dark = theme_color_dark if theme_color_dark is defined else web_theme.dark.theme_color %}
+{% set theme_surface_light = theme_surface_light if theme_surface_light is defined else web_theme.light.surface_color %}
+{% set theme_surface_dark = theme_surface_dark if theme_surface_dark is defined else web_theme.dark.surface_color %}
+<!doctype html>
+<html lang="ko" data-theme-color-light="{{ theme_color_light }}" data-theme-color-dark="{{ theme_color_dark }}"
+  data-theme-surface-light="{{ theme_surface_light }}" data-theme-surface-dark="{{ theme_surface_dark }}">
+
+<head>
+  {% include "layout/head.html" %}
+  {% block page_scripts %}{% endblock %}
+</head>
+
+<body class="bg-base-100 text-base-content">
+  <div class="min-h-screen">
+    <main class="{{ main_classes }}">
+      {% include "layout/header.html" %}
+
+      {% block page_content %}{% endblock %}
+
+      {% include "layout/footer.html" %}
+    </main>
+  </div>
+</body>
+
+</html>

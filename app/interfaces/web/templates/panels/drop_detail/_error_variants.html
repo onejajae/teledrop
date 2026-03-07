@@ -2,7 +2,7 @@
 <div class="mx-auto max-w-sm text-center">
   <div class="grid place-items-center gap-2">
     <div class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-error/10 text-error">
-      {{ icon_error(class="h-5 w-5") }}
+      {{ icon_x_circle(class="h-5 w-5") }}
     </div>
     <h3 class="text-lg font-semibold">{% if detail_mode == 'shared' and not is_login %}링크를 사용할 수 없습니다.{% else %}권한이 없습니다.{% endif %}</h3>
   </div>
@@ -17,7 +17,7 @@
 <div class="mx-auto max-w-sm text-center">
   <div class="grid place-items-center gap-2">
     <div class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-base-200">
-      {{ icon_info(class="h-5 w-5") }}
+      {{ icon_information_circle(class="h-5 w-5") }}
     </div>
     <h3 class="text-lg font-semibold">존재하지 않습니다.</h3>
   </div>

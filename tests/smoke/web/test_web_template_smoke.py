@@ -1,12 +1,155 @@
 from types import SimpleNamespace
 from fastapi.templating import Jinja2Templates
 from app.bootstrap.runtime_paths import static_files_dir, template_dir
+from app.interfaces.web.presenters.common import configure_templates
+from app.interfaces.web.theme_config import load_web_theme_payload
 
 def _render(template_name: str, **context) -> str:
-    templates = Jinja2Templates(directory=str(template_dir()))
+    templates = configure_templates(Jinja2Templates(directory=str(template_dir())))
     template = templates.env.get_template(template_name)
     context.setdefault('request', SimpleNamespace())
     return template.render(context)
+
+def _catalog_drop(
+    slug: str,
+    title: str,
+    file_name: str,
+    mime_type: str,
+    access_scope: str,
+    is_favorite: bool,
+    requires_password: bool,
+    created_at_relative: str,
+):
+    return SimpleNamespace(
+        slug=slug,
+        title=title,
+        description='desc',
+        file_name=file_name,
+        mime_type=mime_type,
+        size_human='1.50 MB',
+        size_bytes=1572864,
+        access_scope=access_scope,
+        is_favorite=is_favorite,
+        requires_password=requires_password,
+        created_at='2026-03-08T00:00:00+09:00',
+        updated_at='2026-03-08T01:00:00+09:00',
+        created_at_label='2026-03-08 (일) 00:00:00',
+        updated_at_label='2026-03-08 (일) 01:00:00',
+        created_at_relative=created_at_relative,
+    )
+
+def _full_page_cases():
+    selected_drop = SimpleNamespace(
+        slug='img1',
+        title='이미지',
+        description='desc',
+        file_name='img.png',
+        mime_type='image/png',
+        size_human='123 B',
+        size_bytes=123,
+        access_scope='public',
+        is_favorite=False,
+        requires_password=False,
+        created_at='2026-02-22T00:00:00Z',
+        updated_at=None,
+    )
+    return [
+        (
+            'pages/home.html',
+            dict(is_login=False, csrf_token=None, auth_error_message=None),
+            True,
+        ),
+        (
+            'pages/dashboard.html',
+            dict(is_login=False, csrf_token=None, auth_error_message=None, selected_key=None),
+            True,
+        ),
+        (
+            'pages/api_keys.html',
+            dict(
+                is_login=True,
+                csrf_token='csrf',
+                api_keys=[],
+                api_keys_status_message=None,
+                api_keys_error_message=None,
+                created_api_key=None,
+            ),
+            True,
+        ),
+        (
+            'pages/library.html',
+            dict(
+                is_login=True,
+                csrf_token='csrf',
+                active_nav='drops',
+                drop_error_message=None,
+                drop_status_message=None,
+                drops=[],
+                drop_manage_urls={},
+                drop_sortby='created_at',
+                drop_orderby='desc',
+            ),
+            True,
+        ),
+        (
+            'pages/manage_drop.html',
+            dict(
+                is_login=True,
+                active_nav='drops',
+                csrf_token='csrf',
+                selected_key='img1',
+                selected_password=None,
+                selected_drop=selected_drop,
+                selected_requires_password=False,
+                selected_download_url='/api/drop/img1',
+                selected_preview_url='/api/drop/img1?disposition=inline',
+                selected_page_preview_url='/img1',
+                detail_error_message=None,
+                detail_status_message=None,
+                selected_status_label='비공개',
+                selected_status_description='로그인된 관리자만 접근할 수 있습니다.',
+                selected_can_copy_link=False,
+            ),
+            True,
+        ),
+        (
+            'pages/shared_drop.html',
+            dict(
+                is_login=False,
+                csrf_token=None,
+                selected_key='img1',
+                selected_password=None,
+                selected_drop=selected_drop,
+                selected_requires_password=False,
+                selected_download_url='/api/drop/img1',
+                selected_preview_url='/api/drop/img1?disposition=inline',
+                selected_page_preview_url='/img1',
+                detail_error_message=None,
+                detail_status_message=None,
+                show_shared_admin_bar=False,
+                show_owner_actions=False,
+            ),
+            True,
+        ),
+        (
+            'pages/components.html',
+            dict(
+                is_login=False,
+                csrf_token=None,
+                catalog_sort_options=[
+                    SimpleNamespace(value='created_at', label='날짜'),
+                    SimpleNamespace(value='title', label='제목'),
+                    SimpleNamespace(value='size_bytes', label='크기'),
+                ],
+                catalog_public_drop=_catalog_drop('launch', '런치 패키지', 'launch-kit.pdf', 'application/pdf', 'public', True, True, '2일 전'),
+                catalog_private_drop=_catalog_drop('teaser', '티저 컷', 'teaser-shot.png', 'image/png', 'private', False, False, '5시간 전'),
+                catalog_audio_drop=_catalog_drop('voice', '보이스 메모', 'voice-note.m4a', 'audio/mp4', 'private', False, True, '6일 전'),
+                catalog_api_key=SimpleNamespace(name='shortcuts', public_id='tdp_01', is_active=True, created_by_username='tester', expires_at='2026-04-01', last_used_at='2026-03-08'),
+                catalog_created_api_key=SimpleNamespace(key='td_live_demo_sample_secret_key'),
+            ),
+            False,
+        ),
+    ]
 
 class TestWebTemplateSmoke:
 
@@ -53,12 +196,11 @@ class TestWebTemplateSmoke:
         assert '비밀번호 보호' in html
         assert 'aria-label="새로고침"' in html
         assert 'aria-label="정렬 순서 변경"' in html
-        assert 'class="td-drop-card block"' in html
+        assert 'card card-sm border border-base-300 bg-base-100 shadow-sm' in html
         assert 'href="/doc1"' in html
         assert 'hx-get="/drop-detail?slug=doc1"' in html
         assert 'onclick="htmx.ajax(\'GET\', \'/drop-detail\'' not in html
-        assert 'class="td-list-meta"' in html
-        assert 'class="td-list-action-btn"' not in html
+        assert 'card-title text-sm leading-5 sm:text-base' in html
         assert 'aria-label="다운로드"' not in html
 
     def test_detail_panel_renders_unselected_password_prompt_wrong_password_and_selected_states(self):
@@ -69,7 +211,7 @@ class TestWebTemplateSmoke:
         selected = _render('panels/drop_detail.html', selected_key='img1', is_login=True, selected_password=None, selected_drop=selected_drop, selected_requires_password=False, selected_download_url='/api/drop/img1', selected_preview_url='/api/drop/img1?disposition=inline', selected_page_preview_url='/img1', csrf_token='csrf', detail_error_message=None, detail_status_message='저장됨')
         assert '파일을 선택하면 상세 정보를 볼 수 있습니다.' in unselected
         assert '파일을 선택해 주세요' in unselected
-        assert 'class="td-section"' in unselected
+        assert 'class="card bg-base-200 shadow-xl"' in unselected
         assert 'alert-info' not in unselected
         assert '비밀번호 입력' in password_prompt
         assert 'alert-error' not in password_prompt
@@ -80,9 +222,9 @@ class TestWebTemplateSmoke:
         assert '(123 bytes)' not in selected
         assert 'aria-label="다운로드"' in selected
         assert 'aria-label="링크 복사"' in selected
-        assert 'td-detail-actions' in selected
-        assert 'td-detail-action-btn' in selected
-        assert 'td-file-info-icon' in selected
+        assert 'join join-vertical w-full sm:w-auto sm:join-horizontal' in selected
+        assert 'detail-copy-link' in selected
+        assert 'card border border-base-300 bg-base-100 shadow-sm' in selected
         assert 'aria-label="메타데이터 수정"' in selected
         assert 'aria-label="비밀번호 설정"' in selected
         assert 'aria-label="삭제"' in selected
@@ -121,43 +263,70 @@ class TestWebTemplateSmoke:
         assert '관리하기' in html
         assert '상세 관리 액션' not in html
 
+    def test_components_page_renders_catalog_sections(self):
+        html = _render(
+            'pages/components.html',
+            is_login=False,
+            csrf_token=None,
+            catalog_sort_options=[
+                SimpleNamespace(value='created_at', label='날짜'),
+                SimpleNamespace(value='title', label='제목'),
+                SimpleNamespace(value='size_bytes', label='크기'),
+            ],
+            catalog_public_drop=_catalog_drop('launch', '런치 패키지', 'launch-kit.pdf', 'application/pdf', 'public', True, True, '2일 전'),
+            catalog_private_drop=_catalog_drop('teaser', '티저 컷', 'teaser-shot.png', 'image/png', 'private', False, False, '5시간 전'),
+            catalog_audio_drop=_catalog_drop('voice', '보이스 메모', 'voice-note.m4a', 'audio/mp4', 'private', False, True, '6일 전'),
+            catalog_api_key=SimpleNamespace(name='shortcuts', public_id='tdp_01', is_active=True, created_by_username='tester', expires_at='2026-04-01', last_used_at='2026-03-08'),
+            catalog_created_api_key=SimpleNamespace(key='td_live_demo_sample_secret_key'),
+        )
+        assert 'Web Components' in html
+        assert 'Foundation' in html
+        assert 'Drop Composites' in html
+        assert 'launch-kit.pdf' in html
+        assert 'catalog-edit-modal' in html
+        assert 'max-w-screen-sm' in html
+
 class TestWebUiContract:
 
-    def test_home_and_api_keys_pages_bootstrap_theme_before_css(self):
-        home_html = _render('pages/home.html', is_login=False, csrf_token=None, auth_error_message=None)
-        api_keys_html = _render(
-            'pages/api_keys.html',
-            is_login=True,
-            csrf_token='csrf',
-            api_keys=[],
-            api_keys_status_message=None,
-            api_keys_error_message=None,
-            created_api_key=None,
-        )
-        for html in (home_html, api_keys_html):
+    def test_full_pages_bootstrap_theme_before_css(self):
+        theme = load_web_theme_payload()
+        for template_name, context, include_htmx in _full_page_cases():
+            html = _render(template_name, **context)
             assert 'localStorage.getItem("color-theme")' in html
             assert 'prefers-color-scheme: dark' in html
-            assert 'document.documentElement.setAttribute("data-theme", theme)' in html
-            assert 'document.documentElement.style.colorScheme' in html
+            assert f'data-theme-color-light="{theme["light"]["theme_color"]}"' in html
+            assert f'data-theme-color-dark="{theme["dark"]["theme_color"]}"' in html
+            assert f'data-theme-surface-light="{theme["light"]["surface_color"]}"' in html
+            assert f'data-theme-surface-dark="{theme["dark"]["surface_color"]}"' in html
+            assert 'root.setAttribute("data-theme", theme)' in html
+            assert 'root.style.colorScheme' in html
             assert 'meta[name="theme-color"]' in html
             assert html.index('localStorage.getItem("color-theme")') < html.index('/static/gen/output.css')
+            assert html.index('/static/gen/output.css') < html.index('/static/js/theme.js')
             assert '<script src="/static/js/theme.js" defer></script>' in html
+            if include_htmx:
+                assert 'https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js' in html
+            else:
+                assert 'https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js' not in html
 
     def test_theme_toggle_markup_uses_button_with_aria_pressed(self):
-        header = (template_dir() / 'layout' / 'header.html').read_text(encoding='utf-8')
+        header = _render('layout/header.html', is_login=True, csrf_token='csrf', active_nav='drops')
         assert '내 drop' in header
         assert 'href="/settings/api-keys"' in header
         assert 'aria-label="teledrop"' in header
         assert 'class="td-logo-wordmark"' in header
-        assert '<button id="theme-toggle"' in header
+        assert 'id="theme-toggle"' in header
         assert 'aria-pressed="false"' in header
         assert 'id="theme-toggle-check"' not in header
 
     def test_dashboard_js_uses_semantic_selected_class(self):
         source = (static_files_dir() / 'js' / 'dashboard.js').read_text(encoding='utf-8')
-        assert 'classList.add("is-selected")' in source
-        assert 'classList.remove("is-selected")' in source
+        assert 'selectedCardClasses' in source
+        assert 'border-primary' in source
+        assert 'ring-primary/20' in source
+        assert 'is-selected' not in source
         assert 'event.target.closest("[data-select-key]")' in source
+        assert 'open-dialog' not in source
         assert 'reservedPaths' not in source
         assert 'setDocumentTheme' not in source
 
@@ -166,70 +335,84 @@ class TestWebUiContract:
         assert 'setDocumentTheme' in source
         assert 'localStorage.getItem("color-theme")' in source
         assert 'localStorage.setItem("color-theme", nextTheme)' in source
-        assert 'document.documentElement.style.colorScheme' in source
+        assert 'dataset.themeColorLight' in source
+        assert 'dataset.themeColorDark' in source
+        assert 'dataset.themeSurfaceLight' in source
+        assert 'dataset.themeSurfaceDark' in source
+        assert 'root.style.colorScheme' in source
         assert 'meta[name="theme-color"]' in source
         assert 'event.target.closest("#theme-toggle")' in source
         assert 'window.__teledropThemeInitialized' in source
+        assert '#0ea5e9' not in source
+        assert '#1f2937' not in source
 
     def test_upload_panel_js_handles_preview_and_progress_only(self):
         source = (static_files_dir() / 'js' / 'upload-panel.js').read_text(encoding='utf-8')
         assert 'htmx:xhr:progress' in source
         assert 'DataTransfer' in source
+        assert 'classList.toggle("border-primary", isDragging)' in source
+        assert 'classList.toggle("ring-primary/15", isDragging)' in source
+        assert 'dragDepth' in source
         assert '공유 링크 주소 확인 중...' not in source
+
+    def test_drop_detail_js_handles_copy_and_dialog_actions(self):
+        source = (static_files_dir() / 'js' / 'drop-detail.js').read_text(encoding='utf-8')
+        assert 'detail-copy-link' in source
+        assert 'action !== "open-dialog" && action !== "close-dialog"' in source
+        assert 'dialog.showModal' in source
+        assert 'dialog.close' in source
 
     def test_detail_templates_use_data_td_contracts_without_inline_hx_on(self):
         drop_detail_root = template_dir() / 'panels'
+        macro_root = template_dir() / 'macros'
         source = (drop_detail_root / 'drop_detail.html').read_text(encoding='utf-8')
         partials = [path.read_text(encoding='utf-8') for path in sorted((drop_detail_root / 'drop_detail').glob('*.html'))]
-        combined = '\n'.join([source, *partials])
+        macros = [
+            (macro_root / 'components.html').read_text(encoding='utf-8'),
+            (macro_root / 'ui.html').read_text(encoding='utf-8'),
+        ]
+        combined = '\n'.join([source, *partials, *macros])
         assert 'hx-on::after-request' not in combined
         assert 'data-td-action' in combined
         assert 'data-td-success' in combined
 
-    def test_css_detail_action_buttons_keep_square_layout_on_desktop(self):
+    def test_css_removes_most_custom_component_overrides(self):
+        input_source = (static_files_dir() / 'css' / 'input.css').read_text(encoding='utf-8')
+        generated_source = (static_files_dir() / 'css' / 'generated' / 'theme-tokens.css').read_text(encoding='utf-8')
+        combined = '\n'.join([input_source, generated_source])
+        assert '.td-detail-action-btn' not in combined
+        assert '.td-file-info-icon' not in combined
+        assert '.td-section' not in combined
+        assert '.td-field' not in combined
+
+    def test_css_keeps_theme_tokens_and_brand_logo_rules_only(self):
         source = (static_files_dir() / 'css' / 'input.css').read_text(encoding='utf-8')
-        assert '.td-detail-action-btn' in source
-        assert 'sm:btn-square' in source
-        assert 'sm:w-auto sm:btn-square' not in source
-        assert '.td-file-info-icon' in source
+        assert '@import "./generated/theme-tokens.css";' in source
+        assert '.card,' in source
+        assert '.modal-box' in source
+        assert '.td-page-panel' not in source
+        assert '.td-section-header' not in source
+        assert '.td-upload-dropzone' not in source
+        assert '.td-home-stage' not in source
+        assert '.td-catalog-stack' not in source
 
     def test_css_has_theme_tinted_logo_rules(self):
-        source = (static_files_dir() / 'css' / 'input.css').read_text(encoding='utf-8')
+        source = (static_files_dir() / 'css' / 'generated' / 'theme-tokens.css').read_text(encoding='utf-8')
+        theme = load_web_theme_payload()
         assert '.td-logo-wordmark' in source
         assert 'html[data-theme="light"] .td-logo-wordmark' in source
         assert 'html[data-theme="dark"] .td-logo-wordmark' in source
         assert '-webkit-mask:' in source
         assert 'mask: url("/static/images/logo.svg")' in source
-        assert '#374151' in source
-        assert '#e5e7eb' in source
+        assert theme['light']['logo_color'] in source
+        assert theme['dark']['logo_color'] in source
 
     def test_css_theme_tokens_follow_main_palette_mapping(self):
-        source = (static_files_dir() / 'css' / 'input.css').read_text(encoding='utf-8')
-        assert '--color-primary: #0ea5e9;' in source
-        assert '--color-primary: #38bdf8;' in source
-        assert '--color-secondary: #4b5563;' in source
-        assert '--color-secondary: #9ca3af;' in source
-        assert '--color-accent: #fcd34d;' in source
-        assert '--color-accent: #fde047;' in source
-        assert '--color-neutral: #374151;' in source
-        assert '--color-neutral: #1f2937;' in source
-        assert '--color-base-100: #ffffff;' in source
-        assert '--color-base-100: #1f2937;' in source
-        assert '--color-base-200: #f3f4f6;' in source
-        assert '--color-base-200: #374151;' in source
-        assert '--color-base-300: #d1d5db;' in source
-        assert '--color-base-300: #4b5563;' in source
-        assert '--color-base-content: #374151;' in source
-        assert '--color-base-content: #f3f4f6;' in source
-        assert '--color-info: #38bdf8;' in source
-        assert '--color-info-content: #0c4a6e;' in source
-        assert '--color-success: #22c55e;' in source
-        assert '--color-success: #4ade80;' in source
-        assert '--color-warning: #fcd34d;' in source
-        assert '--color-warning: #fde047;' in source
-        assert '--color-error: #ef4444;' in source
-        assert '--color-error: #f43f5e;' in source
-        assert '--color-error-content: #ffffff;' in source
+        source = (static_files_dir() / 'css' / 'generated' / 'theme-tokens.css').read_text(encoding='utf-8')
+        theme = load_web_theme_payload()
+        for variant in ('light', 'dark'):
+            for token, value in theme[variant]['daisyui']['tokens'].items():
+                assert f'{token}: {value};' in source
 
     def test_api_keys_page_renders_sections_and_create_form(self):
         html = _render(
@@ -241,7 +424,7 @@ class TestWebUiContract:
             api_keys_error_message=None,
             created_api_key=None,
         )
-        assert 'class="td-section"' in html
+        assert 'card bg-base-200 shadow-xl' in html
         assert 'API key 생성' in html
         assert '외부 클라이언트에서 사용할 API key를 생성하고 폐기하거나 삭제합니다.' in html
         assert 'name="expires_at"' in html

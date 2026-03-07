@@ -24,6 +24,16 @@
     }
 
     let previewUrl = null;
+    let dragDepth = 0;
+
+    const setDragState = (isDragging) => {
+      dropzone.classList.toggle("border-primary", isDragging);
+      dropzone.classList.toggle("ring", isDragging);
+      dropzone.classList.toggle("ring-primary/15", isDragging);
+      dropzone.classList.toggle("bg-base-200", isDragging);
+      dropzone.classList.toggle("border-base-300", !isDragging);
+      dropzone.classList.toggle("bg-base-100", !isDragging);
+    };
 
     const revokePreviewUrl = () => {
       if (previewUrl) {
@@ -78,18 +88,26 @@
     ["dragenter", "dragover"].forEach((eventName) => {
       dropzone.addEventListener(eventName, (event) => {
         event.preventDefault();
-        dropzone.classList.add("border-primary", "bg-base-200");
+        if (eventName === "dragenter") {
+          dragDepth += 1;
+        }
+        setDragState(true);
       });
     });
 
-    ["dragleave", "drop"].forEach((eventName) => {
-      dropzone.addEventListener(eventName, (event) => {
-        event.preventDefault();
-        dropzone.classList.remove("border-primary", "bg-base-200");
-      });
+    dropzone.addEventListener("dragleave", (event) => {
+      event.preventDefault();
+      dragDepth = Math.max(0, dragDepth - 1);
+      if (dragDepth === 0) {
+        setDragState(false);
+      }
     });
 
     dropzone.addEventListener("drop", (event) => {
+      event.preventDefault();
+      dragDepth = 0;
+      setDragState(false);
+
       const droppedFile = event.dataTransfer?.files?.[0];
       if (!droppedFile) {
         return;
@@ -105,6 +123,7 @@
         event.preventDefault();
         return;
       }
+      setDragState(false);
       progressWrap.classList.remove("hidden");
       progress.value = 0;
     });

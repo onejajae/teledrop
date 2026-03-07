@@ -1,46 +1,23 @@
-<!doctype html>
-<html lang="ko">
+{% extends "layout/base.html" %}
+{% set page_title = "teledrop" %}
+{% set page_description = "간편한 파일 공유 서비스 teledrop. 파일을 업로드하고 관리하세요." %}
+{% set og_title = "teledrop" %}
+{% set og_description = "개인 파일을 업로드하고 안전하게 관리하는 self-hosted workspace" %}
+{% set og_type = "website" %}
+{% set main_classes = "mx-auto flex min-h-screen w-full max-w-screen-sm flex-col px-3 py-3" %}
 
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>teledrop</title>
-  <meta name="description" content="간편한 파일 공유 서비스 teledrop. 파일을 업로드하고 관리하세요." />
-  <meta name="theme-color" content="#0ea5e9" />
-  <meta property="og:title" content="teledrop" />
-  <meta property="og:description" content="개인 파일을 업로드하고 안전하게 관리하는 self-hosted workspace" />
-  <meta property="og:type" content="website" />
-  <link rel="icon" href="/static/favicon.ico" sizes="any" />
-  <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png" />
-  <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png" />
-  <link rel="apple-touch-icon" href="/static/apple-icon.png" />
-  {% include "layout/theme_bootstrap_head.html" %}
-  <link href="/static/gen/output.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"
-    integrity="sha384-/TgkGk7p307TH7EXJDuUlgG3Ce1UVolAOFopFekQkkXihi5u/6OCvVKyz1W+idaz"
-    crossorigin="anonymous"></script>
-  <script src="/static/js/theme.js" defer></script>
-  <script src="/static/js/upload-panel.js" defer></script>
-</head>
+{% block page_scripts %}
+<script src="/static/js/upload-panel.js" defer></script>
+{% endblock %}
 
-<body class="bg-base-100 text-base-content">
-  <div class="min-h-screen">
-    <main class="mx-auto flex min-h-screen w-full max-w-screen-sm flex-col px-3 py-3">
-      {% include "layout/header.html" %}
-
-      <section class="flex flex-1 items-center justify-center py-6">
-        <div id="main-panel" class="w-full max-w-xl">
-          {% if is_login %}
-          {% include "panels/upload.html" %}
-          {% else %}
-          {% include "panels/auth.html" %}
-          {% endif %}
-        </div>
-      </section>
-
-      {% include "layout/footer.html" %}
-    </main>
+{% block page_content %}
+<section class="flex flex-1 items-center justify-center py-6">
+  <div id="main-panel" class="w-full max-w-xl">
+    {% if is_login %}
+    {% include "panels/upload.html" %}
+    {% else %}
+    {% include "panels/auth.html" %}
+    {% endif %}
   </div>
-</body>
-
-</html>
+</section>
+{% endblock %}

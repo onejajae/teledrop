@@ -1,0 +1,64 @@
+{
+  "light": {
+    "theme_color": "#0ea5e9",
+    "surface_color": "#ffffff",
+    "logo_color": "#374151",
+    "daisyui": {
+      "default": true,
+      "color_scheme": "light",
+      "tokens": {
+        "--color-primary": "#0ea5e9",
+        "--color-primary-content": "#ffffff",
+        "--color-secondary": "#4b5563",
+        "--color-secondary-content": "#ffffff",
+        "--color-accent": "#fcd34d",
+        "--color-accent-content": "#1f2937",
+        "--color-neutral": "#374151",
+        "--color-neutral-content": "#f3f4f6",
+        "--color-base-100": "#ffffff",
+        "--color-base-200": "#f3f4f6",
+        "--color-base-300": "#d1d5db",
+        "--color-base-content": "#374151",
+        "--color-info": "#38bdf8",
+        "--color-info-content": "#0c4a6e",
+        "--color-success": "#22c55e",
+        "--color-success-content": "#14532d",
+        "--color-warning": "#fcd34d",
+        "--color-warning-content": "#78350f",
+        "--color-error": "#ef4444",
+        "--color-error-content": "#ffffff"
+      }
+    }
+  },
+  "dark": {
+    "theme_color": "#1f2937",
+    "surface_color": "#1f2937",
+    "logo_color": "#e5e7eb",
+    "daisyui": {
+      "prefers_dark": true,
+      "color_scheme": "dark",
+      "tokens": {
+        "--color-primary": "#38bdf8",
+        "--color-primary-content": "#0c4a6e",
+        "--color-secondary": "#9ca3af",
+        "--color-secondary-content": "#1f2937",
+        "--color-accent": "#fde047",
+        "--color-accent-content": "#1f2937",
+        "--color-neutral": "#1f2937",
+        "--color-neutral-content": "#e5e7eb",
+        "--color-base-100": "#1f2937",
+        "--color-base-200": "#374151",
+        "--color-base-300": "#4b5563",
+        "--color-base-content": "#f3f4f6",
+        "--color-info": "#38bdf8",
+        "--color-info-content": "#0c4a6e",
+        "--color-success": "#4ade80",
+        "--color-success-content": "#14532d",
+        "--color-warning": "#fde047",
+        "--color-warning-content": "#78350f",
+        "--color-error": "#f43f5e",
+        "--color-error-content": "#ffffff"
+      }
+    }
+  }
+}

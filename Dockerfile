@@ -2,6 +2,7 @@
 FROM node:24-alpine AS node_builder
 WORKDIR /app
 COPY ui-build/package.json ui-build/package-lock.json ./ui-build/
+COPY ui-build/scripts ./ui-build/scripts
 COPY app/interfaces/web/static ./app/interfaces/web/static
 COPY app/interfaces/web/templates ./app/interfaces/web/templates
 WORKDIR /app/ui-build

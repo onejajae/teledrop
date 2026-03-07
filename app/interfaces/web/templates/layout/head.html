@@ -1,0 +1,84 @@
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{{ page_title }}</title>
+{% if page_description %}
+<meta name="description" content="{{ page_description }}" />
+{% endif %}
+<meta name="theme-color" content="{{ theme_color_light }}" />
+{% if og_title %}
+<meta property="og:title" content="{{ og_title }}" />
+{% endif %}
+{% if og_description %}
+<meta property="og:description" content="{{ og_description }}" />
+{% endif %}
+{% if og_type %}
+<meta property="og:type" content="{{ og_type }}" />
+{% endif %}
+<link rel="icon" href="/static/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png" />
+<link rel="apple-touch-icon" href="/static/apple-icon.png" />
+<script>
+  (function () {
+    var root = document.documentElement;
+    var lightThemeColor = root.dataset.themeColorLight;
+    var darkThemeColor = root.dataset.themeColorDark;
+    var lightSurface = root.dataset.themeSurfaceLight;
+    var darkSurface = root.dataset.themeSurfaceDark;
+
+    if (lightSurface) {
+      root.style.setProperty("--td-theme-surface-light", lightSurface);
+    }
+    if (darkSurface) {
+      root.style.setProperty("--td-theme-surface-dark", darkSurface);
+    }
+
+    var resolveThemeColor = function (theme) {
+      if (theme === "dark") {
+        return darkThemeColor || lightThemeColor;
+      }
+      return lightThemeColor || darkThemeColor;
+    };
+
+    try {
+      var stored = localStorage.getItem("color-theme");
+      var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      var theme = stored || (prefersDark ? "dark" : "light");
+      root.setAttribute("data-theme", theme);
+      root.style.colorScheme = theme === "dark" ? "dark" : "light";
+      var themeColorMeta = document.querySelector('meta[name="theme-color"]');
+      var themeColor = resolveThemeColor(theme);
+      if (themeColorMeta && themeColor) {
+        themeColorMeta.setAttribute("content", themeColor);
+      }
+    } catch (_err) {
+      root.setAttribute("data-theme", "light");
+      root.style.colorScheme = "light";
+      var fallbackThemeColorMeta = document.querySelector('meta[name="theme-color"]');
+      var fallbackThemeColor = resolveThemeColor("light");
+      if (fallbackThemeColorMeta && fallbackThemeColor) {
+        fallbackThemeColorMeta.setAttribute("content", fallbackThemeColor);
+      }
+    }
+  })();
+</script>
+<style>
+  html {
+    background-color: var(--td-theme-surface-light, {{ theme_surface_light }});
+  }
+
+  html[data-theme="dark"] {
+    background-color: var(--td-theme-surface-dark, {{ theme_surface_dark }});
+  }
+
+  body {
+    background-color: transparent;
+  }
+</style>
+<link href="/static/gen/output.css" rel="stylesheet">
+{% if include_htmx %}
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"
+  integrity="sha384-/TgkGk7p307TH7EXJDuUlgG3Ce1UVolAOFopFekQkkXihi5u/6OCvVKyz1W+idaz"
+  crossorigin="anonymous"></script>
+{% endif %}
+<script src="/static/js/theme.js" defer></script>

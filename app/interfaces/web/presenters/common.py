@@ -11,13 +11,19 @@ from app.application.drop.models import DropDetailDTO, DropListItemDTO
 from app.bootstrap.runtime_paths import template_dir
 from app.core.auth import get_session_id_from_request
 from app.core.config import Settings
+from app.interfaces.web.theme_config import web_theme
+
+
+def configure_templates(templates: Jinja2Templates) -> Jinja2Templates:
+    templates.env.globals["web_theme"] = web_theme()
+    return templates
 
 
 def templates(settings: Settings) -> Jinja2Templates:
     # Keep the settings parameter for call-site compatibility while template
     # ownership is normalized under app/interfaces/web.
     _ = settings
-    return Jinja2Templates(directory=str(template_dir()))
+    return configure_templates(Jinja2Templates(directory=str(template_dir())))
 
 
 def csrf_token_for_request(

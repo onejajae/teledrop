@@ -1,11 +1,12 @@
-<header class="space-y-2">
-  <div class="flex items-center justify-between">
+{% from "macros/icons.html" import icon_moon, icon_sun %}
+{% from "macros/ui.html" import button %}
+<header class="space-y-1 sm:space-y-2">
+  <div class="flex min-h-9 items-center justify-between gap-2">
     <div>
       {% if is_login %}
       <div class="flex items-center gap-1">
-        <a href="/drops"
-          class="btn btn-ghost btn-sm normal-case {% if active_nav == 'drops' %}bg-base-200{% endif %}">내 drop</a>
-        <a href="/settings/api-keys" class="btn btn-ghost btn-sm normal-case">API Keys</a>
+        {{ button("내 drop", href="/drops", kind="ghost", size="sm", normal_case=true, classes="bg-base-200" if active_nav == 'drops' else "") }}
+        {{ button("API Keys", href="/settings/api-keys", kind="ghost", size="sm", normal_case=true) }}
       </div>
       {% endif %}
     </div>
@@ -13,26 +14,17 @@
       {% if is_login %}
       <form method="post" action="/actions/auth/logout" hx-post="/actions/auth/logout" hx-swap="none">
         <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
-        <button type="submit" class="btn btn-ghost btn-sm normal-case">로그아웃</button>
+        {{ button("로그아웃", kind="ghost", size="sm", type="submit", normal_case=true) }}
       </form>
       {% endif %}
-      <button id="theme-toggle" type="button" class="btn btn-ghost btn-sm btn-square swap swap-rotate"
-        aria-label="테마 전환" aria-pressed="false">
-        <!-- sun icon (shown in light mode) -->
-        <svg class="swap-off h-4 w-4 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-          <path
-            d="M5.64 17l-.71.71a1 1 0 0 0 0 1.41 1 1 0 0 0 1.41 0l.71-.71A1 1 0 0 0 5.64 17zM5 12a1 1 0 0 0-1-1H3a1 1 0 0 0 0 2h1a1 1 0 0 0 1-1zm7-7a1 1 0 0 0 1-1V3a1 1 0 1 0-2 0v1a1 1 0 0 0 1 1zM5.64 7.05a1 1 0 0 0 .7.29 1 1 0 0 0 .71-.29 1 1 0 0 0 0-1.41l-.71-.71A1 1 0 0 0 4.93 6.34zm12.02 9.36-.71.71a1 1 0 0 0 0 1.41 1 1 0 0 0 1.41 0l.71-.71a1 1 0 1 0-1.41-1.41zM21 11h-1a1 1 0 0 0 0 2h1a1 1 0 0 0 0-2zm-2.64-7.95a1 1 0 0 0-1.41 0l-.71.71a1 1 0 1 0 1.41 1.41l.71-.71a1 1 0 0 0 0-1.41zM12 6.5A5.5 5.5 0 1 0 17.5 12 5.51 5.51 0 0 0 12 6.5zm0 9A3.5 3.5 0 1 1 15.5 12 3.5 3.5 0 0 1 12 15.5zM12 20a1 1 0 0 0-1 1v1a1 1 0 1 0 2 0v-1a1 1 0 0 0-1-1z" />
-        </svg>
-        <!-- moon icon (shown in dark mode) -->
-        <svg class="swap-on h-4 w-4 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-          <path
-            d="M21.64 13a1 1 0 0 0-1.05-.14 8.05 8.05 0 0 1-3.37.73A8.15 8.15 0 0 1 9.08 5.49a8.59 8.59 0 0 1 .25-2A1 1 0 0 0 8 2.36a10.14 10.14 0 1 0 14 11.69 1 1 0 0 0-.36-1.05zm-9.5 6.69A8.14 8.14 0 0 1 7.08 5.22v.27A10.15 10.15 0 0 0 17.22 15.63a9.79 9.79 0 0 0 2.1-.22A8.11 8.11 0 0 1 12.14 19.73z" />
-        </svg>
-      </button>
+      {% call button(kind="ghost", size="sm", square=true, classes="swap swap-rotate", attrs='id="theme-toggle" aria-label="테마 전환" aria-pressed="false"') %}
+        {{ icon_sun(class="swap-off h-4 w-4") }}
+        {{ icon_moon(class="swap-on h-4 w-4") }}
+      {% endcall %}
     </div>
   </div>
   <div class="flex justify-center">
-    <div class="m-3 w-full max-w-sm">
+    <div class="w-full max-w-[16rem] py-1 sm:max-w-sm sm:py-2">
       <a href="/" class="block" aria-label="teledrop">
         <span class="td-logo-wordmark" aria-hidden="true"></span>
       </a>

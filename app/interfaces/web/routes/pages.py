@@ -10,6 +10,7 @@ from app.interfaces.web.deps import (
 )
 from app.interfaces.web.presenters.api_keys_page import render_api_keys_page
 from app.interfaces.web.presenters.auth_panel import render_auth_panel
+from app.interfaces.web.presenters.component_catalog import render_component_catalog_page
 from app.interfaces.web.presenters.home_page import render_home_page
 from app.interfaces.web.presenters.library_page import render_library_page
 from app.interfaces.web.presenters.manage_page import render_manage_page
@@ -178,6 +179,21 @@ async def ui_api_keys(
         auth_data=auth_data,
         csrf_service=csrf_service,
         list_api_keys_use_case=list_api_keys_use_case,
+        settings=settings,
+    )
+
+
+@router.get("/dev/components", response_class=HTMLResponse)
+async def ui_component_catalog(
+    request: Request,
+    settings: SettingsDep,
+    auth_data: OptionalSessionAuthDep,
+    csrf_service: CsrfTokenServiceDep,
+):
+    return render_component_catalog_page(
+        request=request,
+        auth_data=auth_data,
+        csrf_service=csrf_service,
         settings=settings,
     )
 

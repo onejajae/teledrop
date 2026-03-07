@@ -1,4 +1,27 @@
 (() => {
+  const toggleDialog = (trigger) => {
+    const action = trigger.dataset.tdAction;
+    if (action !== "open-dialog" && action !== "close-dialog") {
+      return false;
+    }
+
+    const dialogId = trigger.dataset.tdDialogId;
+    const dialog = dialogId ? document.getElementById(dialogId) : null;
+    if (!dialog) {
+      return true;
+    }
+
+    if (action === "open-dialog" && typeof dialog.showModal === "function") {
+      dialog.showModal();
+      return true;
+    }
+
+    if (action === "close-dialog" && typeof dialog.close === "function") {
+      dialog.close();
+    }
+    return true;
+  };
+
   const copyPreviewUrl = (button) => {
     const relativeUrl = button.dataset.copyUrl;
     if (!relativeUrl) {
@@ -98,6 +121,12 @@
     }
   });
   document.addEventListener("click", (event) => {
+    const tdActionTrigger = event.target.closest("[data-td-action]");
+    if (tdActionTrigger && toggleDialog(tdActionTrigger)) {
+      event.preventDefault();
+      return;
+    }
+
     const button = event.target.closest(".detail-copy-link");
     if (!button) {
       return;

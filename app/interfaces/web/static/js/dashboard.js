@@ -7,6 +7,8 @@
   // DOM contract: selectable drop cards expose data-drop-key/data-select-key.
   const itemSelector = "[data-drop-key]";
   const hasOwn = Object.prototype.hasOwnProperty;
+  const selectedCardClasses = ["border-primary", "ring", "ring-primary/20", "shadow-md"];
+  const defaultCardClasses = ["border-base-300"];
 
   const selectedKeyFromUrl = () => {
     const params = new URLSearchParams(window.location.search);
@@ -25,9 +27,11 @@
   const setSelectedKey = (selectedKey) => {
     document.querySelectorAll(itemSelector).forEach((item) => {
       if (selectedKey && item.dataset.dropKey === selectedKey) {
-        item.classList.add("is-selected");
+        defaultCardClasses.forEach((className) => item.classList.remove(className));
+        selectedCardClasses.forEach((className) => item.classList.add(className));
       } else {
-        item.classList.remove("is-selected");
+        selectedCardClasses.forEach((className) => item.classList.remove(className));
+        defaultCardClasses.forEach((className) => item.classList.add(className));
       }
     });
   };
@@ -110,22 +114,6 @@
         return;
       }
 
-      if (action === "open-dialog" || action === "close-dialog") {
-        event.preventDefault();
-        const dialogId = tdActionTrigger.dataset.tdDialogId;
-        const dialog = dialogId ? document.getElementById(dialogId) : null;
-        if (!dialog) {
-          return;
-        }
-        if (action === "open-dialog" && typeof dialog.showModal === "function") {
-          dialog.showModal();
-          return;
-        }
-        if (action === "close-dialog" && typeof dialog.close === "function") {
-          dialog.close();
-        }
-        return;
-      }
     }
 
     const trigger = event.target.closest("[data-select-key]");

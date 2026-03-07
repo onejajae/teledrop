@@ -1,17 +1,8 @@
+{% from "macros/ui.html" import alert %}
 {% if detail_error_message and (selected_requires_password or selected_drop) and not (selected_requires_password and not selected_download_url) %}
-<div class="alert alert-error shadow-lg mb-4">
-  <div>
-    {{ icon_error() }}
-    <span>{{ detail_error_message }}</span>
-  </div>
-</div>
+{{ alert(detail_error_message, tone="error", classes="mb-4") }}
 {% endif %}
 
 {% if detail_status_message %}
-<div class="alert alert-success shadow-lg mb-4">
-  <div>
-    {{ icon_success() }}
-    <span>{{ detail_status_message }}</span>
-  </div>
-</div>
+{{ alert(detail_status_message, tone="success", classes="mb-4") }}
 {% endif %}

@@ -4,7 +4,7 @@
   "description": "Tailwind CSS build for Teledrop",
   "main": "index.js",
   "scripts": {
-    "build:css": "tailwindcss -i ../app/interfaces/web/static/css/input.css -o ../app/interfaces/web/static/gen/output.css --minify"
+    "build:css": "node ./scripts/build-theme-css.mjs && tailwindcss -i ../app/interfaces/web/static/css/input.css -o ../app/interfaces/web/static/gen/output.css --minify"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.2.0",
