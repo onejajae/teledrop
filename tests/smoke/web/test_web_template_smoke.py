@@ -217,7 +217,7 @@ class TestWebUiContract:
         assert '--color-error: #f43f5e;' in source
         assert '--color-error-content: #ffffff;' in source
 
-    def test_api_keys_page_renders_table_and_create_form(self):
+    def test_api_keys_page_renders_sections_and_create_form(self):
         html = _render(
             'pages/api_keys.html',
             is_login=True,
@@ -227,6 +227,38 @@ class TestWebUiContract:
             api_keys_error_message=None,
             created_api_key=None,
         )
+        assert 'class="td-section"' in html
         assert 'API key 생성' in html
+        assert '외부 클라이언트에서 사용할 API key를 생성하고 폐기하거나 삭제합니다.' in html
         assert 'name="expires_at"' in html
         assert '등록된 API key가 없습니다.' in html
+        assert '새 키를 발급하면 여기에 표시됩니다.' in html
+
+    def test_api_keys_page_renders_created_key_notice_and_key_cards(self):
+        html = _render(
+            'pages/api_keys.html',
+            is_login=True,
+            csrf_token='csrf',
+            api_keys=[
+                {
+                    'name': 'CLI',
+                    'public_id': 'pk_123',
+                    'created_by_username': 'tester',
+                    'expires_at': None,
+                    'last_used_at': '2026-03-08 09:00:00+00:00',
+                    'is_active': True,
+                }
+            ],
+            api_keys_status_message=None,
+            api_keys_error_message=None,
+            created_api_key=SimpleNamespace(key='td_secret_value'),
+        )
+        assert '새 API key가 발급되었습니다.' in html
+        assert '이 값은 다시 볼 수 없습니다. 지금 복사해 주세요.' in html
+        assert 'td_secret_value' in html
+        assert 'Public ID' in html
+        assert 'pk_123' in html
+        assert 'tester' in html
+        assert 'active' in html
+        assert 'revoke' in html
+        assert 'delete' in html

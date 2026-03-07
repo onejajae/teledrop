@@ -24,102 +24,122 @@
     <main class="mx-auto w-full max-w-screen-sm space-y-3 px-3 py-3">
       {% include "layout/header.html" %}
 
-      <section class="card border border-base-300 bg-base-100 shadow-sm">
-        <div class="card-body gap-3">
-          <h1 class="card-title text-lg">API Keys</h1>
+      <section class="td-section">
+        <div class="td-section-body">
+          <div class="space-y-1">
+            <h1 class="td-section-title">API Keys</h1>
+            <p class="text-sm opacity-70">외부 클라이언트에서 사용할 API key를 생성하고 폐기하거나 삭제합니다.</p>
+          </div>
 
           {% if api_keys_status_message %}
-          <div class="alert alert-success">
+          <div class="alert alert-success shadow-lg">
             <span>{{ api_keys_status_message }}</span>
           </div>
           {% endif %}
 
           {% if api_keys_error_message %}
-          <div class="alert alert-error">
+          <div class="alert alert-error shadow-lg">
             <span>{{ api_keys_error_message }}</span>
           </div>
           {% endif %}
 
           {% if created_api_key %}
-          <div class="alert alert-warning flex-col items-start gap-2">
-            <span class="font-semibold">새 API key가 발급되었습니다. 이 값은 다시 볼 수 없습니다.</span>
-            <code class="w-full overflow-x-auto rounded bg-base-200 p-2 text-xs">{{ created_api_key.key }}</code>
+          <div class="alert alert-warning shadow-lg">
+            <div class="flex w-full flex-col items-start gap-3">
+              <div class="space-y-1">
+                <span class="font-semibold">새 API key가 발급되었습니다.</span>
+                <p class="text-sm">이 값은 다시 볼 수 없습니다. 지금 복사해 주세요.</p>
+              </div>
+              <code class="block w-full overflow-x-auto rounded-box bg-base-200 px-3 py-3 text-xs">{{ created_api_key.key }}</code>
+            </div>
           </div>
           {% endif %}
 
-          <form method="post" action="/actions/auth/api-keys/create" class="grid gap-2">
+          <form method="post" action="/actions/auth/api-keys/create" class="space-y-4">
             <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
-            <label class="form-control w-full">
-              <span class="label-text mb-1">이름</span>
-              <input type="text" name="name" required maxlength="100" class="input input-bordered w-full"
-                placeholder="shortcuts" />
-            </label>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <label class="block w-full space-y-1">
+                <span class="text-sm">이름</span>
+                <input type="text" name="name" required maxlength="100" class="input input-bordered w-full"
+                  placeholder="shortcuts" />
+              </label>
 
-            <label class="form-control w-full">
-              <span class="label-text mb-1">만료 시각 (선택)</span>
-              <input type="datetime-local" name="expires_at" class="input input-bordered w-full" />
-            </label>
+              <label class="block w-full space-y-1">
+                <span class="text-sm">만료 시각 (선택)</span>
+                <input type="datetime-local" name="expires_at" class="input input-bordered w-full" />
+                <span class="block text-xs opacity-70">비워두면 만료되지 않습니다.</span>
+              </label>
+            </div>
 
-            <div class="card-actions justify-end">
-              <button type="submit" class="btn btn-primary btn-sm">API key 생성</button>
+            <div class="flex justify-end">
+              <button type="submit" class="btn btn-primary w-full sm:w-auto">API key 생성</button>
             </div>
           </form>
         </div>
       </section>
 
-      <section class="card border border-base-300 bg-base-100 shadow-sm">
-        <div class="card-body gap-3">
-          <h2 class="card-title text-base">발급된 키</h2>
+      <section class="td-section">
+        <div class="td-section-body">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h2 class="td-section-title">발급된 키</h2>
+            <p class="text-sm opacity-70">{{ api_keys | length }}개</p>
+          </div>
 
           {% if api_keys %}
-          <div class="overflow-x-auto">
-            <table class="table table-sm">
-              <thead>
-                <tr>
-                  <th>이름</th>
-                  <th>Public ID</th>
-                  <th>생성자</th>
-                  <th>만료</th>
-                  <th>최근 사용</th>
-                  <th>상태</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for item in api_keys %}
-                <tr>
-                  <td>{{ item.name }}</td>
-                  <td><code>{{ item.public_id }}</code></td>
-                  <td>{{ item.created_by_username }}</td>
-                  <td>{{ item.expires_at or '-' }}</td>
-                  <td>{{ item.last_used_at or '-' }}</td>
-                  <td>
+          <div class="space-y-2">
+            {% for item in api_keys %}
+            <article class="rounded-box border border-base-300 bg-base-100 p-4 shadow-sm">
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div class="min-w-0 space-y-2">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <h3 class="font-semibold">{{ item.name }}</h3>
                     {% if item.is_active %}
                     <span class="badge badge-success badge-outline">active</span>
                     {% else %}
                     <span class="badge badge-error badge-outline">inactive</span>
                     {% endif %}
-                  </td>
-                  <td>
-                    <div class="flex gap-1">
-                      <form method="post" action="/actions/auth/api-keys/{{ item.public_id }}/revoke">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
-                        <button type="submit" class="btn btn-ghost btn-xs">revoke</button>
-                      </form>
-                      <form method="post" action="/actions/auth/api-keys/{{ item.public_id }}/delete"
-                        onsubmit="return confirm('정말 삭제하시겠습니까?')">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
-                        <button type="submit" class="btn btn-ghost btn-xs text-error">delete</button>
-                      </form>
-                    </div>
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+                  </div>
+                  <p class="break-all text-sm opacity-75">
+                    <span class="mr-1 font-medium text-base-content">Public ID</span>
+                    <code>{{ item.public_id }}</code>
+                  </p>
+                </div>
+
+                <div class="flex flex-wrap gap-2 sm:justify-end">
+                  <form method="post" action="/actions/auth/api-keys/{{ item.public_id }}/revoke">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
+                    <button type="submit" class="btn btn-ghost btn-sm">revoke</button>
+                  </form>
+                  <form method="post" action="/actions/auth/api-keys/{{ item.public_id }}/delete"
+                    onsubmit="return confirm('정말 삭제하시겠습니까?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
+                    <button type="submit" class="btn btn-ghost btn-sm text-error">delete</button>
+                  </form>
+                </div>
+              </div>
+
+              <div class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                <div class="space-y-1">
+                  <p class="text-xs font-semibold opacity-60">생성자</p>
+                  <p>{{ item.created_by_username }}</p>
+                </div>
+                <div class="space-y-1">
+                  <p class="text-xs font-semibold opacity-60">만료</p>
+                  <p>{{ item.expires_at or '-' }}</p>
+                </div>
+                <div class="space-y-1">
+                  <p class="text-xs font-semibold opacity-60">최근 사용</p>
+                  <p>{{ item.last_used_at or '-' }}</p>
+                </div>
+              </div>
+            </article>
+            {% endfor %}
           </div>
           {% else %}
-          <p class="text-sm text-base-content/70">등록된 API key가 없습니다.</p>
+          <div class="rounded-box border border-base-300 p-10 text-center opacity-60">
+            <p class="mb-1 font-semibold">등록된 API key가 없습니다.</p>
+            <p class="text-sm">새 키를 발급하면 여기에 표시됩니다.</p>
+          </div>
           {% endif %}
         </div>
       </section>
