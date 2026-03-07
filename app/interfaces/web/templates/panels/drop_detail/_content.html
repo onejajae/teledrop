@@ -5,11 +5,20 @@
     {{ icon_download() }}
     <span class="detail-download-label sm:hidden">다운로드</span>
   </a>
+  {% set can_copy_link = selected_can_copy_link if selected_can_copy_link is defined else true %}
+  {% if can_copy_link %}
   <button type="button" class="btn btn-outline td-detail-action-btn td-detail-action-btn-outline detail-copy-link"
     data-copy-url="{{ selected_page_preview_url }}" aria-label="링크 복사" title="링크 복사">
     {{ icon_copy() }}
     <span class="detail-copy-label sm:hidden">링크 복사</span>
   </button>
+  {% elif detail_mode == 'manage' %}
+  <button type="button" class="btn btn-outline td-detail-action-btn td-detail-action-btn-outline" disabled
+    aria-label="공유 시작 후 링크 복사 가능" title="공유 시작 후 링크 복사 가능">
+    {{ icon_copy() }}
+    <span class="detail-copy-label sm:hidden">공유 시작 후 링크 복사 가능</span>
+  </button>
+  {% endif %}
 </div>
 
 <div class="mt-4">
@@ -37,6 +46,10 @@
   </div>
   {% endif %}
 </div>
+
+{% if detail_mode == 'manage' and not can_copy_link %}
+<p class="text-xs opacity-70">이 파일은 현재 비공개 상태라 공유 링크를 복사할 수 없습니다.</p>
+{% endif %}
 
 {% if selected_drop.description %}
 <div>

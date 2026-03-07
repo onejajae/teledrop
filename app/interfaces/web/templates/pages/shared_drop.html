@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ko">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>teledrop</title>
+  <meta name="description" content="teledrop 공유 파일 페이지" />
+  <meta name="theme-color" content="#0ea5e9" />
+  <link rel="icon" href="/static/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png" />
+  <link rel="apple-touch-icon" href="/static/apple-icon.png" />
+  {% include "layout/theme_bootstrap_head.html" %}
+  <link href="/static/gen/output.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"
+    integrity="sha384-/TgkGk7p307TH7EXJDuUlgG3Ce1UVolAOFopFekQkkXihi5u/6OCvVKyz1W+idaz"
+    crossorigin="anonymous"></script>
+  <script src="/static/js/theme.js" defer></script>
+  <script src="/static/js/drop-detail.js" defer></script>
+</head>
+
+<body class="bg-base-100 text-base-content">
+  <div class="min-h-screen">
+    <main class="mx-auto w-full max-w-screen-sm space-y-3 px-3 py-3">
+      {% include "layout/header.html" %}
+
+      {% if show_shared_admin_bar %}
+      <section class="td-section">
+        <div class="td-section-body flex flex-wrap items-center justify-between gap-3">
+          <div class="space-y-1">
+            <div class="flex items-center gap-2">
+              <span class="badge badge-outline">관리자 보기</span>
+              {% if selected_status_label %}
+              <span class="badge badge-ghost">{{ selected_status_label }}</span>
+              {% endif %}
+            </div>
+            <p class="text-sm opacity-70">현재 공유 페이지를 보고 있습니다. 관리 작업은 별도 관리 페이지에서 진행합니다.</p>
+          </div>
+          <a href="{{ selected_manage_page_url }}" class="btn btn-outline btn-sm">관리하기</a>
+        </div>
+      </section>
+      {% endif %}
+
+      {% include "panels/drop_detail.html" %}
+
+      {% include "layout/footer.html" %}
+    </main>
+  </div>
+</body>
+
+</html>

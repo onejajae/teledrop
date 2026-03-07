@@ -1,6 +1,7 @@
 {% from "macros/icons.html" import icon_error, icon_success, icon_info, icon_download, icon_copy, icon_star,
 icon_eye, icon_eye_off, icon_edit, icon_lock, icon_trash, icon_file_image, icon_file_video, icon_file_audio,
 icon_file_pdf, icon_file_generic %}
+{% set detail_mode = detail_mode if detail_mode is defined else 'panel' %}
 {% if not selected_key %}
 {% include "panels/drop_detail/_empty_state.html" %}
 {% else %}
@@ -17,7 +18,10 @@ icon_file_pdf, icon_file_generic %}
           (selected_drop.file_name if selected_drop else selected_key) }}</h2>
       </div>
 
+      {% set show_owner_actions = show_owner_actions if show_owner_actions is defined else is_login %}
+      {% if show_owner_actions %}
       {% include "panels/drop_detail/_owner_actions.html" %}
+      {% endif %}
     </div>
 
     <div class="divider"></div>
@@ -27,7 +31,7 @@ icon_file_pdf, icon_file_generic %}
     {% include "panels/drop_detail/_locked_prompt.html" %}
     {% elif selected_drop %}
     {% include "panels/drop_detail/_content.html" %}
-    {% if is_login %}
+    {% if detail_mode != 'shared' and is_login %}
     {% include "panels/drop_detail/_modals.html" %}
     {% endif %}
     {% else %}

@@ -4,13 +4,13 @@
     <div class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-error/10 text-error">
       {{ icon_error(class="h-5 w-5") }}
     </div>
-    <h3 class="text-lg font-semibold">권한이 없습니다.</h3>
+    <h3 class="text-lg font-semibold">{% if detail_mode == 'shared' and not is_login %}링크를 사용할 수 없습니다.{% else %}권한이 없습니다.{% endif %}</h3>
   </div>
-  {% if detail_error_message %}
+  {% if detail_error_message and not (detail_mode == 'shared' and not is_login) %}
   <p class="mt-2 text-sm opacity-70">{{ detail_error_message }}</p>
   {% endif %}
   <div class="mt-5 text-center">
-    <a href="/" class="btn btn-outline btn-sm rounded-full px-8">돌아가기</a>
+    <a href="{% if detail_mode == 'manage' %}/drops{% else %}/{% endif %}" class="btn btn-outline btn-sm rounded-full px-8">돌아가기</a>
   </div>
 </div>
 {% elif detail_error_code == 'not_found' %}

@@ -78,6 +78,14 @@ def drop_preview_page_url(slug: str, password: str | None) -> str:
     return f"/{encoded_slug}"
 
 
+def drop_manage_page_url(slug: str, password: str | None = None) -> str:
+    encoded_slug = quote(slug, safe="")
+    if password:
+        encoded_password = quote(password, safe="")
+        return f"/drops/{encoded_slug}?password={encoded_password}"
+    return f"/drops/{encoded_slug}"
+
+
 def _humanize_size_jedec(size_bytes: int | None) -> str | None:
     if size_bytes is None:
         return None

@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ko">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>teledrop - 내 drop</title>
+  <meta name="description" content="업로드한 drop을 정렬하고 다시 관리합니다." />
+  <meta name="theme-color" content="#0ea5e9" />
+  <link rel="icon" href="/static/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png" />
+  <link rel="apple-touch-icon" href="/static/apple-icon.png" />
+  {% include "layout/theme_bootstrap_head.html" %}
+  <link href="/static/gen/output.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"
+    integrity="sha384-/TgkGk7p307TH7EXJDuUlgG3Ce1UVolAOFopFekQkkXihi5u/6OCvVKyz1W+idaz"
+    crossorigin="anonymous"></script>
+  <script src="/static/js/theme.js" defer></script>
+</head>
+
+<body class="bg-base-100 text-base-content">
+  {% from "macros/icons.html" import icon_error, icon_success, icon_file_image, icon_file_video, icon_file_audio,
+  icon_file_pdf, icon_file_generic, icon_star, icon_lock, icon_upload %}
+  <div class="min-h-screen">
+    <main class="mx-auto w-full max-w-screen-sm space-y-3 px-3 py-3">
+      {% include "layout/header.html" %}
+
+      <section class="td-section">
+        <div class="td-section-body">
+          <div class="space-y-1">
+            <h1 class="td-section-title">내 drop</h1>
+            <p class="text-sm opacity-70">업로드했던 파일을 다시 열어 공유 상태를 관리합니다.</p>
+          </div>
+
+          {% if drop_error_message %}
+          <div class="alert alert-error shadow-lg">
+            <div>
+              {{ icon_error() }}
+              <span>{{ drop_error_message }}</span>
+            </div>
+          </div>
+          {% endif %}
+
+          {% if drop_status_message %}
+          <div class="alert alert-success shadow-lg">
+            <div>
+              {{ icon_success() }}
+              <span>{{ drop_status_message }}</span>
+            </div>
+          </div>
+          {% endif %}
+
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <a href="/" class="btn btn-outline btn-sm">새 업로드</a>
+            <form method="get" action="/drops" class="flex flex-nowrap items-center justify-end gap-1 sm:gap-2">
+              <input type="hidden" name="orderby" id="drop-orderby" value="{{ drop_orderby or 'desc' }}" />
+              <button type="button"
+                class="btn btn-sm btn-ghost whitespace-nowrap"
+                onclick="document.getElementById('drop-orderby').value = document.getElementById('drop-orderby').value === 'asc' ? 'desc' : 'asc'; this.form.requestSubmit();"
+                title="{% if drop_orderby == 'asc' %}오름차순{% else %}내림차순{% endif %}" aria-label="정렬 순서 변경">
+                {% if drop_orderby == 'asc' %}오름차순{% else %}내림차순{% endif %}
+              </button>
+              <label for="drop-sortby" class="sr-only">정렬 기준</label>
+              <select id="drop-sortby" name="sortby" class="select select-bordered select-sm w-auto"
+                onchange="this.form.requestSubmit()">
+                <option value="created_at" {% if drop_sortby=='created_at' %}selected{% endif %}>날짜</option>
+                <option value="title" {% if drop_sortby=='title' %}selected{% endif %}>제목</option>
+                <option value="size_bytes" {% if drop_sortby=='size_bytes' %}selected{% endif %}>크기</option>
+              </select>
+            </form>
+          </div>
+
+          {% if drops %}
+          <div class="space-y-2">
+            {% for item in drops %}
+            <a class="td-drop-card block" href="{{ drop_manage_urls[item.slug] }}" title="관리 페이지 열기">
+              <div class="flex items-start gap-3">
+                <div class="pt-1 opacity-70">
+                  {% if item.mime_type and item.mime_type.startswith('image/') %}
+                  {{ icon_file_image() }}
+                  {% elif item.mime_type and item.mime_type.startswith('video/') %}
+                  {{ icon_file_video() }}
+                  {% elif item.mime_type and item.mime_type.startswith('audio/') %}
+                  {{ icon_file_audio() }}
+                  {% elif item.mime_type and item.mime_type.startswith('application/pdf') %}
+                  {{ icon_file_pdf() }}
+                  {% else %}
+                  {{ icon_file_generic() }}
+                  {% endif %}
+                </div>
+
+                <div class="min-w-0 flex-1">
+                  <div class="td-list-title">
+                    {% if item.is_favorite %}
+                    {{ icon_star(class="h-4 w-4", filled=true) }}
+                    {% endif %}
+                    <span class="truncate">{{ item.title or item.file_name or item.slug }}</span>
+                  </div>
+                  {% if item.title and item.file_name and item.title != item.file_name %}
+                  <p class="td-list-file-subline">{{ item.file_name }}</p>
+                  {% endif %}
+                  <p class="td-list-meta">
+                    {{ item.size_human if item.size_human else item.size_bytes }}
+                    {% if item.access_scope == 'private' %}
+                    · 비공개
+                    {% else %}
+                    · 공유 중
+                    {% endif %}
+                    {% if item.created_at_relative %}
+                    · {{ item.created_at_relative }}
+                    {% endif %}
+                  </p>
+                </div>
+
+                {% if item.requires_password %}
+                <span class="inline-flex shrink-0 items-center justify-center opacity-70 sm:px-1" title="비밀번호 보호">
+                  {{ icon_lock(class="h-4 w-4") }}
+                </span>
+                {% endif %}
+              </div>
+            </a>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="rounded-box border border-base-300 p-10 text-center opacity-60">
+            {{ icon_upload(class="mx-auto mb-3 h-12 w-12 opacity-40") }}
+            <p class="mb-1 font-semibold">업로드한 파일이 없습니다.</p>
+            <p class="text-sm">새 업로드를 만들어 시작해보세요.</p>
+          </div>
+          {% endif %}
+        </div>
+      </section>
+
+      {% include "layout/footer.html" %}
+    </main>
+  </div>
+</body>
+
+</html>

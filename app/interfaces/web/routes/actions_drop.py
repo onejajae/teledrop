@@ -1,6 +1,7 @@
 from collections.abc import Awaitable, Callable
 
 from fastapi import APIRouter, File, Form, Request, Response, UploadFile, status
+from fastapi.responses import RedirectResponse
 
 from app.application.auth.types import AuthIdentity
 from app.application.auth.use_cases.csrf import CsrfTokenService
@@ -24,37 +25,43 @@ from app.interfaces.web.deps import (
     OptionalSessionAuthDep,
 )
 from app.interfaces.web.action_support import (
-    drop_panel_success_or_redirect,
     is_hx_request,
-    redirect_home,
-    render_drop_panel_error,
     require_auth_and_csrf,
 )
+from app.interfaces.web.presenters.common import drop_manage_page_url
 from app.interfaces.web.presenters.detail_panel import render_detail_panel
-from app.interfaces.web.presenters.drop_panel import render_drop_panel
+from app.interfaces.web.presenters.home_page import render_home_page
+from app.interfaces.web.presenters.library_page import render_library_page
+from app.interfaces.web.presenters.manage_page import render_manage_page
 from app.interfaces.web.presenters.upload_panel import render_upload_panel
 
 
 router = APIRouter(prefix="/actions/drop")
 
 
-async def _guard_drop_panel_mutation(
+def _redirect_to(url: str, *, hx_request: bool) -> Response:
+    if hx_request:
+        response = Response(status_code=status.HTTP_204_NO_CONTENT)
+        response.headers["HX-Redirect"] = url
+        return response
+    return RedirectResponse(url=url, status_code=status.HTTP_303_SEE_OTHER)
+
+
+async def _guard_upload_mutation(
     request: Request,
     auth_data: AuthIdentity,
     csrf_service: CsrfTokenService,
-    drop_use_cases: DropUseCaseCollection,
     settings: Settings,
     csrf_token: str,
 ) -> Response | None:
     async def on_csrf_failure() -> Response:
-        return await render_drop_panel(
+        return render_upload_panel(
             request=request,
             auth_data=auth_data,
             csrf_service=csrf_service,
-            drop_use_cases=drop_use_cases,
             settings=settings,
             status_code=status.HTTP_403_FORBIDDEN,
-            drop_error_message="유효하지 않은 CSRF 토큰입니다.",
+            upload_error_message="유효하지 않은 CSRF 토큰입니다.",
         )
 
     return await require_auth_and_csrf(
@@ -67,29 +74,102 @@ async def _guard_drop_panel_mutation(
     )
 
 
+async def _guard_manage_mutation(
+    request: Request,
+    slug: str,
+    auth_data: AuthIdentity,
+    csrf_service: CsrfTokenService,
+    drop_use_cases: DropUseCaseCollection,
+    settings: Settings,
+    csrf_token: str,
+    password: str | None,
+) -> Response | None:
+    normalized_password = normalize_drop_password(password)
+
+    async def on_csrf_failure() -> Response:
+        return await render_manage_page(
+            request=request,
+            auth_data=auth_data,
+            csrf_service=csrf_service,
+            drop_use_cases=drop_use_cases,
+            settings=settings,
+            slug=slug,
+            password=normalized_password,
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail_error_message="유효하지 않은 CSRF 토큰입니다.",
+        )
+
+    return await require_auth_and_csrf(
+        request=request,
+        auth_data=auth_data,
+        csrf_service=csrf_service,
+        settings=settings,
+        csrf_token=csrf_token,
+        on_csrf_failure=on_csrf_failure,
+    )
+
+
+async def _render_manage_exception(
+    *,
+    request: Request,
+    slug: str,
+    password: str | None,
+    auth_data: AuthIdentity,
+    csrf_service: CsrfTokenService,
+    drop_use_cases: DropUseCaseCollection,
+    settings: Settings,
+    exc: Exception,
+) -> Response:
+    if isinstance(exc, DropNotFoundError):
+        status_code = status.HTTP_404_NOT_FOUND
+        error_message = "파일이 존재하지 않습니다."
+    elif isinstance(exc, DropPasswordInvalidError):
+        status_code = status.HTTP_401_UNAUTHORIZED
+        error_message = "현재 비밀번호가 올바르지 않습니다."
+    else:
+        raise exc
+
+    return await render_manage_page(
+        request=request,
+        auth_data=auth_data,
+        csrf_service=csrf_service,
+        drop_use_cases=drop_use_cases,
+        settings=settings,
+        slug=slug,
+        password=normalize_drop_password(password),
+        status_code=status_code,
+        detail_error_message=error_message,
+    )
+
+
 async def _handle_drop_mutation(
     *,
     request: Request,
     slug: str,
     status_message: str,
     csrf_token: str,
+    password: str | None,
     auth_data: AuthIdentity,
     csrf_service: CsrfTokenService,
     drop_use_cases: DropUseCaseCollection,
     settings: Settings,
     mutation: Callable[[], Awaitable[object]],
+    success_redirect_url: str | None = None,
     expected_exceptions: tuple[type[Exception], ...] = (
         DropNotFoundError,
         DropPasswordInvalidError,
     ),
 ) -> Response:
-    guard_response = await _guard_drop_panel_mutation(
+    normalized_password = normalize_drop_password(password)
+    guard_response = await _guard_manage_mutation(
         request=request,
+        slug=slug,
         auth_data=auth_data,
         csrf_service=csrf_service,
         drop_use_cases=drop_use_cases,
         settings=settings,
         csrf_token=csrf_token,
+        password=normalized_password,
     )
     if guard_response is not None:
         return guard_response
@@ -97,8 +177,10 @@ async def _handle_drop_mutation(
     try:
         await mutation()
     except expected_exceptions as exc:
-        return await render_drop_panel_error(
+        return await _render_manage_exception(
             request=request,
+            slug=slug,
+            password=normalized_password,
             auth_data=auth_data,
             csrf_service=csrf_service,
             drop_use_cases=drop_use_cases,
@@ -106,14 +188,18 @@ async def _handle_drop_mutation(
             exc=exc,
         )
 
-    return await drop_panel_success_or_redirect(
+    if success_redirect_url is not None:
+        return _redirect_to(success_redirect_url, hx_request=is_hx_request(request))
+
+    return await render_manage_page(
         request=request,
         auth_data=auth_data,
         csrf_service=csrf_service,
         drop_use_cases=drop_use_cases,
         settings=settings,
         slug=slug,
-        status_message=status_message,
+        password=normalized_password,
+        detail_status_message=status_message,
     )
 
 
@@ -177,14 +263,13 @@ async def ui_upload(
     title: str | None = Form(default=None),
     description: str | None = Form(default=None),
     password: str | None = Form(default=None),
-    user_only: bool = Form(default=False),
+    user_only: bool = Form(default=True),
     csrf_token: str = Form(default=""),
 ):
-    guard_response = await _guard_drop_panel_mutation(
+    guard_response = await _guard_upload_mutation(
         request=request,
         auth_data=auth_data,
         csrf_service=csrf_service,
-        drop_use_cases=drop_use_cases,
         settings=settings,
         csrf_token=csrf_token,
     )
@@ -224,19 +309,7 @@ async def ui_upload(
             upload_error_message="이미 사용 중이거나 사용할 수 없는 URL 입니다.",
         )
 
-    if is_hx_request(request):
-        response = render_upload_panel(
-            request=request,
-            auth_data=auth_data,
-            csrf_service=csrf_service,
-            settings=settings,
-            selected_key=created.slug,
-            upload_status_message="업로드가 완료되었습니다.",
-        )
-        response.headers["HX-Trigger"] = "drop-list-refresh"
-        return response
-
-    return redirect_home()
+    return _redirect_to(drop_manage_page_url(created.slug), hx_request=is_hx_request(request))
 
 
 @router.post("/{slug}/detail")
@@ -257,6 +330,7 @@ async def ui_update_drop_detail(
         slug=slug,
         status_message="메타데이터가 수정되었습니다.",
         csrf_token=csrf_token,
+        password=password,
         auth_data=auth_data,
         csrf_service=csrf_service,
         drop_use_cases=drop_use_cases,
@@ -289,6 +363,7 @@ async def ui_update_drop_favorite(
         slug=slug,
         status_message="즐겨찾기 설정이 변경되었습니다.",
         csrf_token=csrf_token,
+        password=password,
         auth_data=auth_data,
         csrf_service=csrf_service,
         drop_use_cases=drop_use_cases,
@@ -319,8 +394,9 @@ async def ui_update_drop_access(
     return await _handle_drop_mutation(
         request=request,
         slug=slug,
-        status_message="공개 범위가 변경되었습니다.",
+        status_message="공유가 중단되었습니다." if user_only else "공유가 시작되었습니다.",
         csrf_token=csrf_token,
+        password=password,
         auth_data=auth_data,
         csrf_service=csrf_service,
         drop_use_cases=drop_use_cases,
@@ -352,6 +428,7 @@ async def ui_update_drop_password(
         slug=slug,
         status_message="드롭 비밀번호가 변경되었습니다.",
         csrf_token=csrf_token,
+        password=current_password,
         auth_data=auth_data,
         csrf_service=csrf_service,
         drop_use_cases=drop_use_cases,
@@ -383,10 +460,12 @@ async def ui_delete_drop(
         slug=slug,
         status_message="드롭이 삭제되었습니다.",
         csrf_token=csrf_token,
+        password=password,
         auth_data=auth_data,
         csrf_service=csrf_service,
         drop_use_cases=drop_use_cases,
         settings=settings,
+        success_redirect_url="/drops",
         mutation=lambda: drop_use_cases.delete_drop_use_case.execute(
             DeleteDropCommand(
                 slug=slug,

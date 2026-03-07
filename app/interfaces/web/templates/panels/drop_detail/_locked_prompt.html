@@ -1,10 +1,18 @@
+{% set locked_form_action = locked_form_action if locked_form_action is defined else '/drop-detail' %}
+{% set locked_form_use_hx = locked_form_use_hx if locked_form_use_hx is defined else true %}
+{% set locked_form_target = locked_form_target if locked_form_target is defined else '#main-panel' %}
+{% set locked_form_swap = locked_form_swap if locked_form_swap is defined else 'innerHTML' %}
+{% set locked_form_include_slug = locked_form_include_slug if locked_form_include_slug is defined else true %}
 <div class="mx-auto w-full max-w-sm space-y-4 text-center">
   <div>
     <h3 class="text-lg font-semibold">비밀번호 입력</h3>
     <p class="mt-1 text-sm opacity-70">이 파일은 비밀번호로 보호되어 있습니다.</p>
   </div>
-  <form hx-get="/drop-detail" hx-target="#main-panel" hx-swap="innerHTML" class="flex flex-col gap-4 text-left">
+  <form {% if locked_form_use_hx %}hx-get="{{ locked_form_action }}" hx-target="{{ locked_form_target }}" hx-swap="{{ locked_form_swap }}"
+    {% else %}method="get" action="{{ locked_form_action }}"{% endif %} class="flex flex-col gap-4 text-left">
+    {% if locked_form_include_slug %}
     <input type="hidden" name="slug" value="{{ selected_key }}" />
+    {% endif %}
     <div class="w-full space-y-1">
       <label class="block text-sm" for="detail-password-input">
         비밀번호
@@ -17,7 +25,9 @@
     </div>
     <button type="submit" class="btn btn-primary">확인</button>
   </form>
-  {% if is_login %}
+  {% if detail_mode == 'manage' %}
+  <p class="text-xs opacity-60">현재 비밀번호를 입력해야 미리보기와 관리 작업을 계속할 수 있습니다.</p>
+  {% elif is_login %}
   <p class="text-xs opacity-60">로그인 중이라면 상세 화면에서 비밀번호 변경을 시도할 수 있습니다.</p>
   {% endif %}
 </div>

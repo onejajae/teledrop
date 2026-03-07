@@ -129,7 +129,7 @@ class _FakeDropUseCases:
         self.update_calls = []
 
         self.check_slug_availability_use_case = self._NotUsedUseCase()
-        self.get_drop_meta_use_case = self._NotUsedUseCase()
+        self.get_drop_meta_use_case = self._GetDropMetaUseCase()
         self.delete_drop_use_case = self._NotUsedUseCase()
         self.create_drop_use_case = self._CreateDropUseCase(self)
         self.update_drop_use_case = self._UpdateDropUseCase(self)
@@ -154,6 +154,14 @@ class _FakeDropUseCases:
         async def execute(self, command):
             self.parent.update_calls.append(command)
             return _detail_dto(command.slug)
+
+    class _GetDropMetaUseCase:
+        async def execute_for_display(self, slug, auth=None):
+            _ = auth
+            return _detail_dto(slug)
+
+        async def execute(self, query):
+            return _detail_dto(query.slug)
 
     class _ListDropsUseCase:
         async def execute(self, _query):
@@ -260,7 +268,7 @@ class TestWebActionRoutesIntegration:
         assert drop_use_cases.update_calls == []
         assert csrf_service.verify_calls == [("sid", "wrong")]
 
-    def test_upload_non_hx_success_redirects_home(self):
+    def test_upload_non_hx_success_redirects_manage_page(self):
         drop_use_cases = _FakeDropUseCases()
         csrf_service = _FakeCsrfService(verify_result=True)
         client = _client(
@@ -278,8 +286,8 @@ class TestWebActionRoutesIntegration:
             follow_redirects=False,
         )
 
-        assert response.status_code == 302
-        assert response.headers["location"] == "/"
+        assert response.status_code == 303
+        assert response.headers["location"] == "/drops/upload-1"
         assert len(drop_use_cases.create_calls) == 1
         assert drop_use_cases.create_calls[0].access_scope == AccessScope.PRIVATE
 

@@ -10,17 +10,18 @@ def _render(template_name: str, **context) -> str:
 
 class TestWebTemplateSmoke:
 
-    def test_dashboard_renders_logged_out_auth_panel(self):
-        html = _render('pages/dashboard.html', selected_key=None, is_login=False, csrf_token=None, auth_error_message=None)
+    def test_home_page_renders_logged_out_auth_panel(self):
+        html = _render('pages/home.html', is_login=False, csrf_token=None, auth_error_message=None)
         assert '로그인' in html
         assert 'id="main-panel"' in html
         assert 'id="drop-panel"' not in html
 
-    def test_dashboard_renders_logged_in_empty_drop_list(self):
-        html = _render('pages/dashboard.html', selected_key=None, is_login=True, csrf_token='csrf', upload_error_message=None, upload_status_message=None, drop_error_message=None, drop_status_message=None, drops=[], drop_preview_urls={}, drop_sortby='created_at', drop_orderby='desc')
-        assert '파일 업로드' in html
-        assert '업로드한 파일이 없습니다.' in html
-        assert 'id="drop-panel"' in html
+    def test_home_page_renders_logged_in_upload_only(self):
+        html = _render('pages/home.html', is_login=True, csrf_token='csrf', upload_error_message=None, upload_status_message=None)
+        assert '업로드 후 관리로 이동' in html
+        assert '업로드했던 파일을 다시 열어 공유 상태를 관리합니다.' not in html
+        assert '업로드한 파일이 없습니다.' not in html
+        assert 'href="/drops"' in html
         assert 'href="/settings/api-keys"' in html
 
     def test_auth_panel_renders_error_state(self):
@@ -28,17 +29,15 @@ class TestWebTemplateSmoke:
         assert '로그인 실패' in html
         assert 'action="/actions/auth/login"' in html
 
-    def test_upload_panel_renders_logout_and_complete_states(self):
+    def test_upload_panel_renders_logged_out_and_simplified_form(self):
         logged_out = _render('panels/upload.html', is_login=False)
-        complete = _render('panels/upload.html', is_login=True, csrf_token='csrf', selected_key='k1', upload_error_message=None, upload_status_message='업로드 완료')
         assert '로그인 후 사용할 수 있습니다' in logged_out
-        assert '업로드가 완료되었습니다.' in complete
-        assert '/k1' in complete
         form_html = _render('panels/upload.html', is_login=True, csrf_token='csrf', selected_key=None, upload_error_message=None, upload_status_message=None)
-        assert '공유 링크 주소' in form_html
-        assert '선택 입력' in form_html
-        assert '공유 링크의 마지막 주소' in form_html
-        assert 'aria-describedby="upload-key-helper"' in form_html
+        assert 'private 상태로 생성' in form_html
+        assert 'name="user_only" value="true"' in form_html
+        assert '업로드 후 관리로 이동' in form_html
+        assert '공유 링크 주소' not in form_html
+        assert 'name="slug"' not in form_html
 
     def test_drop_panel_renders_empty_state_without_macro_error(self):
         html = _render('panels/drop.html', drop_error_message=None, drop_status_message=None, drops=[], drop_preview_urls={}, drop_sortby='created_at', drop_orderby='desc')
@@ -65,7 +64,7 @@ class TestWebTemplateSmoke:
     def test_detail_panel_renders_unselected_password_prompt_wrong_password_and_selected_states(self):
         unselected = _render('panels/drop_detail.html', selected_key=None)
         password_prompt = _render('panels/drop_detail.html', selected_key='locked', is_login=False, selected_password=None, selected_drop=None, selected_requires_password=True, selected_download_url=None, selected_preview_url=None, selected_page_preview_url='/locked', csrf_token=None, detail_error_message=None, detail_status_message=None)
-        wrong_password = _render('panels/drop_detail.html', selected_key='locked', is_login=False, selected_password='bad', selected_drop=None, selected_requires_password=True, selected_download_url=None, selected_preview_url=None, selected_page_preview_url='/locked?password=bad', csrf_token=None, detail_error_message='비밀번호가 올바르지 않습니다.', detail_status_message=None)
+        wrong_password = _render('panels/drop_detail.html', selected_key='locked', is_login=False, selected_password='bad', selected_drop=None, selected_requires_password=True, selected_download_url=None, selected_preview_url=None, selected_page_preview_url='/locked', csrf_token=None, detail_error_message='비밀번호가 올바르지 않습니다.', detail_status_message=None)
         selected_drop = SimpleNamespace(slug='img1', title='이미지', description='desc', file_name='img.png', mime_type='image/png', size_human='123 B', size_bytes=123, access_scope='public', is_favorite=False, requires_password=False, created_at='2026-02-22T00:00:00Z', updated_at=None)
         selected = _render('panels/drop_detail.html', selected_key='img1', is_login=True, selected_password=None, selected_drop=selected_drop, selected_requires_password=False, selected_download_url='/api/drop/img1', selected_preview_url='/api/drop/img1?disposition=inline', selected_page_preview_url='/img1', csrf_token='csrf', detail_error_message=None, detail_status_message='저장됨')
         assert '파일을 선택하면 상세 정보를 볼 수 있습니다.' in unselected
@@ -91,25 +90,41 @@ class TestWebTemplateSmoke:
         assert 'aria-label="나만 보기"' in selected
 
     def test_detail_panel_renders_forbidden_and_not_found_variants(self):
-        forbidden = _render('panels/drop_detail.html', selected_key='k1', is_login=False, selected_password=None, selected_drop=None, selected_requires_password=False, selected_download_url=None, selected_preview_url=None, selected_page_preview_url='/k1', csrf_token=None, detail_error_message='이 파일을 보려면 로그인이 필요합니다.', detail_error_code='forbidden', detail_status_message=None)
+        forbidden = _render('panels/drop_detail.html', selected_key='k1', is_login=False, selected_password=None, selected_drop=None, selected_requires_password=False, selected_download_url=None, selected_preview_url=None, selected_page_preview_url='/k1', csrf_token=None, detail_error_message='이 파일을 보려면 로그인이 필요합니다.', detail_error_code='forbidden', detail_status_message=None, detail_mode='shared')
         not_found = _render('panels/drop_detail.html', selected_key='missing', is_login=False, selected_password=None, selected_drop=None, selected_requires_password=False, selected_download_url=None, selected_preview_url=None, selected_page_preview_url='/missing', csrf_token=None, detail_error_message='파일이 존재하지 않습니다.', detail_error_code='not_found', detail_status_message=None)
-        assert '권한이 없습니다.' in forbidden
+        assert '링크를 사용할 수 없습니다.' in forbidden
         assert '돌아가기' in forbidden
         assert 'alert-error' not in forbidden
         assert '존재하지 않습니다.' in not_found
         assert '돌아가기' in not_found
         assert 'alert-error' not in not_found
 
+    def test_library_page_renders_manage_links(self):
+        item = SimpleNamespace(slug='doc1', title='문서', file_name='guide.pdf', mime_type='application/pdf', size_human='1.50 KB', size_bytes=1536, access_scope='public', is_favorite=True, requires_password=True, created_at_relative='5분 전')
+        html = _render('pages/library.html', is_login=True, csrf_token='csrf', active_nav='drops', drop_error_message=None, drop_status_message=None, drops=[item], drop_manage_urls={'doc1': '/drops/doc1'}, drop_sortby='created_at', drop_orderby='desc')
+        assert '내 drop' in html
+        assert 'href="/drops/doc1"' in html
+        assert '관리 페이지 열기' in html
+        assert '새 업로드' in html
+
+    def test_manage_page_renders_status_card_and_share_controls(self):
+        selected_drop = SimpleNamespace(slug='img1', title='이미지', description='desc', file_name='img.png', mime_type='image/png', size_human='123 B', size_bytes=123, access_scope='private', is_favorite=False, requires_password=False, created_at='2026-02-22T00:00:00Z', updated_at=None)
+        html = _render('pages/manage_drop.html', is_login=True, active_nav='drops', csrf_token='csrf', selected_key='img1', selected_password=None, selected_drop=selected_drop, selected_requires_password=False, selected_download_url='/api/drop/img1', selected_preview_url='/api/drop/img1?disposition=inline', selected_page_preview_url='/img1', detail_error_message=None, detail_status_message=None, selected_status_label='비공개', selected_status_description='로그인된 관리자만 접근할 수 있습니다.', selected_can_copy_link=False)
+        assert '공유 시작' in html
+        assert '관리자만 접근할 수 있습니다.' in html
+        assert '공유 페이지 보기' in html
+
+    def test_shared_page_renders_admin_bar_without_full_owner_actions(self):
+        selected_drop = SimpleNamespace(slug='img1', title='이미지', description='desc', file_name='img.png', mime_type='image/png', size_human='123 B', size_bytes=123, access_scope='public', is_favorite=False, requires_password=False, created_at='2026-02-22T00:00:00Z', updated_at=None)
+        html = _render('pages/shared_drop.html', is_login=True, csrf_token='csrf', selected_key='img1', selected_password=None, selected_drop=selected_drop, selected_requires_password=False, selected_download_url='/api/drop/img1', selected_preview_url='/api/drop/img1?disposition=inline', selected_page_preview_url='/img1', detail_error_message=None, detail_status_message=None, selected_status_label='공유 중', show_shared_admin_bar=True, selected_manage_page_url='/drops/img1', show_owner_actions=False)
+        assert '관리자 보기' in html
+        assert '관리하기' in html
+        assert '상세 관리 액션' not in html
+
 class TestWebUiContract:
 
-    def test_dashboard_and_api_keys_pages_bootstrap_theme_before_css(self):
-        dashboard_html = _render(
-            'pages/dashboard.html',
-            selected_key=None,
-            is_login=False,
-            csrf_token=None,
-            auth_error_message=None,
-        )
+    def test_home_and_api_keys_pages_bootstrap_theme_before_css(self):
+        home_html = _render('pages/home.html', is_login=False, csrf_token=None, auth_error_message=None)
         api_keys_html = _render(
             'pages/api_keys.html',
             is_login=True,
@@ -119,7 +134,7 @@ class TestWebUiContract:
             api_keys_error_message=None,
             created_api_key=None,
         )
-        for html in (dashboard_html, api_keys_html):
+        for html in (home_html, api_keys_html):
             assert 'localStorage.getItem("color-theme")' in html
             assert 'prefers-color-scheme: dark' in html
             assert 'document.documentElement.setAttribute("data-theme", theme)' in html
@@ -130,9 +145,8 @@ class TestWebUiContract:
 
     def test_theme_toggle_markup_uses_button_with_aria_pressed(self):
         header = (template_dir() / 'layout' / 'header.html').read_text(encoding='utf-8')
-        assert 'aria-label="GitHub"' in header
-        assert 'viewBox="0 0 16 16"' in header
-        assert 'fill-rule="evenodd"' in header
+        assert '내 drop' in header
+        assert 'href="/settings/api-keys"' in header
         assert 'aria-label="teledrop"' in header
         assert 'class="td-logo-wordmark"' in header
         assert '<button id="theme-toggle"' in header
@@ -157,11 +171,11 @@ class TestWebUiContract:
         assert 'event.target.closest("#theme-toggle")' in source
         assert 'window.__teledropThemeInitialized' in source
 
-    def test_upload_panel_js_uses_user_facing_link_address_messages(self):
+    def test_upload_panel_js_handles_preview_and_progress_only(self):
         source = (static_files_dir() / 'js' / 'upload-panel.js').read_text(encoding='utf-8')
-        assert '공유 링크 주소 확인 중...' in source
-        assert '사용 가능한 공유 링크 주소입니다.' in source
-        assert '공유 링크 주소 확인에 실패했습니다.' in source
+        assert 'htmx:xhr:progress' in source
+        assert 'DataTransfer' in source
+        assert '공유 링크 주소 확인 중...' not in source
 
     def test_detail_templates_use_data_td_contracts_without_inline_hx_on(self):
         drop_detail_root = template_dir() / 'panels'

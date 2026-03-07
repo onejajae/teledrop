@@ -71,7 +71,8 @@ class _FakeDropUseCases:
         def __init__(self, parent):
             self.parent = parent
 
-        async def execute_for_display(self, slug, _auth):
+        async def execute_for_display(self, slug, auth=None):
+            _ = auth
             item = self.parent.items.get(slug)
             if item is None:
                 raise DropNotFoundError()
@@ -141,12 +142,14 @@ class TestWebActionsSmoke:
         headers = {'HX-Request': 'true'}
         client.cookies.set('session_id', 'sid')
         upload = client.post('/actions/drop/upload', headers=headers, data={'csrf_token': 'csrf', 'slug': 'kweb', 'user_only': 'true'}, files={'file': ('hello.txt', io.BytesIO(b'hello'), 'text/plain')})
-        assert upload.status_code == 200
-        assert upload.headers.get('HX-Trigger') == 'drop-list-refresh'
+        assert upload.status_code == 204
+        assert upload.headers.get('HX-Redirect') == '/drops/kweb'
         update = client.post('/actions/drop/kweb/detail', headers=headers, data={'csrf_token': 'csrf', 'title': 'new-title', 'password': ''})
         assert update.status_code == 200
+        assert '메타데이터가 수정되었습니다.' in update.text
         delete = client.post('/actions/drop/kweb/delete', headers=headers, data={'csrf_token': 'csrf', 'password': ''})
-        assert delete.status_code == 200
+        assert delete.status_code == 204
+        assert delete.headers.get('HX-Redirect') == '/drops'
         logout = client.post('/actions/auth/logout', headers=headers, data={'csrf_token': 'csrf'})
         assert logout.status_code == 204
         assert logout.headers.get('HX-Redirect') == '/'

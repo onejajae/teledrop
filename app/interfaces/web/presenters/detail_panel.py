@@ -38,7 +38,7 @@ async def detail_panel_context(
     selected_download_url = None
     selected_preview_url = None
     selected_page_preview_url = (
-        drop_preview_page_url(selected_key, normalized_password)
+        drop_preview_page_url(selected_key, None)
         if selected_key
         else None
     )

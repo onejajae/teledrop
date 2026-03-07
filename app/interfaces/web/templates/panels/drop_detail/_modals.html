@@ -2,8 +2,8 @@
   <div class="modal-box">
     <h3 class="text-base font-semibold">메타데이터 수정</h3>
     <form method="post" action="/actions/drop/{{ selected_key }}/detail"
-      hx-post="/actions/drop/{{ selected_key }}/detail" hx-swap="none"
-      data-td-success="refresh-panels" data-td-close-dialog-id="detail-edit-modal"
+      {% if detail_mode != 'manage' %}hx-post="/actions/drop/{{ selected_key }}/detail" hx-swap="none"
+      data-td-success="refresh-panels" data-td-close-dialog-id="detail-edit-modal"{% endif %}
       class="mt-4 space-y-3">
       <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
       <input type="hidden" name="password" value="{{ selected_password or '' }}" />
@@ -38,8 +38,8 @@
     <h3 class="text-base font-semibold">비밀번호 설정</h3>
     <p class="text-xs opacity-70">비워두면 비밀번호를 해제합니다.</p>
     <form id="detail-password-form" method="post" action="/actions/drop/{{ selected_key }}/password"
-      hx-post="/actions/drop/{{ selected_key }}/password" hx-swap="none"
-      data-td-success="refresh-panels-reset-password" data-td-close-dialog-id="detail-password-modal"
+      {% if detail_mode != 'manage' %}hx-post="/actions/drop/{{ selected_key }}/password" hx-swap="none"
+      data-td-success="refresh-panels-reset-password" data-td-close-dialog-id="detail-password-modal"{% endif %}
       class="mt-4 space-y-3">
       <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
       <input type="hidden" name="current_password" value="{{ selected_password or '' }}" />
