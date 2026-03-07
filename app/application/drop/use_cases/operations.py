@@ -13,7 +13,8 @@ from app.application.drop.models import (
 )
 from app.application.drop.ports import (
     DropCreateInput,
-    DropRepositoryPort,
+    DropMutationRepositoryPort,
+    DropReadRepositoryPort,
     DropStoragePort,
     DropUnitOfWorkFactory,
     DropUpdateInput,
@@ -43,7 +44,10 @@ def _assert_password(drop: DropEntity, password: str | None):
     assert_drop_password_matches(drop, password)
 
 
-async def _get_by_slug_or_raise(repository: DropRepositoryPort, slug: str) -> DropEntity:
+async def _get_by_slug_or_raise(
+    repository: DropReadRepositoryPort | DropMutationRepositoryPort,
+    slug: str,
+) -> DropEntity:
     drop = await repository.get_by_slug(slug)
     if drop is None:
         raise DropNotFoundError()
@@ -128,7 +132,7 @@ class CreateDropUseCase:
 class ListDropsUseCase:
     def __init__(
         self,
-        repository: DropRepositoryPort,
+        repository: DropReadRepositoryPort,
         default_page_size: int,
         max_page_size: int,
     ):
@@ -164,7 +168,7 @@ class ListDropsUseCase:
 
 
 class GetDropMetaUseCase:
-    def __init__(self, repository: DropRepositoryPort):
+    def __init__(self, repository: DropReadRepositoryPort):
         self.repository = repository
 
     async def execute(self, query: DropMetaQuery) -> DropDetailDTO:
@@ -180,7 +184,7 @@ class GetDropMetaUseCase:
 
 
 class GetDropStreamSourceUseCase:
-    def __init__(self, repository: DropRepositoryPort, storage: DropStoragePort):
+    def __init__(self, repository: DropReadRepositoryPort, storage: DropStoragePort):
         self.repository = repository
         self.storage = storage
 

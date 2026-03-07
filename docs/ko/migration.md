@@ -13,6 +13,9 @@ cp share/database.db share/database.db.bak
 alembic -c alembic.ini upgrade head
 ```
 
+`./scripts/run_dev.sh`도 서버 시작 전에 `head`까지 자동 적용합니다.
+앱 시작 시에는 데이터베이스가 이미 Alembic `head`인지 검증만 하며, 테이블을 자동 생성하지 않습니다.
+
 Docker 엔트리포인트를 사용하지 않고 실행한다면, 앱 시작 전에 수동으로 실행하세요:
 ```bash
 uv run alembic -c alembic.ini upgrade head

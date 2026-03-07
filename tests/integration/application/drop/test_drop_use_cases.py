@@ -16,7 +16,6 @@ from app.application.drop.models import (
 )
 from app.application.drop.ports import (
     DropCreateInput,
-    DropRepositoryPort,
     DropSlugCandidateGeneratorPort,
     DropUpdateInput,
     UNSET,
@@ -36,7 +35,7 @@ from app.domain.drop.value_objects import AccessScope, DropSortField
 from app.infrastructure.storage.local_file_storage import LocalFileStorage
 
 
-class _InMemoryRepository(DropRepositoryPort):
+class _InMemoryRepository:
     def __init__(self):
         self.items: dict[str, DropEntity] = {}
 

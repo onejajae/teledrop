@@ -4,20 +4,25 @@ from types import TracebackType
 from sqlmodel import Session
 
 from app.application.auth.ports import AuthApiKeyUnitOfWorkPort
-from app.infrastructure.db.repositories.api_key_repository import SQLModelApiKeyRepository
+from app.infrastructure.db.repositories.api_key_repository import (
+    AUTH_API_KEY_MUTATION_REPOSITORY_INACTIVE_SESSION_ERROR,
+    SQLModelApiKeyMutationRepository,
+)
 from app.infrastructure.db.uow_base import BaseSQLModelUnitOfWork
 
 
 class SQLModelApiKeyUnitOfWork(
-    BaseSQLModelUnitOfWork[SQLModelApiKeyRepository],
+    BaseSQLModelUnitOfWork[SQLModelApiKeyMutationRepository],
     AuthApiKeyUnitOfWorkPort,
 ):
     def __init__(self, session_factory: Callable[[], Session]):
         super().__init__(
             session_factory=session_factory,
-            repository_factory=lambda session: SQLModelApiKeyRepository(session=session),
-            initial_repository=SQLModelApiKeyRepository(session_factory=session_factory),
-            inactive_session_error="API key UnitOfWork session is not active.",
+            repository_factory=lambda session: SQLModelApiKeyMutationRepository(
+                session=session,
+                inactive_session_error=AUTH_API_KEY_MUTATION_REPOSITORY_INACTIVE_SESSION_ERROR,
+            ),
+            inactive_session_error=AUTH_API_KEY_MUTATION_REPOSITORY_INACTIVE_SESSION_ERROR,
         )
 
     async def __aenter__(self) -> "SQLModelApiKeyUnitOfWork":

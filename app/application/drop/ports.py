@@ -32,9 +32,7 @@ class DropUpdateInput:
     drop_password: str | None | object = UNSET
 
 
-class DropRepositoryPort(Protocol):
-    async def create(self, data: DropCreateInput) -> DropEntity: ...
-
+class DropReadRepositoryPort(Protocol):
     async def list(
         self,
         *,
@@ -45,6 +43,12 @@ class DropRepositoryPort(Protocol):
     ) -> list[DropEntity]: ...
 
     async def count(self) -> int: ...
+
+    async def get_by_slug(self, slug: str) -> DropEntity | None: ...
+
+
+class DropMutationRepositoryPort(Protocol):
+    async def create(self, data: DropCreateInput) -> DropEntity: ...
 
     async def get_by_slug(self, slug: str) -> DropEntity | None: ...
 
@@ -72,7 +76,7 @@ class DropStoragePort(Protocol):
 
 
 class DropUnitOfWorkPort(Protocol):
-    repository: DropRepositoryPort
+    repository: DropMutationRepositoryPort
 
     async def __aenter__(self) -> "DropUnitOfWorkPort": ...
 
@@ -94,7 +98,8 @@ DropUnitOfWorkFactory = Callable[[], DropUnitOfWorkPort]
 __all__ = [
     "UNSET",
     "DropCreateInput",
-    "DropRepositoryPort",
+    "DropMutationRepositoryPort",
+    "DropReadRepositoryPort",
     "DropSlugCandidateGeneratorPort",
     "DropStoragePort",
     "DropUnitOfWorkFactory",

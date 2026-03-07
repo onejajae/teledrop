@@ -6,9 +6,9 @@ from pathlib import Path
 from fastapi import FastAPI
 
 from app.bootstrap.container import ensure_app_container
-from app.infrastructure.db.init import init_db
 from app.bootstrap.runtime_paths import sqlite_parent_dir_from_url
 from app.core.config import Settings
+from app.infrastructure.db.schema import assert_db_schema_current
 
 
 logger = logging.getLogger(__name__)
@@ -24,9 +24,9 @@ def build_lifespan(settings: Settings):
             sqlite_dir.mkdir(parents=True, exist_ok=True)
 
         container = ensure_app_container(_app, settings=settings, log_warning=False)
-        init_db(container.db_engine)
 
         try:
+            assert_db_schema_current(container.db_engine)
             yield
         finally:
             container.db_engine.dispose()

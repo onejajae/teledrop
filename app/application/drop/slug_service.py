@@ -1,6 +1,10 @@
 import uuid
 
-from app.application.drop.ports import DropRepositoryPort, DropSlugCandidateGeneratorPort
+from app.application.drop.ports import (
+    DropMutationRepositoryPort,
+    DropReadRepositoryPort,
+    DropSlugCandidateGeneratorPort,
+)
 from app.domain.drop.errors import DropSlugUnavailableError
 
 
@@ -18,7 +22,7 @@ DEFAULT_RESERVED_SLUGS = {
 class DropSlugService:
     def __init__(
         self,
-        repository: DropRepositoryPort,
+        repository: DropReadRepositoryPort | DropMutationRepositoryPort,
         candidate_generator: DropSlugCandidateGeneratorPort,
         *,
         max_attempts: int = 10,

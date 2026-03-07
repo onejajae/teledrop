@@ -117,6 +117,13 @@ docker run --detach \
 > Session authentication is stored in the database.  
 > If you run multiple instances/workers, all instances must share the same database and file storage.
 
+* Direct app startup outside the Docker entrypoint
+> teledrop validates the database schema at startup but does not create tables automatically.
+> Apply Alembic migrations before launching `uvicorn` directly:
+> ```bash
+> uv run alembic -c alembic.ini upgrade head
+> ```
+
 ## Documentation
 * [Authentication and API](docs/en/auth-and-api.md)
 * [Slug Word Pools](docs/en/slug-word-pools.md)

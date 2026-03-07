@@ -118,6 +118,13 @@ docker run --detach \
 > 세션 인증 정보는 데이터베이스에 저장됩니다.  
 > 여러 인스턴스/워커를 실행하면 모든 인스턴스가 동일한 데이터베이스와 파일 저장소를 공유해야 합니다.
 
+* Docker 엔트리포인트 없이 직접 앱 시작
+> teledrop은 시작 시 데이터베이스 스키마를 검증하지만 테이블을 자동 생성하지 않습니다.
+> `uvicorn`을 직접 실행하기 전에 Alembic 마이그레이션을 적용하세요:
+> ```bash
+> uv run alembic -c alembic.ini upgrade head
+> ```
+
 ## 문서
 * [인증 및 API](auth-and-api.md)
 * [마이그레이션 안내](migration.md)

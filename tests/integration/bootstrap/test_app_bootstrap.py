@@ -3,11 +3,20 @@ import importlib
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from app.bootstrap.application import create_app
 from app.bootstrap.lifespan import build_lifespan
 from app.bootstrap.runtime_paths import static_files_dir, sqlite_file_path_from_url, sqlite_parent_dir_from_url, template_dir
+from app.core.config import Settings
+from app.infrastructure.db.schema import (
+    ALEMBIC_UPGRADE_COMMAND,
+    DatabaseSchemaOutOfDateError,
+)
+from tests.support.alembic import upgrade_sqlite_db
 
 class _FakeSettings:
 
@@ -80,7 +89,7 @@ class TestCreateAppBootstrap:
 
 class TestLifespanBootstrap:
 
-    def test_lifespan_startup_creates_directories_inits_db_and_disposes_engine(self):
+    def test_lifespan_startup_creates_directories_validates_schema_and_disposes_engine(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
             share_dir = tmp_path / 'share-dir'
@@ -95,13 +104,57 @@ class TestLifespanBootstrap:
                 async with lifespan(FastAPI()):
                     assert share_dir.is_dir()
                     assert db_file.parent.is_dir()
-            with patch('app.bootstrap.lifespan.ensure_app_container', return_value=fake_container) as ensure_mock, patch('app.bootstrap.lifespan.init_db') as init_db_mock:
+            with patch('app.bootstrap.lifespan.ensure_app_container', return_value=fake_container) as ensure_mock, patch('app.bootstrap.lifespan.assert_db_schema_current') as validate_schema_mock:
                 asyncio.run(run_lifespan())
             ensure_mock.assert_called_once()
             assert ensure_mock.call_args.kwargs['settings'] is settings
             assert not ensure_mock.call_args.kwargs['log_warning']
-            init_db_mock.assert_called_once_with(fake_engine)
+            validate_schema_mock.assert_called_once_with(fake_engine)
             fake_engine.dispose.assert_called_once_with()
+
+    def test_lifespan_startup_fails_when_db_schema_is_not_migrated(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            share_dir = tmp_path / 'share-dir'
+            db_file = tmp_path / 'db-dir' / 'database.db'
+            settings = Settings(
+                _env_file=None,
+                SHARE_DIRECTORY=str(share_dir),
+                SQLITE_HOST=f'sqlite:///{db_file.as_posix()}',
+            )
+            lifespan = build_lifespan(settings)
+
+            async def run_lifespan():
+                async with lifespan(FastAPI()):
+                    raise AssertionError('lifespan should not reach application startup')
+
+            with pytest.raises(DatabaseSchemaOutOfDateError, match=ALEMBIC_UPGRADE_COMMAND):
+                asyncio.run(run_lifespan())
+
+            assert share_dir.is_dir()
+            assert db_file.parent.is_dir()
+
+    def test_lifespan_startup_succeeds_after_alembic_upgrade(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            share_dir = tmp_path / 'share-dir'
+            db_file = tmp_path / 'db-dir' / 'database.db'
+            sqlite_url = f'sqlite:///{db_file.as_posix()}'
+            upgrade_sqlite_db(sqlite_url)
+
+            settings = Settings(
+                _env_file=None,
+                SHARE_DIRECTORY=str(share_dir),
+                SQLITE_HOST=sqlite_url,
+            )
+            lifespan = build_lifespan(settings)
+
+            async def run_lifespan():
+                async with lifespan(FastAPI()):
+                    assert share_dir.is_dir()
+                    assert db_file.parent.is_dir()
+
+            asyncio.run(run_lifespan())
 
 class TestMainEntrypointSmoke:
 

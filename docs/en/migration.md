@@ -14,6 +14,9 @@ When running the official Docker image, container startup automatically runs:
 alembic -c alembic.ini upgrade head
 ```
 
+`./scripts/run_dev.sh` also applies `head` automatically before starting the server.
+App startup validates that the database is already at Alembic `head`; it does not create tables automatically.
+
 If you run teledrop outside the Docker entrypoint, run migration manually before app startup:
 ```bash
 uv run alembic -c alembic.ini upgrade head

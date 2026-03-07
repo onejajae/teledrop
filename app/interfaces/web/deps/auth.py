@@ -1,4 +1,4 @@
-from app.interfaces.api.deps.auth import (
+from app.interfaces.deps.auth import (
     CreateApiKeyUseCaseDep,
     DeleteApiKeyUseCaseDep,
     ListApiKeysUseCaseDep,
@@ -8,8 +8,8 @@ from app.interfaces.api.deps.auth import (
     RevokeApiKeyUseCaseDep,
     RevokeSessionUseCaseDep,
 )
-from app.interfaces.api.deps.common import CsrfTokenServiceDep
-from app.interfaces.api.deps.drop import DropUseCasesDep
+from app.interfaces.deps.common import CsrfTokenServiceDep
+from app.interfaces.deps.drop import DropUseCasesDep
 
 __all__ = [
     "CreateApiKeyUseCaseDep",

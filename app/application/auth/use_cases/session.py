@@ -4,7 +4,6 @@ from datetime import datetime, timedelta, timezone
 from app.application.auth.models import AuthSessionDTO, VerifySessionQuery
 from app.application.auth.ports import (
     AuthSessionCreateInput,
-    AuthSessionRepositoryPort,
     AuthSessionUnitOfWorkFactory,
 )
 from app.domain.auth.errors import SessionExpired, SessionInvalid
@@ -27,20 +26,22 @@ def _to_session_dto(record) -> AuthSessionDTO:
 
 
 class CreateSessionUseCase:
-    def __init__(self, session_ttl_seconds: int, repository: AuthSessionRepositoryPort):
+    def __init__(self, session_ttl_seconds: int, uow_factory: AuthSessionUnitOfWorkFactory):
         self.session_ttl_seconds = session_ttl_seconds
-        self.repository = repository
+        self.uow_factory = uow_factory
 
     async def execute(self, username: str) -> AuthSessionDTO:
         now = datetime.now(tz=timezone.utc)
-        record = await self.repository.create(
-            AuthSessionCreateInput(
-                sid=secrets.token_urlsafe(32),
-                username=username,
-                created_at=now,
-                expires_at=now + timedelta(seconds=self.session_ttl_seconds),
+        async with self.uow_factory() as uow:
+            record = await uow.repository.create(
+                AuthSessionCreateInput(
+                    sid=secrets.token_urlsafe(32),
+                    username=username,
+                    created_at=now,
+                    expires_at=now + timedelta(seconds=self.session_ttl_seconds),
+                )
             )
-        )
+            await uow.commit()
         return _to_session_dto(record)
 
 

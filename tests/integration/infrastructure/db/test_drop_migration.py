@@ -1,46 +1,57 @@
+import pytest
 import tempfile
 from pathlib import Path
 
 from sqlalchemy import create_engine, inspect, text
 
-from app.infrastructure.db.init import init_db
+from app.infrastructure.db.schema import (
+    ALEMBIC_UPGRADE_COMMAND,
+    DatabaseSchemaOutOfDateError,
+    assert_db_schema_current,
+)
+from tests.support.alembic import upgrade_sqlite_db
 
 
 def _create_engine(db_path: Path):
     return create_engine(f"sqlite:///{db_path.as_posix()}")
 
 
-def test_init_db_creates_current_tables():
+def test_alembic_upgrade_head_creates_current_tables():
     with tempfile.TemporaryDirectory() as temp_dir:
         db_path = Path(temp_dir) / "init.db"
+        sqlite_url = f"sqlite:///{db_path.as_posix()}"
         engine = _create_engine(db_path)
 
-        init_db(engine)
+        upgrade_sqlite_db(sqlite_url)
 
         table_names = set(inspect(engine).get_table_names())
         assert "drops" in table_names
         assert "auth_sessions" in table_names
         assert "auth_api_keys" in table_names
+        engine.dispose()
 
 
-def test_init_db_creates_slug_column_in_drops_table():
+def test_alembic_upgrade_head_creates_slug_column_in_drops_table():
     with tempfile.TemporaryDirectory() as temp_dir:
         db_path = Path(temp_dir) / "schema.db"
+        sqlite_url = f"sqlite:///{db_path.as_posix()}"
         engine = _create_engine(db_path)
 
-        init_db(engine)
+        upgrade_sqlite_db(sqlite_url)
 
         drop_columns = {column["name"] for column in inspect(engine).get_columns("drops")}
         assert "slug" in drop_columns
         assert "key" not in drop_columns
+        engine.dispose()
 
 
-def test_init_db_is_idempotent_and_keeps_existing_rows():
+def test_alembic_upgrade_head_is_idempotent_and_keeps_existing_rows():
     with tempfile.TemporaryDirectory() as temp_dir:
         db_path = Path(temp_dir) / "idempotent.db"
+        sqlite_url = f"sqlite:///{db_path.as_posix()}"
         engine = _create_engine(db_path)
 
-        init_db(engine)
+        upgrade_sqlite_db(sqlite_url)
         with engine.begin() as conn:
             conn.execute(
                 text(
@@ -74,7 +85,7 @@ def test_init_db_is_idempotent_and_keeps_existing_rows():
                 },
             )
 
-        init_db(engine)
+        upgrade_sqlite_db(sqlite_url)
 
         with engine.begin() as conn:
             row = conn.execute(
@@ -91,3 +102,53 @@ def test_init_db_is_idempotent_and_keeps_existing_rows():
         assert row.slug == "legacy-drop"
         assert row.file_name == "legacy.txt"
         assert row.storage_key == "legacy-storage"
+        engine.dispose()
+
+
+def test_schema_validation_rejects_missing_alembic_revision():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        db_path = Path(temp_dir) / "missing-version.db"
+        engine = _create_engine(db_path)
+
+        with pytest.raises(DatabaseSchemaOutOfDateError, match=ALEMBIC_UPGRADE_COMMAND):
+            assert_db_schema_current(engine)
+
+        engine.dispose()
+
+
+def test_schema_validation_rejects_outdated_revision():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        db_path = Path(temp_dir) / "outdated.db"
+        sqlite_url = f"sqlite:///{db_path.as_posix()}"
+        engine = _create_engine(db_path)
+
+        upgrade_sqlite_db(sqlite_url)
+        with engine.begin() as conn:
+            conn.execute(
+                text("UPDATE alembic_version SET version_num = :revision"),
+                {"revision": "20260302_01"},
+            )
+
+        with pytest.raises(DatabaseSchemaOutOfDateError, match="not current"):
+            assert_db_schema_current(engine)
+
+        engine.dispose()
+
+
+def test_schema_validation_rejects_unknown_revision():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        db_path = Path(temp_dir) / "unknown.db"
+        sqlite_url = f"sqlite:///{db_path.as_posix()}"
+        engine = _create_engine(db_path)
+
+        upgrade_sqlite_db(sqlite_url)
+        with engine.begin() as conn:
+            conn.execute(
+                text("UPDATE alembic_version SET version_num = :revision"),
+                {"revision": "unknown_revision"},
+            )
+
+        with pytest.raises(DatabaseSchemaOutOfDateError, match="not recognized"):
+            assert_db_schema_current(engine)
+
+        engine.dispose()

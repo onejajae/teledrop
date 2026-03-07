@@ -4,20 +4,25 @@ from types import TracebackType
 from sqlmodel import Session
 
 from app.application.drop.ports import DropUnitOfWorkPort
+from app.infrastructure.db.repositories.drop_repository import (
+    DROP_MUTATION_REPOSITORY_INACTIVE_SESSION_ERROR,
+    SQLModelDropMutationRepository,
+)
 from app.infrastructure.db.uow_base import BaseSQLModelUnitOfWork
-from app.infrastructure.db.repositories.drop_repository import SQLModelDropRepository
 
 
 class SQLModelDropUnitOfWork(
-    BaseSQLModelUnitOfWork[SQLModelDropRepository],
+    BaseSQLModelUnitOfWork[SQLModelDropMutationRepository],
     DropUnitOfWorkPort,
 ):
     def __init__(self, session_factory: Callable[[], Session]):
         super().__init__(
             session_factory=session_factory,
-            repository_factory=lambda session: SQLModelDropRepository(session=session),
-            initial_repository=SQLModelDropRepository(session_factory=session_factory),
-            inactive_session_error="Drop UnitOfWork session is not active.",
+            repository_factory=lambda session: SQLModelDropMutationRepository(
+                session=session,
+                inactive_session_error=DROP_MUTATION_REPOSITORY_INACTIVE_SESSION_ERROR,
+            ),
+            inactive_session_error=DROP_MUTATION_REPOSITORY_INACTIVE_SESSION_ERROR,
         )
 
     async def __aenter__(self) -> "SQLModelDropUnitOfWork":

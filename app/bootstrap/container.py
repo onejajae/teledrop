@@ -41,9 +41,8 @@ from app.bootstrap.runtime_paths import project_root_dir
 from app.core.config import Settings, get_settings
 from app.infrastructure.db.engine import create_db_engine, create_db_session_factory
 from app.infrastructure.db.repositories import (
-    SQLModelApiKeyRepository,
-    SQLModelDropRepository,
-    SQLModelSessionRepository,
+    SQLModelApiKeyReadRepository,
+    SQLModelDropReadRepository,
 )
 from app.infrastructure.db.uow_api_key import SQLModelApiKeyUnitOfWork
 from app.infrastructure.db.uow_auth import SQLModelAuthSessionUnitOfWork
@@ -131,7 +130,7 @@ def _build_drop_slug_candidate_generator(settings: Settings) -> DropSlugCandidat
 
 def _build_drop_use_cases(
     settings: Settings,
-    repository: SQLModelDropRepository,
+    read_repository: SQLModelDropReadRepository,
     storage: LocalFileStorage,
     slug_service: DropSlugService,
     uow_factory: DropUnitOfWorkFactory,
@@ -143,13 +142,13 @@ def _build_drop_use_cases(
             uow_factory=uow_factory,
         ),
         list_drops_use_case=ListDropsUseCase(
-            repository=repository,
+            repository=read_repository,
             default_page_size=settings.DEFAULT_PAGE_SIZE,
             max_page_size=settings.MAX_PAGE_SIZE,
         ),
-        get_drop_meta_use_case=GetDropMetaUseCase(repository=repository),
+        get_drop_meta_use_case=GetDropMetaUseCase(repository=read_repository),
         get_drop_stream_source_use_case=GetDropStreamSourceUseCase(
-            repository=repository,
+            repository=read_repository,
             storage=storage,
         ),
         update_drop_use_case=UpdateDropUseCase(
@@ -165,14 +164,13 @@ def _build_drop_use_cases(
 
 def _build_auth_use_cases(
     settings: Settings,
-    session_repository: SQLModelSessionRepository,
     session_uow_factory: AuthSessionUnitOfWorkFactory,
-    api_key_repository: SQLModelApiKeyRepository,
+    api_key_read_repository: SQLModelApiKeyReadRepository,
     api_key_uow_factory: AuthApiKeyUnitOfWorkFactory,
 ) -> AuthUseCaseCollection:
     create_session_use_case = CreateSessionUseCase(
         session_ttl_seconds=settings.SESSION_TTL_SECONDS,
-        repository=session_repository,
+        uow_factory=session_uow_factory,
     )
     return AuthUseCaseCollection(
         password_login_use_case=PasswordLoginUseCase(
@@ -188,10 +186,10 @@ def _build_auth_use_cases(
             uow_factory=session_uow_factory,
         ),
         create_api_key_use_case=CreateApiKeyUseCase(
-            repository=api_key_repository,
+            uow_factory=api_key_uow_factory,
         ),
         list_api_keys_use_case=ListApiKeysUseCase(
-            repository=api_key_repository,
+            repository=api_key_read_repository,
         ),
         revoke_api_key_use_case=RevokeApiKeyUseCase(
             uow_factory=api_key_uow_factory,
@@ -211,33 +209,31 @@ def build_app_container(settings: Settings) -> AppContainer:
     file_storage = LocalFileStorage(settings.SHARE_DIRECTORY)
     drop_slug_candidate_generator = _build_drop_slug_candidate_generator(settings)
 
-    drop_repository = SQLModelDropRepository(db_session_factory)
+    drop_read_repository = SQLModelDropReadRepository(db_session_factory)
     drop_uow_factory: DropUnitOfWorkFactory = lambda: SQLModelDropUnitOfWork(db_session_factory)
     drop_slug_service = DropSlugService(
-        repository=drop_repository,
+        repository=drop_read_repository,
         candidate_generator=drop_slug_candidate_generator,
     )
     drop_use_cases = _build_drop_use_cases(
         settings=settings,
-        repository=drop_repository,
+        read_repository=drop_read_repository,
         storage=file_storage,
         slug_service=drop_slug_service,
         uow_factory=drop_uow_factory,
     )
 
-    session_repository = SQLModelSessionRepository(db_session_factory)
     session_uow_factory: AuthSessionUnitOfWorkFactory = (
         lambda: SQLModelAuthSessionUnitOfWork(db_session_factory)
     )
-    api_key_repository = SQLModelApiKeyRepository(db_session_factory)
+    api_key_read_repository = SQLModelApiKeyReadRepository(db_session_factory)
     api_key_uow_factory: AuthApiKeyUnitOfWorkFactory = (
         lambda: SQLModelApiKeyUnitOfWork(db_session_factory)
     )
     auth_use_cases = _build_auth_use_cases(
         settings=settings,
-        session_repository=session_repository,
         session_uow_factory=session_uow_factory,
-        api_key_repository=api_key_repository,
+        api_key_read_repository=api_key_read_repository,
         api_key_uow_factory=api_key_uow_factory,
     )
 

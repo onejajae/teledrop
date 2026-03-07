@@ -44,7 +44,11 @@ class AuthApiKeyRecord:
     revoked_at: datetime | None
 
 
-class AuthSessionRepositoryPort(Protocol):
+class AuthSessionReadRepositoryPort(Protocol):
+    async def get_by_sid(self, sid: str) -> AuthSessionRecord | None: ...
+
+
+class AuthSessionMutationRepositoryPort(Protocol):
     async def create(self, data: AuthSessionCreateInput) -> AuthSessionRecord: ...
 
     async def get_by_sid(self, sid: str) -> AuthSessionRecord | None: ...
@@ -52,10 +56,14 @@ class AuthSessionRepositoryPort(Protocol):
     async def revoke_by_sid(self, sid: str) -> AuthSessionRecord | None: ...
 
 
-class AuthApiKeyRepositoryPort(Protocol):
-    async def create(self, data: AuthApiKeyCreateInput) -> AuthApiKeyRecord: ...
-
+class AuthApiKeyReadRepositoryPort(Protocol):
     async def list_all(self) -> list[AuthApiKeyRecord]: ...
+
+    async def get_by_public_id(self, public_id: str) -> AuthApiKeyRecord | None: ...
+
+
+class AuthApiKeyMutationRepositoryPort(Protocol):
+    async def create(self, data: AuthApiKeyCreateInput) -> AuthApiKeyRecord: ...
 
     async def get_by_public_id(self, public_id: str) -> AuthApiKeyRecord | None: ...
 
@@ -75,7 +83,7 @@ class AuthApiKeyRepositoryPort(Protocol):
 
 
 class AuthSessionUnitOfWorkPort(Protocol):
-    repository: AuthSessionRepositoryPort
+    repository: AuthSessionMutationRepositoryPort
 
     async def __aenter__(self) -> "AuthSessionUnitOfWorkPort": ...
 
@@ -92,7 +100,7 @@ class AuthSessionUnitOfWorkPort(Protocol):
 
 
 class AuthApiKeyUnitOfWorkPort(Protocol):
-    repository: AuthApiKeyRepositoryPort
+    repository: AuthApiKeyMutationRepositoryPort
 
     async def __aenter__(self) -> "AuthApiKeyUnitOfWorkPort": ...
 
@@ -110,3 +118,19 @@ class AuthApiKeyUnitOfWorkPort(Protocol):
 
 AuthSessionUnitOfWorkFactory = Callable[[], AuthSessionUnitOfWorkPort]
 AuthApiKeyUnitOfWorkFactory = Callable[[], AuthApiKeyUnitOfWorkPort]
+
+
+__all__ = [
+    "AuthApiKeyCreateInput",
+    "AuthApiKeyMutationRepositoryPort",
+    "AuthApiKeyReadRepositoryPort",
+    "AuthApiKeyRecord",
+    "AuthApiKeyUnitOfWorkFactory",
+    "AuthApiKeyUnitOfWorkPort",
+    "AuthSessionCreateInput",
+    "AuthSessionMutationRepositoryPort",
+    "AuthSessionReadRepositoryPort",
+    "AuthSessionRecord",
+    "AuthSessionUnitOfWorkFactory",
+    "AuthSessionUnitOfWorkPort",
+]

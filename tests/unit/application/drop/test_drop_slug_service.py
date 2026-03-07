@@ -1,13 +1,20 @@
-import pytest
-import re
 from datetime import datetime, timezone
-from app.application.drop.ports import DropCreateInput, DropRepositoryPort, DropSlugCandidateGeneratorPort, DropUpdateInput
+import re
+
+import pytest
+
+from app.application.drop.ports import (
+    DropCreateInput,
+    DropSlugCandidateGeneratorPort,
+    DropUpdateInput,
+)
 from app.application.drop.slug_service import DropSlugService
 from app.domain.drop.entities import DropEntity
 from app.domain.drop.errors import DropSlugUnavailableError
 from app.domain.drop.value_objects import AccessScope, DropSortField
 
-class _Repo(DropRepositoryPort):
+
+class _Repo:
 
     def __init__(self):
         self.items: dict[str, DropEntity] = {}

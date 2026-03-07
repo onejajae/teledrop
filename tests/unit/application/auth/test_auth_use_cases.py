@@ -1,7 +1,9 @@
+import sqlite3
 from datetime import datetime, timedelta, timezone
 
 import pytest
 from argon2 import PasswordHasher
+from sqlalchemy.exc import IntegrityError
 
 from app.application.auth.models import (
     CreateApiKeyCommand,
@@ -157,6 +159,95 @@ class _TrackingApiKeyUow:
         return None
 
 
+class _TransactionalApiKeyRepository:
+    def __init__(self, records: dict[str, AuthApiKeyRecord]):
+        self._records = records
+        self._pending_create: AuthApiKeyRecord | None = None
+
+    async def create(self, data: AuthApiKeyCreateInput) -> AuthApiKeyRecord:
+        record = AuthApiKeyRecord(
+            public_id=data.public_id,
+            name=data.name,
+            created_by_username=data.created_by_username,
+            key_hash=data.key_hash,
+            created_at=data.created_at,
+            expires_at=data.expires_at,
+            last_used_at=None,
+            revoked_at=None,
+        )
+        self._pending_create = record
+        return record
+
+    async def get_by_public_id(self, public_id: str) -> AuthApiKeyRecord | None:
+        return self._records.get(public_id)
+
+    def commit_pending(self) -> None:
+        if self._pending_create is not None:
+            self._records[self._pending_create.public_id] = self._pending_create
+            self._pending_create = None
+
+    def rollback_pending(self) -> None:
+        self._pending_create = None
+
+
+class _CommitCollisionApiKeyUow:
+    def __init__(self, records: dict[str, AuthApiKeyRecord], *, fail_commit: bool):
+        self.repository = _TransactionalApiKeyRepository(records)
+        self.fail_commit = fail_commit
+        self.entered = False
+        self.exited = False
+        self.commit_calls = 0
+
+    async def __aenter__(self):
+        self.entered = True
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        self.exited = True
+        if exc_type is not None:
+            self.repository.rollback_pending()
+        return None
+
+    async def commit(self):
+        self.commit_calls += 1
+        if self.fail_commit:
+            self.repository.rollback_pending()
+            raise IntegrityError(
+                "INSERT INTO auth_api_keys ...",
+                {},
+                sqlite3.IntegrityError(
+                    "UNIQUE constraint failed: auth_api_keys.public_id"
+                ),
+            )
+        self.repository.commit_pending()
+
+    async def rollback(self):
+        self.repository.rollback_pending()
+
+
+class _CommitCollisionApiKeyUowFactory:
+    def __init__(self, collisions_before_success: int = 1):
+        self.records: dict[str, AuthApiKeyRecord] = {}
+        self.collisions_remaining = collisions_before_success
+        self.instances: list[_CommitCollisionApiKeyUow] = []
+
+    def __call__(self):
+        fail_commit = self.collisions_remaining > 0
+        if fail_commit:
+            self.collisions_remaining -= 1
+        uow = _CommitCollisionApiKeyUow(self.records, fail_commit=fail_commit)
+        self.instances.append(uow)
+        return uow
+
+
+def _session_uow_factory(repository: _InMemorySessionRepository):
+    return lambda: _TrackingAuthUow(repository)
+
+
+def _api_key_uow_factory(repository: _InMemoryApiKeyRepository):
+    return lambda: _TrackingApiKeyUow(repository)
+
+
 def _settings(**overrides) -> Settings:
     base = {
         "WEB_USERNAME": "admin",
@@ -174,7 +265,7 @@ class TestAuthUseCase:
         session_repo = _InMemorySessionRepository()
         create_session = CreateSessionUseCase(
             session_ttl_seconds=settings.SESSION_TTL_SECONDS,
-            repository=session_repo,
+            uow_factory=_session_uow_factory(session_repo),
         )
         use_case = PasswordLoginUseCase(
             web_username=settings.WEB_USERNAME,
@@ -195,7 +286,7 @@ class TestAuthUseCase:
         session_repo = _InMemorySessionRepository()
         create_session = CreateSessionUseCase(
             session_ttl_seconds=settings.SESSION_TTL_SECONDS,
-            repository=session_repo,
+            uow_factory=_session_uow_factory(session_repo),
         )
         use_case = PasswordLoginUseCase(
             web_username=settings.WEB_USERNAME,
@@ -274,7 +365,7 @@ class TestAuthUseCase:
 
     async def test_create_api_key_list_and_verify_flow(self):
         repo = _InMemoryApiKeyRepository()
-        create_use_case = CreateApiKeyUseCase(repository=repo)
+        create_use_case = CreateApiKeyUseCase(uow_factory=_api_key_uow_factory(repo))
 
         created = await create_use_case.execute(
             CreateApiKeyCommand(
@@ -295,7 +386,7 @@ class TestAuthUseCase:
 
     async def test_verify_api_key_updates_last_used_and_commits_once(self):
         repo = _InMemoryApiKeyRepository()
-        create_use_case = CreateApiKeyUseCase(repository=repo)
+        create_use_case = CreateApiKeyUseCase(uow_factory=_api_key_uow_factory(repo))
         created = await create_use_case.execute(
             CreateApiKeyCommand(
                 name="mobile",
@@ -316,7 +407,7 @@ class TestAuthUseCase:
 
     async def test_verify_api_key_rejects_revoked_or_malformed(self):
         repo = _InMemoryApiKeyRepository()
-        create_use_case = CreateApiKeyUseCase(repository=repo)
+        create_use_case = CreateApiKeyUseCase(uow_factory=_api_key_uow_factory(repo))
         created = await create_use_case.execute(
             CreateApiKeyCommand(
                 name="revoked",
@@ -336,7 +427,7 @@ class TestAuthUseCase:
 
     async def test_revoke_and_delete_api_key_use_cases(self):
         repo = _InMemoryApiKeyRepository()
-        create_use_case = CreateApiKeyUseCase(repository=repo)
+        create_use_case = CreateApiKeyUseCase(uow_factory=_api_key_uow_factory(repo))
         created = await create_use_case.execute(
             CreateApiKeyCommand(
                 name="to-remove",
@@ -358,6 +449,24 @@ class TestAuthUseCase:
         )
         assert delete_uow.commit_calls == 1
         assert created.public_id not in repo.records
+
+    async def test_create_api_key_retries_commit_time_public_id_collision(self):
+        uow_factory = _CommitCollisionApiKeyUowFactory(collisions_before_success=1)
+        create_use_case = CreateApiKeyUseCase(uow_factory=uow_factory)
+
+        created = await create_use_case.execute(
+            CreateApiKeyCommand(
+                name="retry-me",
+                created_by_username="admin",
+                expires_at=None,
+            )
+        )
+
+        assert created.key.startswith(f"{API_KEY_PREFIX}_")
+        assert len(uow_factory.instances) == 2
+        assert uow_factory.instances[0].commit_calls == 1
+        assert uow_factory.instances[1].commit_calls == 1
+        assert len(uow_factory.records) == 1
 
     def test_parse_api_key_token_rejects_invalid_shapes(self):
         with pytest.raises(ApiKeyInvalid):

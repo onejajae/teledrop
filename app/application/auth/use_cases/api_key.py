@@ -2,6 +2,8 @@ import hashlib
 import secrets
 from datetime import datetime, timezone
 
+from sqlalchemy.exc import IntegrityError
+
 from app.application.auth.models import (
     ApiKeyDTO,
     CreateApiKeyCommand,
@@ -12,8 +14,8 @@ from app.application.auth.models import (
 )
 from app.application.auth.ports import (
     AuthApiKeyCreateInput,
+    AuthApiKeyReadRepositoryPort,
     AuthApiKeyRecord,
-    AuthApiKeyRepositoryPort,
     AuthApiKeyUnitOfWorkFactory,
 )
 from app.domain.auth.errors import ApiKeyInvalid, ApiKeyNotFound
@@ -24,6 +26,15 @@ API_KEY_NAME_MAX_LENGTH = 100
 _PUBLIC_ID_BYTES = 8
 _SECRET_BYTES = 24
 _MAX_GENERATION_ATTEMPTS = 10
+
+
+def _is_public_id_collision(exc: IntegrityError) -> bool:
+    constraint_name = getattr(getattr(exc.orig, "diag", None), "constraint_name", None)
+    if isinstance(constraint_name, str) and "public_id" in constraint_name.lower():
+        return True
+
+    message = str(exc.orig).lower()
+    return "unique" in message and "public_id" in message
 
 
 def _normalize_datetime(value: datetime | None) -> datetime | None:
@@ -68,8 +79,8 @@ def _to_api_key_dto(record: AuthApiKeyRecord) -> ApiKeyDTO:
 
 
 class CreateApiKeyUseCase:
-    def __init__(self, repository: AuthApiKeyRepositoryPort):
-        self.repository = repository
+    def __init__(self, uow_factory: AuthApiKeyUnitOfWorkFactory):
+        self.uow_factory = uow_factory
 
     async def execute(self, command: CreateApiKeyCommand) -> CreatedApiKeyDTO:
         name = (command.name or "").strip()
@@ -83,22 +94,29 @@ class CreateApiKeyUseCase:
 
         for _ in range(_MAX_GENERATION_ATTEMPTS):
             public_id = secrets.token_hex(_PUBLIC_ID_BYTES)
-            existing = await self.repository.get_by_public_id(public_id)
-            if existing is not None:
-                continue
-
             secret = secrets.token_urlsafe(_SECRET_BYTES)
-            key_hash = _hash_key_material(public_id, secret)
-            created = await self.repository.create(
-                AuthApiKeyCreateInput(
-                    public_id=public_id,
-                    name=name,
-                    created_by_username=command.created_by_username,
-                    key_hash=key_hash,
-                    created_at=now,
-                    expires_at=expires_at,
-                )
-            )
+            try:
+                async with self.uow_factory() as uow:
+                    existing = await uow.repository.get_by_public_id(public_id)
+                    if existing is not None:
+                        continue
+
+                    key_hash = _hash_key_material(public_id, secret)
+                    created = await uow.repository.create(
+                        AuthApiKeyCreateInput(
+                            public_id=public_id,
+                            name=name,
+                            created_by_username=command.created_by_username,
+                            key_hash=key_hash,
+                            created_at=now,
+                            expires_at=expires_at,
+                        )
+                    )
+                    await uow.commit()
+            except IntegrityError as exc:
+                if _is_public_id_collision(exc):
+                    continue
+                raise
             return CreatedApiKeyDTO(
                 public_id=created.public_id,
                 name=created.name,
@@ -114,7 +132,7 @@ class CreateApiKeyUseCase:
 
 
 class ListApiKeysUseCase:
-    def __init__(self, repository: AuthApiKeyRepositoryPort):
+    def __init__(self, repository: AuthApiKeyReadRepositoryPort):
         self.repository = repository
 
     async def execute(self) -> list[ApiKeyDTO]:
@@ -191,5 +209,6 @@ __all__ = [
     "ListApiKeysUseCase",
     "RevokeApiKeyUseCase",
     "VerifyApiKeyUseCase",
+    "_is_public_id_collision",
     "parse_api_key_token",
 ]
