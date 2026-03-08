@@ -3,7 +3,8 @@
 If you prefer running without Docker, follow these steps:
 
 ## Prerequisites
-* Python 3.12+ (and `venv`)
+* Python 3.14+
+* `uv`
 * Node.js 20+ (for building CSS)
 
 ## Quick Start
@@ -24,11 +25,7 @@ CORS_ALLOW_ALL=true
 ## Manual Steps
 1. **Set up Python Environment**:
    ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install fastapi uvicorn Jinja2 "python-multipart" argon2-cffi pytest pytest-asyncio
-   # or if using uv:
-   # uv pip install fastapi uvicorn Jinja2 "python-multipart" argon2-cffi pytest pytest-asyncio
+   uv sync
    ```
 
 2. **Apply Database Migrations**:
@@ -43,6 +40,7 @@ CORS_ALLOW_ALL=true
    npm run build:css
    cd ..
    ```
+   `./scripts/run_dev.sh` automatically skips `npm install` when `ui-build/node_modules` already exists.
 
 4. **Run Server**:
    ```bash
