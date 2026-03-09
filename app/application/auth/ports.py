@@ -44,11 +44,7 @@ class AuthApiKeyRecord:
     revoked_at: datetime | None
 
 
-class AuthSessionReadRepositoryPort(Protocol):
-    async def get_by_sid(self, sid: str) -> AuthSessionRecord | None: ...
-
-
-class AuthSessionMutationRepositoryPort(Protocol):
+class AuthSessionRepositoryPort(Protocol):
     async def create(self, data: AuthSessionCreateInput) -> AuthSessionRecord: ...
 
     async def get_by_sid(self, sid: str) -> AuthSessionRecord | None: ...
@@ -56,14 +52,10 @@ class AuthSessionMutationRepositoryPort(Protocol):
     async def revoke_by_sid(self, sid: str) -> AuthSessionRecord | None: ...
 
 
-class AuthApiKeyReadRepositoryPort(Protocol):
-    async def list_all(self) -> list[AuthApiKeyRecord]: ...
-
-    async def get_by_public_id(self, public_id: str) -> AuthApiKeyRecord | None: ...
-
-
-class AuthApiKeyMutationRepositoryPort(Protocol):
+class AuthApiKeyRepositoryPort(Protocol):
     async def create(self, data: AuthApiKeyCreateInput) -> AuthApiKeyRecord: ...
+
+    async def list_all(self) -> list[AuthApiKeyRecord]: ...
 
     async def get_by_public_id(self, public_id: str) -> AuthApiKeyRecord | None: ...
 
@@ -83,7 +75,7 @@ class AuthApiKeyMutationRepositoryPort(Protocol):
 
 
 class AuthSessionUnitOfWorkPort(Protocol):
-    repository: AuthSessionMutationRepositoryPort
+    repository: AuthSessionRepositoryPort
 
     async def __aenter__(self) -> "AuthSessionUnitOfWorkPort": ...
 
@@ -100,7 +92,7 @@ class AuthSessionUnitOfWorkPort(Protocol):
 
 
 class AuthApiKeyUnitOfWorkPort(Protocol):
-    repository: AuthApiKeyMutationRepositoryPort
+    repository: AuthApiKeyRepositoryPort
 
     async def __aenter__(self) -> "AuthApiKeyUnitOfWorkPort": ...
 
@@ -122,14 +114,12 @@ AuthApiKeyUnitOfWorkFactory = Callable[[], AuthApiKeyUnitOfWorkPort]
 
 __all__ = [
     "AuthApiKeyCreateInput",
-    "AuthApiKeyMutationRepositoryPort",
-    "AuthApiKeyReadRepositoryPort",
+    "AuthApiKeyRepositoryPort",
     "AuthApiKeyRecord",
     "AuthApiKeyUnitOfWorkFactory",
     "AuthApiKeyUnitOfWorkPort",
     "AuthSessionCreateInput",
-    "AuthSessionMutationRepositoryPort",
-    "AuthSessionReadRepositoryPort",
+    "AuthSessionRepositoryPort",
     "AuthSessionRecord",
     "AuthSessionUnitOfWorkFactory",
     "AuthSessionUnitOfWorkPort",

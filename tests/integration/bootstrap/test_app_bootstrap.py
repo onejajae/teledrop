@@ -108,7 +108,6 @@ class TestLifespanBootstrap:
                 asyncio.run(run_lifespan())
             ensure_mock.assert_called_once()
             assert ensure_mock.call_args.kwargs['settings'] is settings
-            assert not ensure_mock.call_args.kwargs['log_warning']
             validate_schema_mock.assert_called_once_with(fake_engine)
             fake_engine.dispose.assert_called_once_with()
 

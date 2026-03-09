@@ -2,7 +2,7 @@ from fastapi import Request, status
 
 from app.application.auth.types import AuthIdentity
 from app.application.auth.use_cases.csrf import CsrfTokenService
-from app.bootstrap.container import DropUseCaseCollection
+from app.application.drop.use_cases import ListDropsUseCase
 from app.core.config import Settings
 from app.interfaces.web.presenters.common import drop_manage_page_url, templates
 from app.interfaces.web.presenters.drop_panel import drop_panel_context
@@ -12,7 +12,7 @@ async def library_page_context(
     request: Request,
     auth_data: AuthIdentity,
     csrf_service: CsrfTokenService,
-    drop_use_cases: DropUseCaseCollection,
+    list_drops_use_case: ListDropsUseCase,
     settings: Settings,
     sortby: str | None = "created_at",
     orderby: str | None = "desc",
@@ -23,7 +23,7 @@ async def library_page_context(
         request=request,
         auth_data=auth_data,
         csrf_service=csrf_service,
-        drop_use_cases=drop_use_cases,
+        list_drops_use_case=list_drops_use_case,
         settings=settings,
         sortby=sortby,
         orderby=orderby,
@@ -42,7 +42,7 @@ async def render_library_page(
     request: Request,
     auth_data: AuthIdentity,
     csrf_service: CsrfTokenService,
-    drop_use_cases: DropUseCaseCollection,
+    list_drops_use_case: ListDropsUseCase,
     settings: Settings,
     status_code: int = status.HTTP_200_OK,
     sortby: str | None = "created_at",
@@ -54,7 +54,7 @@ async def render_library_page(
         request=request,
         auth_data=auth_data,
         csrf_service=csrf_service,
-        drop_use_cases=drop_use_cases,
+        list_drops_use_case=list_drops_use_case,
         settings=settings,
         sortby=sortby,
         orderby=orderby,

@@ -7,12 +7,13 @@ from app.application.drop.ports import DropUnitOfWorkPort
 from app.infrastructure.db.repositories.drop_repository import (
     DROP_MUTATION_REPOSITORY_INACTIVE_SESSION_ERROR,
     SQLModelDropMutationRepository,
+    SQLModelDropRepository,
 )
 from app.infrastructure.db.uow_base import BaseSQLModelUnitOfWork
 
 
 class SQLModelDropUnitOfWork(
-    BaseSQLModelUnitOfWork[SQLModelDropMutationRepository],
+    BaseSQLModelUnitOfWork[SQLModelDropRepository],
     DropUnitOfWorkPort,
 ):
     def __init__(self, session_factory: Callable[[], Session]):

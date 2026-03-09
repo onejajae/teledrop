@@ -1,8 +1,6 @@
 from app.interfaces.web.deps.auth import (
     CreateApiKeyUseCaseDep,
-    CsrfTokenServiceDep,
     DeleteApiKeyUseCaseDep,
-    DropUseCasesDep,
     ListApiKeysUseCaseDep,
     OptionalSessionAuthDep,
     PasswordLoginUseCaseDep,
@@ -10,12 +8,12 @@ from app.interfaces.web.deps.auth import (
     RevokeApiKeyUseCaseDep,
     RevokeSessionUseCaseDep,
 )
+from app.interfaces.web.deps.auth import CsrfTokenServiceDep
 
 __all__ = [
     "CreateApiKeyUseCaseDep",
     "CsrfTokenServiceDep",
     "DeleteApiKeyUseCaseDep",
-    "DropUseCasesDep",
     "ListApiKeysUseCaseDep",
     "OptionalSessionAuthDep",
     "PasswordLoginUseCaseDep",

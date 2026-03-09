@@ -3,14 +3,14 @@ from fastapi import Request, status
 from app.application.auth.types import AuthIdentity
 from app.application.auth.use_cases.csrf import CsrfTokenService
 from app.application.drop.models import DropListQuery
-from app.bootstrap.container import DropUseCaseCollection
+from app.application.drop.use_cases import ListDropsUseCase
 from app.core.config import Settings
 from app.domain.drop.errors import DropAccessDeniedError
 from app.domain.drop.value_objects import DropSortField
 from app.interfaces.web.presenters.common import (
     as_template_drop,
+    base_template_context,
     drop_preview_page_url,
-    csrf_token_for_request,
     normalize_sort_value,
     templates,
 )
@@ -28,7 +28,7 @@ async def drop_panel_context(
     request: Request,
     auth_data: AuthIdentity,
     csrf_service: CsrfTokenService,
-    drop_use_cases: DropUseCaseCollection,
+    list_drops_use_case: ListDropsUseCase,
     settings: Settings,
     selected_key: str | None = None,
     sortby: str | None = "created_at",
@@ -43,7 +43,7 @@ async def drop_panel_context(
         sort = SORT_MAP.get(normalize_sort_value(sortby), DropSortField.CREATED_AT)
         try:
             items = (
-                await drop_use_cases.list_drops_use_case.execute(
+                await list_drops_use_case.execute(
                     DropListQuery(
                         page=1,
                         page_size=200,
@@ -60,25 +60,26 @@ async def drop_panel_context(
         except DropAccessDeniedError:
             drops = []
 
-    return {
-        "request": request,
-        "is_login": bool(auth_data.username),
-        "drops": drops,
-        "drop_preview_urls": drop_preview_urls,
-        "selected_key": selected_key,
-        "drop_sortby": normalize_sort_value(sortby),
-        "drop_orderby": orderby or "desc",
-        "csrf_token": csrf_token_for_request(request, settings, csrf_service),
-        "drop_error_message": drop_error_message,
-        "drop_status_message": drop_status_message,
-    }
+    return base_template_context(
+        request=request,
+        auth_data=auth_data,
+        settings=settings,
+        csrf_service=csrf_service,
+        drops=drops,
+        drop_preview_urls=drop_preview_urls,
+        selected_key=selected_key,
+        drop_sortby=normalize_sort_value(sortby),
+        drop_orderby=orderby or "desc",
+        drop_error_message=drop_error_message,
+        drop_status_message=drop_status_message,
+    )
 
 
 async def render_drop_panel(
     request: Request,
     auth_data: AuthIdentity,
     csrf_service: CsrfTokenService,
-    drop_use_cases: DropUseCaseCollection,
+    list_drops_use_case: ListDropsUseCase,
     settings: Settings,
     status_code: int = status.HTTP_200_OK,
     selected_key: str | None = None,
@@ -91,7 +92,7 @@ async def render_drop_panel(
         request=request,
         auth_data=auth_data,
         csrf_service=csrf_service,
-        drop_use_cases=drop_use_cases,
+        list_drops_use_case=list_drops_use_case,
         settings=settings,
         selected_key=selected_key,
         sortby=sortby,

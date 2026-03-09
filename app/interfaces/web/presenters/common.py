@@ -7,6 +7,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from app.application.auth.use_cases.csrf import CsrfTokenService
+from app.application.auth.types import AuthIdentity
 from app.application.drop.models import DropDetailDTO, DropListItemDTO
 from app.bootstrap.runtime_paths import template_dir
 from app.core.auth import get_session_id_from_request
@@ -53,6 +54,23 @@ def unauthorized_ui_response(request: Request):
         response.headers["HX-Redirect"] = "/"
         return response
     return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
+
+
+def base_template_context(
+    request: Request,
+    auth_data: AuthIdentity,
+    settings: Settings,
+    csrf_service: CsrfTokenService,
+    **extra: object,
+) -> dict[str, object]:
+    context: dict[str, object] = {
+        "request": request,
+        "is_login": bool(auth_data.username),
+        "auth_username": auth_data.username,
+        "csrf_token": csrf_token_for_request(request, settings, csrf_service),
+    }
+    context.update(extra)
+    return context
 
 
 def normalize_sort_value(sortby: str | None) -> str:

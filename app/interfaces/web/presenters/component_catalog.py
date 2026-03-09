@@ -5,7 +5,7 @@ from fastapi import Request, status
 from app.application.auth.types import AuthIdentity
 from app.application.auth.use_cases.csrf import CsrfTokenService
 from app.core.config import Settings
-from app.interfaces.web.presenters.common import csrf_token_for_request, templates
+from app.interfaces.web.presenters.common import base_template_context, templates
 
 
 def _sample_drop(
@@ -48,18 +48,18 @@ def component_catalog_context(
     csrf_service: CsrfTokenService,
     settings: Settings,
 ) -> dict:
-    return {
-        "request": request,
-        "is_login": bool(auth_data.username),
-        "auth_username": auth_data.username,
-        "active_nav": None,
-        "csrf_token": csrf_token_for_request(request, settings, csrf_service),
-        "catalog_sort_options": [
+    return base_template_context(
+        request=request,
+        auth_data=auth_data,
+        settings=settings,
+        csrf_service=csrf_service,
+        active_nav=None,
+        catalog_sort_options=[
             SimpleNamespace(value="created_at", label="날짜"),
             SimpleNamespace(value="title", label="제목"),
             SimpleNamespace(value="size_bytes", label="크기"),
         ],
-        "catalog_public_drop": _sample_drop(
+        catalog_public_drop=_sample_drop(
             slug="spring-launch-kit",
             title="런치 패키지",
             file_name="launch-kit.pdf",
@@ -73,7 +73,7 @@ def component_catalog_context(
             updated_at="2026-03-06T13:22:00+09:00",
             updated_at_label="2026-03-06 (금) 13:22:00",
         ),
-        "catalog_private_drop": _sample_drop(
+        catalog_private_drop=_sample_drop(
             slug="product-teaser",
             title="티저 컷",
             file_name="teaser-shot.png",
@@ -85,7 +85,7 @@ def component_catalog_context(
             created_at_label="2026-03-07 (토) 20:14:00",
             created_at_relative="5시간 전",
         ),
-        "catalog_audio_drop": _sample_drop(
+        catalog_audio_drop=_sample_drop(
             slug="voice-note",
             title="보이스 메모",
             file_name="voice-note.m4a",
@@ -97,7 +97,7 @@ def component_catalog_context(
             created_at_label="2026-03-02 (월) 11:20:00",
             created_at_relative="6일 전",
         ),
-        "catalog_api_key": SimpleNamespace(
+        catalog_api_key=SimpleNamespace(
             name="shortcuts",
             public_id="tdp_01HZY8M4T2B6C9",
             is_active=True,
@@ -105,10 +105,10 @@ def component_catalog_context(
             expires_at="2026-04-01 09:00:00+09:00",
             last_used_at="2026-03-08 08:11:00+09:00",
         ),
-        "catalog_created_api_key": SimpleNamespace(
+        catalog_created_api_key=SimpleNamespace(
             key="td_live_demo_sample_secret_key",
         ),
-    }
+    )
 
 
 def render_component_catalog_page(

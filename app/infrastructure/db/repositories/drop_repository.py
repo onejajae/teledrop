@@ -8,14 +8,12 @@ from sqlmodel import Session, select
 from app.application.drop.ports import (
     UNSET,
     DropCreateInput,
-    DropMutationRepositoryPort,
-    DropReadRepositoryPort,
+    DropRepositoryPort,
     DropUpdateInput,
 )
 from app.domain.drop.entities import DropEntity
 from app.domain.drop.value_objects import AccessScope, DropSortField
 from app.infrastructure.db.models.drop import DropRecord
-from app.infrastructure.db.repositories.session_bound import SessionBoundMutationRepository
 
 
 DROP_MUTATION_REPOSITORY_INACTIVE_SESSION_ERROR = "Drop UnitOfWork session is not active."
@@ -78,13 +76,36 @@ def _apply_update(row: DropRecord, data: DropUpdateInput) -> None:
         row.drop_password = data.drop_password
 
 
-class SQLModelDropReadRepository(DropReadRepositoryPort):
-    def __init__(self, session_factory: Callable[[], Session]):
+class SQLModelDropRepository(DropRepositoryPort):
+    def __init__(
+        self,
+        *,
+        session_factory: Callable[[], Session] | None = None,
+        session: Session | None = None,
+        inactive_session_error: str = DROP_MUTATION_REPOSITORY_INACTIVE_SESSION_ERROR,
+    ):
         self._session_factory = session_factory
+        self._session = session
+        self._inactive_session_error = inactive_session_error
+
+    def deactivate(self) -> None:
+        self._session = None
+
+    def _require_session(self) -> Session:
+        if self._session is None:
+            raise RuntimeError(self._inactive_session_error)
+        return self._session
 
     def _with_new_session(self, operation: Callable[[Session], object]):
+        if self._session_factory is None:
+            raise RuntimeError(self._inactive_session_error)
         with self._session_factory() as session:
             return operation(session)
+
+    def _with_read_session(self, operation: Callable[[Session], object]):
+        if self._session is not None:
+            return operation(self._session)
+        return self._with_new_session(operation)
 
     async def list(
         self,
@@ -94,9 +115,9 @@ class SQLModelDropReadRepository(DropReadRepositoryPort):
         sort: DropSortField,
         order: str,
     ) -> list[DropEntity]:
-        return await anyio.to_thread.run_sync(self._list_with_new_session, limit, offset, sort, order)
+        return await anyio.to_thread.run_sync(self._list, limit, offset, sort, order)
 
-    def _list_with_new_session(
+    def _list(
         self,
         limit: int,
         offset: int,
@@ -115,43 +136,30 @@ class SQLModelDropReadRepository(DropReadRepositoryPort):
             rows = session.exec(query).all()
             return [_to_entity(row) for row in rows]
 
-        return self._with_new_session(operation)
+        return self._with_read_session(operation)
 
     async def count(self) -> int:
-        return await anyio.to_thread.run_sync(self._count_with_new_session)
+        return await anyio.to_thread.run_sync(self._count)
 
-    def _count_with_new_session(self) -> int:
+    def _count(self) -> int:
         def operation(session: Session) -> int:
             query = select(func.count()).select_from(DropRecord)
             result = session.exec(query).one()
             return int(result)
 
-        return self._with_new_session(operation)
+        return self._with_read_session(operation)
 
     async def get_by_slug(self, slug: str) -> DropEntity | None:
-        return await anyio.to_thread.run_sync(self._get_by_slug_with_new_session, slug)
+        return await anyio.to_thread.run_sync(self._get_by_slug, slug)
 
-    def _get_by_slug_with_new_session(self, slug: str) -> DropEntity | None:
+    def _get_by_slug(self, slug: str) -> DropEntity | None:
         def operation(session: Session) -> DropEntity | None:
             row = _find_by_slug_row(session, slug)
             if row is None:
                 return None
             return _to_entity(row)
 
-        return self._with_new_session(operation)
-
-
-class SQLModelDropMutationRepository(
-    SessionBoundMutationRepository,
-    DropMutationRepositoryPort,
-):
-    def __init__(
-        self,
-        session: Session,
-        *,
-        inactive_session_error: str = DROP_MUTATION_REPOSITORY_INACTIVE_SESSION_ERROR,
-    ):
-        super().__init__(session, inactive_session_error=inactive_session_error)
+        return self._with_read_session(operation)
 
     async def create(self, data: DropCreateInput) -> DropEntity:
         session = self._require_session()
@@ -160,12 +168,6 @@ class SQLModelDropMutationRepository(
         session.flush()
         session.refresh(record)
         return _to_entity(record)
-
-    async def get_by_slug(self, slug: str) -> DropEntity | None:
-        row = _find_by_slug_row(self._require_session(), slug)
-        if row is None:
-            return None
-        return _to_entity(row)
 
     async def update_by_slug(self, slug: str, data: DropUpdateInput) -> DropEntity | None:
         session = self._require_session()
@@ -188,8 +190,27 @@ class SQLModelDropMutationRepository(
         return True
 
 
+class SQLModelDropReadRepository(SQLModelDropRepository):
+    def __init__(self, session_factory: Callable[[], Session]):
+        super().__init__(session_factory=session_factory)
+
+
+class SQLModelDropMutationRepository(SQLModelDropRepository):
+    def __init__(
+        self,
+        session: Session,
+        *,
+        inactive_session_error: str = DROP_MUTATION_REPOSITORY_INACTIVE_SESSION_ERROR,
+    ):
+        super().__init__(
+            session=session,
+            inactive_session_error=inactive_session_error,
+        )
+
+
 __all__ = [
     "DROP_MUTATION_REPOSITORY_INACTIVE_SESSION_ERROR",
     "SQLModelDropMutationRepository",
     "SQLModelDropReadRepository",
+    "SQLModelDropRepository",
 ]

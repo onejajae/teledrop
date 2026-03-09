@@ -2,7 +2,7 @@ from fastapi import Request, status
 
 from app.application.auth.types import AuthIdentity
 from app.application.auth.use_cases.csrf import CsrfTokenService
-from app.bootstrap.container import DropUseCaseCollection
+from app.application.drop.use_cases import GetDropMetaUseCase, ListDropsUseCase
 from app.core.config import Settings
 from app.interfaces.web.presenters.auth_panel import auth_panel_context
 from app.interfaces.web.presenters.common import templates
@@ -27,7 +27,8 @@ async def dashboard_context(
     request: Request,
     auth_data: AuthIdentity,
     csrf_service: CsrfTokenService,
-    drop_use_cases: DropUseCaseCollection,
+    list_drops_use_case: ListDropsUseCase,
+    get_drop_meta_use_case: GetDropMetaUseCase,
     settings: Settings,
     selected_key: str | None,
     selected_password: str | None,
@@ -44,7 +45,7 @@ async def dashboard_context(
         request=request,
         auth_data=auth_data,
         csrf_service=csrf_service,
-        drop_use_cases=drop_use_cases,
+        list_drops_use_case=list_drops_use_case,
         settings=settings,
         selected_key=selected_key,
         sortby=sortby,
@@ -54,7 +55,7 @@ async def dashboard_context(
         request=request,
         auth_data=auth_data,
         csrf_service=csrf_service,
-        drop_use_cases=drop_use_cases,
+        get_drop_meta_use_case=get_drop_meta_use_case,
         settings=settings,
         selected_key=selected_key,
         selected_password=selected_password,
@@ -66,7 +67,8 @@ async def render_dashboard_page(
     request: Request,
     auth_data: AuthIdentity,
     csrf_service: CsrfTokenService,
-    drop_use_cases: DropUseCaseCollection,
+    list_drops_use_case: ListDropsUseCase,
+    get_drop_meta_use_case: GetDropMetaUseCase,
     settings: Settings,
     status_code: int = status.HTTP_200_OK,
     selected_key: str | None = None,
@@ -78,7 +80,8 @@ async def render_dashboard_page(
         request=request,
         auth_data=auth_data,
         csrf_service=csrf_service,
-        drop_use_cases=drop_use_cases,
+        list_drops_use_case=list_drops_use_case,
+        get_drop_meta_use_case=get_drop_meta_use_case,
         settings=settings,
         selected_key=selected_key,
         selected_password=selected_password,

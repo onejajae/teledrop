@@ -23,7 +23,7 @@ def build_lifespan(settings: Settings):
         if sqlite_dir is not None:
             sqlite_dir.mkdir(parents=True, exist_ok=True)
 
-        container = ensure_app_container(_app, settings=settings, log_warning=False)
+        container = ensure_app_container(_app, settings=settings)
 
         try:
             assert_db_schema_current(container.db_engine)

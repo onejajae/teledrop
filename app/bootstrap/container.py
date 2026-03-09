@@ -38,7 +38,7 @@ from app.application.drop.use_cases import (
     UpdateDropUseCase,
 )
 from app.bootstrap.runtime_paths import project_root_dir
-from app.core.config import Settings, get_settings
+from app.core.config import Settings
 from app.infrastructure.db.engine import create_db_engine, create_db_session_factory
 from app.infrastructure.db.repositories import (
     SQLModelApiKeyReadRepository,
@@ -60,7 +60,13 @@ _container_lock = threading.Lock()
 
 
 @dataclass(slots=True)
-class DropUseCaseCollection:
+class AppContainer:
+    settings: Settings
+    db_engine: Engine
+    db_session_factory: sessionmaker[Session]
+    csrf_token_service: CsrfTokenService
+    file_storage: LocalFileStorage
+    drop_slug_candidate_generator: DropSlugCandidateGeneratorPort
     create_drop_use_case: CreateDropUseCase
     list_drops_use_case: ListDropsUseCase
     get_drop_meta_use_case: GetDropMetaUseCase
@@ -68,10 +74,6 @@ class DropUseCaseCollection:
     update_drop_use_case: UpdateDropUseCase
     delete_drop_use_case: DeleteDropUseCase
     check_slug_availability_use_case: CheckSlugAvailabilityUseCase
-
-
-@dataclass(slots=True)
-class AuthUseCaseCollection:
     password_login_use_case: PasswordLoginUseCase
     create_session_use_case: CreateSessionUseCase
     verify_session_use_case: VerifySessionUseCase
@@ -81,18 +83,6 @@ class AuthUseCaseCollection:
     revoke_api_key_use_case: RevokeApiKeyUseCase
     delete_api_key_use_case: DeleteApiKeyUseCase
     verify_api_key_use_case: VerifyApiKeyUseCase
-
-
-@dataclass(slots=True)
-class AppContainer:
-    settings: Settings
-    db_engine: Engine
-    db_session_factory: sessionmaker[Session]
-    csrf_token_service: CsrfTokenService
-    file_storage: LocalFileStorage
-    drop_slug_candidate_generator: DropSlugCandidateGeneratorPort
-    drop_use_cases: DropUseCaseCollection
-    auth_use_cases: AuthUseCaseCollection
 
 
 def _resolve_slug_words_dir(settings: Settings) -> Path:
@@ -134,32 +124,34 @@ def _build_drop_use_cases(
     storage: LocalFileStorage,
     slug_service: DropSlugService,
     uow_factory: DropUnitOfWorkFactory,
-) -> DropUseCaseCollection:
-    return DropUseCaseCollection(
-        create_drop_use_case=CreateDropUseCase(
+) -> dict[str, object]:
+    return {
+        "create_drop_use_case": CreateDropUseCase(
             storage=storage,
             slug_service=slug_service,
             uow_factory=uow_factory,
         ),
-        list_drops_use_case=ListDropsUseCase(
+        "list_drops_use_case": ListDropsUseCase(
             repository=read_repository,
             default_page_size=settings.DEFAULT_PAGE_SIZE,
             max_page_size=settings.MAX_PAGE_SIZE,
         ),
-        get_drop_meta_use_case=GetDropMetaUseCase(repository=read_repository),
-        get_drop_stream_source_use_case=GetDropStreamSourceUseCase(
+        "get_drop_meta_use_case": GetDropMetaUseCase(repository=read_repository),
+        "get_drop_stream_source_use_case": GetDropStreamSourceUseCase(
             repository=read_repository,
             storage=storage,
         ),
-        update_drop_use_case=UpdateDropUseCase(
+        "update_drop_use_case": UpdateDropUseCase(
             uow_factory=uow_factory,
         ),
-        delete_drop_use_case=DeleteDropUseCase(
+        "delete_drop_use_case": DeleteDropUseCase(
             storage=storage,
             uow_factory=uow_factory,
         ),
-        check_slug_availability_use_case=CheckSlugAvailabilityUseCase(slug_service=slug_service),
-    )
+        "check_slug_availability_use_case": CheckSlugAvailabilityUseCase(
+            slug_service=slug_service
+        ),
+    }
 
 
 def _build_auth_use_cases(
@@ -167,40 +159,40 @@ def _build_auth_use_cases(
     session_uow_factory: AuthSessionUnitOfWorkFactory,
     api_key_read_repository: SQLModelApiKeyReadRepository,
     api_key_uow_factory: AuthApiKeyUnitOfWorkFactory,
-) -> AuthUseCaseCollection:
+) -> dict[str, object]:
     create_session_use_case = CreateSessionUseCase(
         session_ttl_seconds=settings.SESSION_TTL_SECONDS,
         uow_factory=session_uow_factory,
     )
-    return AuthUseCaseCollection(
-        password_login_use_case=PasswordLoginUseCase(
+    return {
+        "password_login_use_case": PasswordLoginUseCase(
             web_username=settings.WEB_USERNAME,
             web_password_hash=settings.WEB_PASSWORD,
             create_session_use_case=create_session_use_case,
         ),
-        create_session_use_case=create_session_use_case,
-        verify_session_use_case=VerifySessionUseCase(
+        "create_session_use_case": create_session_use_case,
+        "verify_session_use_case": VerifySessionUseCase(
             uow_factory=session_uow_factory,
         ),
-        revoke_session_use_case=RevokeSessionUseCase(
+        "revoke_session_use_case": RevokeSessionUseCase(
             uow_factory=session_uow_factory,
         ),
-        create_api_key_use_case=CreateApiKeyUseCase(
+        "create_api_key_use_case": CreateApiKeyUseCase(
             uow_factory=api_key_uow_factory,
         ),
-        list_api_keys_use_case=ListApiKeysUseCase(
+        "list_api_keys_use_case": ListApiKeysUseCase(
             repository=api_key_read_repository,
         ),
-        revoke_api_key_use_case=RevokeApiKeyUseCase(
+        "revoke_api_key_use_case": RevokeApiKeyUseCase(
             uow_factory=api_key_uow_factory,
         ),
-        delete_api_key_use_case=DeleteApiKeyUseCase(
+        "delete_api_key_use_case": DeleteApiKeyUseCase(
             uow_factory=api_key_uow_factory,
         ),
-        verify_api_key_use_case=VerifyApiKeyUseCase(
+        "verify_api_key_use_case": VerifyApiKeyUseCase(
             uow_factory=api_key_uow_factory,
         ),
-    )
+    }
 
 
 def build_app_container(settings: Settings) -> AppContainer:
@@ -244,8 +236,8 @@ def build_app_container(settings: Settings) -> AppContainer:
         csrf_token_service=CsrfTokenService(settings.CSRF_SECRET_KEY),
         file_storage=file_storage,
         drop_slug_candidate_generator=drop_slug_candidate_generator,
-        drop_use_cases=drop_use_cases,
-        auth_use_cases=auth_use_cases,
+        **drop_use_cases,
+        **auth_use_cases,
     )
 
 
@@ -257,48 +249,40 @@ def ensure_app_container(
     app: FastAPI,
     *,
     settings: Settings | None = None,
-    log_warning: bool = True,
 ) -> AppContainer:
     existing = getattr(app.state, "container", None)
     if existing is not None:
         return existing
+
+    if settings is None:
+        raise RuntimeError(
+            "App container is not attached. Use create_app() or attach_app_container() "
+            "before resolving application dependencies."
+        )
 
     with _container_lock:
         existing = getattr(app.state, "container", None)
         if existing is not None:
             return existing
 
-        resolved_settings = settings
-        if resolved_settings is None:
-            resolved_settings = get_settings()
-            resolved_settings.validate_auth_configuration()
-            if log_warning:
-                logger.warning(
-                    "App container auto-created without startup lifespan. "
-                    "Use create_app() with lifespan for production."
-                )
-
-        container = build_app_container(resolved_settings)
+        container = build_app_container(settings)
         attach_app_container(app, container)
         return container
 
 
 def get_app_container(request: Request) -> AppContainer:
-    return ensure_app_container(request.app)
+    container = getattr(request.app.state, "container", None)
+    if container is None:
+        raise RuntimeError(
+            "App container is not attached. Use create_app() or attach_app_container() "
+            "before resolving application dependencies."
+        )
+    return container
 
 
 def get_app_settings(request: Request) -> Settings:
     return get_app_container(request).settings
 
 
-def get_drop_use_cases(request: Request) -> DropUseCaseCollection:
-    return get_app_container(request).drop_use_cases
-
-
-def get_auth_use_cases(request: Request) -> AuthUseCaseCollection:
-    return get_app_container(request).auth_use_cases
-
-
 AppContainerDep = Annotated[AppContainer, Depends(get_app_container)]
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
-AuthUseCasesDep = Annotated[AuthUseCaseCollection, Depends(get_auth_use_cases)]

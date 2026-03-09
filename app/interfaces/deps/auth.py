@@ -14,57 +14,57 @@ from app.application.auth.use_cases import (
     VerifyApiKeyUseCase,
     VerifySessionUseCase,
 )
-from app.bootstrap.container import AuthUseCasesDep, SettingsDep
+from app.bootstrap.container import AppContainerDep, SettingsDep
 from app.core.auth import clear_session_cookie, get_session_id_from_request
 from app.domain.auth.errors import ApiKeyInvalid, SessionExpired, SessionInvalid
 
 
 def get_verify_session_use_case(
-    auth_use_cases: AuthUseCasesDep,
+    container: AppContainerDep,
 ) -> VerifySessionUseCase:
-    return auth_use_cases.verify_session_use_case
+    return container.verify_session_use_case
 
 
 def get_verify_api_key_use_case(
-    auth_use_cases: AuthUseCasesDep,
+    container: AppContainerDep,
 ) -> VerifyApiKeyUseCase:
-    return auth_use_cases.verify_api_key_use_case
+    return container.verify_api_key_use_case
 
 
 def get_revoke_session_use_case(
-    auth_use_cases: AuthUseCasesDep,
+    container: AppContainerDep,
 ) -> RevokeSessionUseCase:
-    return auth_use_cases.revoke_session_use_case
+    return container.revoke_session_use_case
 
 
 def get_password_login_use_case(
-    auth_use_cases: AuthUseCasesDep,
+    container: AppContainerDep,
 ) -> PasswordLoginUseCase:
-    return auth_use_cases.password_login_use_case
+    return container.password_login_use_case
 
 
 def get_create_api_key_use_case(
-    auth_use_cases: AuthUseCasesDep,
+    container: AppContainerDep,
 ) -> CreateApiKeyUseCase:
-    return auth_use_cases.create_api_key_use_case
+    return container.create_api_key_use_case
 
 
 def get_list_api_keys_use_case(
-    auth_use_cases: AuthUseCasesDep,
+    container: AppContainerDep,
 ) -> ListApiKeysUseCase:
-    return auth_use_cases.list_api_keys_use_case
+    return container.list_api_keys_use_case
 
 
 def get_revoke_api_key_use_case(
-    auth_use_cases: AuthUseCasesDep,
+    container: AppContainerDep,
 ) -> RevokeApiKeyUseCase:
-    return auth_use_cases.revoke_api_key_use_case
+    return container.revoke_api_key_use_case
 
 
 def get_delete_api_key_use_case(
-    auth_use_cases: AuthUseCasesDep,
+    container: AppContainerDep,
 ) -> DeleteApiKeyUseCase:
-    return auth_use_cases.delete_api_key_use_case
+    return container.delete_api_key_use_case
 
 
 async def authenticate_with_session(

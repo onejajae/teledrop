@@ -6,14 +6,13 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.application.drop.models import DropDetailDTO, DropListDTO
-from app.bootstrap.container import get_app_settings
+from app.bootstrap.container import get_app_container, get_app_settings
 from app.domain.auth.errors import ApiKeyNotFound
 from app.domain.drop.value_objects import AccessScope
 from app.interfaces.api.deps import (
     get_create_api_key_use_case,
     get_csrf_token_service,
     get_delete_api_key_use_case,
-    get_drop_use_cases,
     get_list_api_keys_use_case,
     get_revoke_api_key_use_case,
     get_revoke_session_use_case,
@@ -187,7 +186,7 @@ def _client(
         MAX_PAGE_SIZE=200,
     )
 
-    app.dependency_overrides[get_drop_use_cases] = lambda: drop_use_cases
+    app.dependency_overrides[get_app_container] = lambda: drop_use_cases
     app.dependency_overrides[get_app_settings] = lambda: fake_settings
     app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
     app.dependency_overrides[get_csrf_token_service] = lambda: csrf_service

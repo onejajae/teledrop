@@ -2,7 +2,7 @@ from fastapi import Request, status
 
 from app.application.auth.types import AuthIdentity
 from app.application.auth.use_cases.csrf import CsrfTokenService
-from app.bootstrap.container import DropUseCaseCollection
+from app.application.drop.use_cases import GetDropMetaUseCase
 from app.core.config import Settings
 from app.interfaces.web.presenters.common import drop_manage_page_url, templates
 from app.interfaces.web.presenters.detail_panel import detail_panel_context
@@ -22,7 +22,7 @@ async def shared_page_context(
     request: Request,
     auth_data: AuthIdentity,
     csrf_service: CsrfTokenService,
-    drop_use_cases: DropUseCaseCollection,
+    get_drop_meta_use_case: GetDropMetaUseCase,
     settings: Settings,
     slug: str,
     password: str | None = None,
@@ -31,7 +31,7 @@ async def shared_page_context(
         request=request,
         auth_data=auth_data,
         csrf_service=csrf_service,
-        drop_use_cases=drop_use_cases,
+        get_drop_meta_use_case=get_drop_meta_use_case,
         settings=settings,
         selected_key=slug,
         selected_password=password,
@@ -61,7 +61,7 @@ async def render_shared_page(
     request: Request,
     auth_data: AuthIdentity,
     csrf_service: CsrfTokenService,
-    drop_use_cases: DropUseCaseCollection,
+    get_drop_meta_use_case: GetDropMetaUseCase,
     settings: Settings,
     slug: str,
     password: str | None = None,
@@ -71,7 +71,7 @@ async def render_shared_page(
         request=request,
         auth_data=auth_data,
         csrf_service=csrf_service,
-        drop_use_cases=drop_use_cases,
+        get_drop_meta_use_case=get_drop_meta_use_case,
         settings=settings,
         slug=slug,
         password=password,

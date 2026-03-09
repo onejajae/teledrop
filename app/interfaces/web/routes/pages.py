@@ -2,12 +2,12 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse
 
 from app.bootstrap.container import SettingsDep
-from app.interfaces.web.deps import (
-    CsrfTokenServiceDep,
-    DropUseCasesDep,
+from app.interfaces.deps.auth import (
     ListApiKeysUseCaseDep,
     OptionalSessionAuthDep,
 )
+from app.interfaces.deps.common import CsrfTokenServiceDep
+from app.interfaces.deps.drop import GetDropMetaUseCaseDep, ListDropsUseCaseDep
 from app.interfaces.web.presenters.api_keys_page import render_api_keys_page
 from app.interfaces.web.presenters.auth_panel import render_auth_panel
 from app.interfaces.web.presenters.component_catalog import render_component_catalog_page
@@ -45,7 +45,7 @@ async def ui_library(
     settings: SettingsDep,
     auth_data: OptionalSessionAuthDep,
     csrf_service: CsrfTokenServiceDep,
-    drop_use_cases: DropUseCasesDep,
+    list_drops_use_case: ListDropsUseCaseDep,
     sortby: str | None = Query(default="created_at"),
     orderby: str | None = Query(default="desc"),
 ):
@@ -56,7 +56,7 @@ async def ui_library(
         request=request,
         auth_data=auth_data,
         csrf_service=csrf_service,
-        drop_use_cases=drop_use_cases,
+        list_drops_use_case=list_drops_use_case,
         settings=settings,
         sortby=sortby,
         orderby=orderby,
@@ -70,7 +70,7 @@ async def ui_manage_drop(
     settings: SettingsDep,
     auth_data: OptionalSessionAuthDep,
     csrf_service: CsrfTokenServiceDep,
-    drop_use_cases: DropUseCasesDep,
+    get_drop_meta_use_case: GetDropMetaUseCaseDep,
     password: str | None = Query(default=None),
 ):
     if not auth_data.username:
@@ -80,7 +80,7 @@ async def ui_manage_drop(
         request=request,
         auth_data=auth_data,
         csrf_service=csrf_service,
-        drop_use_cases=drop_use_cases,
+        get_drop_meta_use_case=get_drop_meta_use_case,
         settings=settings,
         slug=slug,
         password=password,
@@ -108,7 +108,7 @@ async def ui_drop_panel(
     settings: SettingsDep,
     auth_data: OptionalSessionAuthDep,
     csrf_service: CsrfTokenServiceDep,
-    drop_use_cases: DropUseCasesDep,
+    list_drops_use_case: ListDropsUseCaseDep,
     slug: str | None = Query(default=None),
     sortby: str | None = Query(default="created_at"),
     orderby: str | None = Query(default="desc"),
@@ -117,7 +117,7 @@ async def ui_drop_panel(
         request=request,
         auth_data=auth_data,
         csrf_service=csrf_service,
-        drop_use_cases=drop_use_cases,
+        list_drops_use_case=list_drops_use_case,
         settings=settings,
         selected_key=slug,
         sortby=sortby,
@@ -148,7 +148,7 @@ async def ui_drop_detail(
     settings: SettingsDep,
     auth_data: OptionalSessionAuthDep,
     csrf_service: CsrfTokenServiceDep,
-    drop_use_cases: DropUseCasesDep,
+    get_drop_meta_use_case: GetDropMetaUseCaseDep,
     slug: str | None = Query(default=None),
     password: str | None = Query(default=None),
 ):
@@ -156,7 +156,7 @@ async def ui_drop_detail(
         request=request,
         auth_data=auth_data,
         csrf_service=csrf_service,
-        drop_use_cases=drop_use_cases,
+        get_drop_meta_use_case=get_drop_meta_use_case,
         settings=settings,
         selected_key=slug,
         selected_password=password,
@@ -205,14 +205,14 @@ async def ui_preview(
     settings: SettingsDep,
     auth_data: OptionalSessionAuthDep,
     csrf_service: CsrfTokenServiceDep,
-    drop_use_cases: DropUseCasesDep,
+    get_drop_meta_use_case: GetDropMetaUseCaseDep,
     password: str | None = Query(default=None),
 ):
     return await render_shared_page(
         request=request,
         auth_data=auth_data,
         csrf_service=csrf_service,
-        drop_use_cases=drop_use_cases,
+        get_drop_meta_use_case=get_drop_meta_use_case,
         settings=settings,
         slug=slug,
         password=password,

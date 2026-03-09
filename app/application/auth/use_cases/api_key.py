@@ -14,7 +14,7 @@ from app.application.auth.models import (
 )
 from app.application.auth.ports import (
     AuthApiKeyCreateInput,
-    AuthApiKeyReadRepositoryPort,
+    AuthApiKeyRepositoryPort,
     AuthApiKeyRecord,
     AuthApiKeyUnitOfWorkFactory,
 )
@@ -132,7 +132,7 @@ class CreateApiKeyUseCase:
 
 
 class ListApiKeysUseCase:
-    def __init__(self, repository: AuthApiKeyReadRepositoryPort):
+    def __init__(self, repository: AuthApiKeyRepositoryPort):
         self.repository = repository
 
     async def execute(self) -> list[ApiKeyDTO]:

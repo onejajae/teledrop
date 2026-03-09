@@ -6,8 +6,7 @@ from sqlmodel import Session, select
 
 from app.application.auth.ports import (
     AuthSessionCreateInput,
-    AuthSessionMutationRepositoryPort,
-    AuthSessionReadRepositoryPort,
+    AuthSessionRepositoryPort,
     AuthSessionRecord,
 )
 from app.infrastructure.db.models.auth import AuthSession
@@ -34,7 +33,7 @@ def _to_record(row: AuthSession) -> AuthSessionRecord:
     )
 
 
-class SQLModelSessionReadRepository(AuthSessionReadRepositoryPort):
+class SQLModelSessionReadRepository:
     def __init__(self, session_factory: Callable[[], Session]):
         self._session_factory = session_factory
 
@@ -55,7 +54,7 @@ class SQLModelSessionReadRepository(AuthSessionReadRepositoryPort):
 
 class SQLModelSessionMutationRepository(
     SessionBoundMutationRepository,
-    AuthSessionMutationRepositoryPort,
+    AuthSessionRepositoryPort,
 ):
     def __init__(
         self,

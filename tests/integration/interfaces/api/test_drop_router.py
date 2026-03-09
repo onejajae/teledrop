@@ -14,10 +14,15 @@ from app.domain.drop.errors import (
     DropPasswordInvalidError,
 )
 from app.domain.drop.value_objects import AccessScope
-from app.interfaces.api.deps import (
-    get_drop_use_cases,
-    get_verify_api_key_use_case,
-    get_verify_session_use_case,
+from app.interfaces.api.deps import get_verify_api_key_use_case, get_verify_session_use_case
+from app.interfaces.deps.drop import (
+    get_check_slug_availability_use_case,
+    get_create_drop_use_case,
+    get_delete_drop_use_case,
+    get_get_drop_meta_use_case,
+    get_get_drop_stream_source_use_case,
+    get_list_drops_use_case,
+    get_update_drop_use_case,
 )
 from app.interfaces.api.router import api_router
 
@@ -156,7 +161,27 @@ def _client(fake_use_cases: _FakeDropUseCases) -> TestClient:
         DEFAULT_PAGE_SIZE=10,
         MAX_PAGE_SIZE=200,
     )
-    app.dependency_overrides[get_drop_use_cases] = lambda: fake_use_cases
+    app.dependency_overrides[get_check_slug_availability_use_case] = (
+        lambda: fake_use_cases.check_slug_availability_use_case
+    )
+    app.dependency_overrides[get_create_drop_use_case] = (
+        lambda: fake_use_cases.create_drop_use_case
+    )
+    app.dependency_overrides[get_delete_drop_use_case] = (
+        lambda: fake_use_cases.delete_drop_use_case
+    )
+    app.dependency_overrides[get_get_drop_meta_use_case] = (
+        lambda: fake_use_cases.get_drop_meta_use_case
+    )
+    app.dependency_overrides[get_get_drop_stream_source_use_case] = (
+        lambda: fake_use_cases.get_drop_stream_source_use_case
+    )
+    app.dependency_overrides[get_list_drops_use_case] = (
+        lambda: fake_use_cases.list_drops_use_case
+    )
+    app.dependency_overrides[get_update_drop_use_case] = (
+        lambda: fake_use_cases.update_drop_use_case
+    )
     app.dependency_overrides[get_app_settings] = lambda: fake_settings
     app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
     app.dependency_overrides[get_verify_api_key_use_case] = lambda: _FakeVerifyApiKeyUseCase()

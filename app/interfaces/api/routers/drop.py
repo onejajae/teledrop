@@ -6,8 +6,6 @@ from fastapi.responses import StreamingResponse
 from app.application.drop.models import (
     UNSET as COMMAND_UNSET,
     CreateDropCommand,
-    DropDetailDTO,
-    DropListItemDTO,
     DropListQuery,
     DropMetaQuery,
     DropStreamQuery,
@@ -19,11 +17,7 @@ from app.core.utils import parse_range_header
 from app.domain.drop.errors import DropAccessDeniedError, DropSlugUnavailableError
 from app.domain.drop.policies import normalize_drop_password
 from app.domain.drop.value_objects import AccessScope, DropSortField
-from app.interfaces.api.deps import (
-    DropUseCasesDep,
-    OptionalApiAuthDep,
-    RequiredApiAuthDep,
-)
+from app.interfaces.api.deps import OptionalApiAuthDep, RequiredApiAuthDep
 from app.interfaces.api.errors import (
     drop_list_unauthorized_exception,
     invalid_range_header_exception,
@@ -34,72 +28,46 @@ from app.interfaces.api.errors import (
 )
 from app.interfaces.api.schemas.drop import (
     DropDetailResponse,
-    DropListItemResponse,
     DropListResponse,
     DropPatchRequest,
     SlugAvailabilityResponse,
+)
+from app.interfaces.deps.drop import (
+    CheckSlugAvailabilityUseCaseDep,
+    CreateDropUseCaseDep,
+    DeleteDropUseCaseDep,
+    GetDropMetaUseCaseDep,
+    GetDropStreamSourceUseCaseDep,
+    ListDropsUseCaseDep,
+    UpdateDropUseCaseDep,
 )
 
 
 router = APIRouter(prefix="/drop", tags=["Drop"])
 
 
-def _to_list_item_response(item: DropListItemDTO) -> DropListItemResponse:
-    return DropListItemResponse(
-        slug=item.slug,
-        title=item.title,
-        description=item.description,
-        file_name=item.file_name,
-        mime_type=item.mime_type,
-        size_bytes=item.size_bytes,
-        access_scope=item.access_scope,
-        is_favorite=item.is_favorite,
-        requires_password=item.requires_password,
-        created_at=item.created_at,
-        updated_at=item.updated_at,
-    )
-
-
-def _to_detail_response(item: DropDetailDTO) -> DropDetailResponse:
-    list_item = _to_list_item_response(item)
-    return DropDetailResponse(
-        slug=list_item.slug,
-        title=list_item.title,
-        description=list_item.description,
-        file_name=list_item.file_name,
-        mime_type=list_item.mime_type,
-        size_bytes=list_item.size_bytes,
-        access_scope=list_item.access_scope,
-        is_favorite=list_item.is_favorite,
-        requires_password=list_item.requires_password,
-        created_at=list_item.created_at,
-        updated_at=list_item.updated_at,
-        sha256=item.sha256,
-    )
-
-
 @router.get("/availability/{slug}", response_model=SlugAvailabilityResponse)
 async def slug_availability(
     slug: str,
     _auth_data: RequiredApiAuthDep,
-    use_cases: DropUseCasesDep,
+    check_slug_availability_use_case: CheckSlugAvailabilityUseCaseDep,
 ):
     return SlugAvailabilityResponse(
-        available=await use_cases.check_slug_availability_use_case.execute(slug)
+        available=await check_slug_availability_use_case.execute(slug)
     )
 
 
 @router.get("", response_model=DropListResponse)
 async def list_drops(
     auth_data: RequiredApiAuthDep,
-    use_cases: DropUseCasesDep,
+    list_drops_use_case: ListDropsUseCaseDep,
     page: int = Query(default=1),
     page_size: int = Query(default=50),
     sort: DropSortField = Query(default=DropSortField.CREATED_AT),
     order: str = Query(default="desc"),
 ):
     try:
-        result = await use_cases.list_drops_use_case.execute(
+        result = await list_drops_use_case.execute(
             DropListQuery(
                 page=page,
                 page_size=page_size,
@@ -111,18 +79,13 @@ async def list_drops(
     except DropAccessDeniedError:
         raise drop_list_unauthorized_exception()
 
-    return DropListResponse(
-        items=[_to_list_item_response(item) for item in result.items],
-        page=result.page,
-        page_size=result.page_size,
-        total=result.total,
-    )
+    return DropListResponse.from_dto(result)
 
 
 @router.post("", response_model=DropDetailResponse)
 async def upload_drop(
     _auth_data: RequiredApiAuthDep,
-    use_cases: DropUseCasesDep,
+    create_drop_use_case: CreateDropUseCaseDep,
     file: UploadFile = File(),
     slug: str | None = Form(default=None),
     title: str | None = Form(default=None),
@@ -150,22 +113,22 @@ async def upload_drop(
     )
 
     try:
-        created = await use_cases.create_drop_use_case.execute(command)
+        created = await create_drop_use_case.execute(command)
     except DropSlugUnavailableError:
         raise slug_unavailable_exception()
 
-    return _to_detail_response(created)
+    return DropDetailResponse.from_dto(created)
 
 
 @router.get("/{slug}/meta", response_model=DropDetailResponse)
 async def drop_meta(
     slug: str,
     auth_data: OptionalApiAuthDep,
-    use_cases: DropUseCasesDep,
+    get_drop_meta_use_case: GetDropMetaUseCaseDep,
     drop_password: str | None = Query(default=None),
 ):
     try:
-        result = await use_cases.get_drop_meta_use_case.execute(
+        result = await get_drop_meta_use_case.execute(
             DropMetaQuery(
                 slug=slug,
                 drop_password=normalize_drop_password(drop_password),
@@ -175,20 +138,20 @@ async def drop_meta(
     except Exception as exc:
         raise map_drop_read_exception(exc)
 
-    return _to_detail_response(result)
+    return DropDetailResponse.from_dto(result)
 
 
 @router.get("/{slug}")
 async def drop_stream(
     slug: str,
     auth_data: OptionalApiAuthDep,
-    use_cases: DropUseCasesDep,
+    get_drop_stream_source_use_case: GetDropStreamSourceUseCaseDep,
     disposition: str = Query(default="attachment"),
     drop_password: str | None = Query(default=None),
     range_header: str | None = Header(None, alias="Range"),
 ):
     try:
-        detail, storage_key = await use_cases.get_drop_stream_source_use_case.execute(
+        detail, storage_key = await get_drop_stream_source_use_case.execute(
             DropStreamQuery(
                 slug=slug,
                 drop_password=normalize_drop_password(drop_password),
@@ -229,7 +192,7 @@ async def drop_stream(
         status_code = status.HTTP_206_PARTIAL_CONTENT
 
     return StreamingResponse(
-        content=use_cases.get_drop_stream_source_use_case.iter_stream_range(
+        content=get_drop_stream_source_use_case.iter_stream_range(
             storage_key, start, end
         ),
         status_code=status_code,
@@ -243,7 +206,7 @@ async def patch_drop(
     slug: str,
     payload: DropPatchRequest,
     _auth_data: RequiredApiAuthDep,
-    use_cases: DropUseCasesDep,
+    update_drop_use_case: UpdateDropUseCaseDep,
 ):
     title = payload.title if "title" in payload.model_fields_set else COMMAND_UNSET
     description = (
@@ -260,7 +223,7 @@ async def patch_drop(
     )
 
     try:
-        result = await use_cases.update_drop_use_case.execute(
+        result = await update_drop_use_case.execute(
             UpdateDropCommand(
                 slug=slug,
                 current_password=normalize_drop_password(payload.current_password),
@@ -274,18 +237,18 @@ async def patch_drop(
     except Exception as exc:
         raise map_drop_mutation_exception(exc)
 
-    return _to_detail_response(result)
+    return DropDetailResponse.from_dto(result)
 
 
 @router.delete("/{slug}")
 async def delete_drop(
     slug: str,
     _auth_data: RequiredApiAuthDep,
-    use_cases: DropUseCasesDep,
+    delete_drop_use_case: DeleteDropUseCaseDep,
     current_password: str | None = Query(default=None),
 ):
     try:
-        await use_cases.delete_drop_use_case.execute(
+        await delete_drop_use_case.execute(
             DeleteDropCommand(
                 slug=slug,
                 current_password=normalize_drop_password(current_password),

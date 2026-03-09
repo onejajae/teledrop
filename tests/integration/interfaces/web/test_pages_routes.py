@@ -50,6 +50,21 @@ def _client() -> TestClient:
 
 
 class TestWebPagesRoutes:
+    def test_home_renders_for_anonymous_user(self):
+        client = _client()
+
+        response = client.get("/")
+
+        assert response.status_code == 200
+
+    def test_home_renders_for_logged_in_user(self):
+        client = _client()
+        client.cookies.set("session_id", "sid")
+
+        response = client.get("/")
+
+        assert response.status_code == 200
+
     def test_dev_components_renders_for_anonymous_user(self):
         client = _client()
 

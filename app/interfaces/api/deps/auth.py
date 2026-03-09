@@ -120,22 +120,14 @@ RequiredApiAuthDep = Annotated[
     Depends(SessionOrApiKeyAuthenticator(auto_error=True)),
 ]
 
-# Backward-compat aliases for existing API-layer imports.
-AuthDep = RequiredApiAuthDep
-RequiredAuthDep = RequiredApiAuthDep
-OptionalAuthDep = OptionalApiAuthDep
-
 __all__ = [
-    "AuthDep",
     "CreateApiKeyUseCaseDep",
     "DeleteApiKeyUseCaseDep",
     "ListApiKeysUseCaseDep",
     "OptionalApiAuthDep",
-    "OptionalAuthDep",
     "OptionalSessionAuthDep",
     "PasswordLoginUseCaseDep",
     "RequiredApiAuthDep",
-    "RequiredAuthDep",
     "RequiredSessionAuthDep",
     "RevokeApiKeyUseCaseDep",
     "RevokeSessionUseCaseDep",

@@ -3,8 +3,8 @@ from collections.abc import Awaitable, Callable
 from fastapi import Request, Response, status
 from fastapi.responses import RedirectResponse
 
+from app.application.drop.use_cases import ListDropsUseCase
 from app.application.auth.use_cases.csrf import CsrfTokenService
-from app.bootstrap.container import DropUseCaseCollection
 from app.core.config import Settings
 from app.domain.drop.errors import DropNotFoundError, DropPasswordInvalidError
 from app.application.auth.types import AuthIdentity
@@ -42,7 +42,7 @@ async def render_drop_panel_error(
     request: Request,
     auth_data: AuthIdentity,
     csrf_service: CsrfTokenService,
-    drop_use_cases: DropUseCaseCollection,
+    list_drops_use_case: ListDropsUseCase,
     settings: Settings,
     exc: Exception,
 ) -> Response:
@@ -59,7 +59,7 @@ async def render_drop_panel_error(
         request=request,
         auth_data=auth_data,
         csrf_service=csrf_service,
-        drop_use_cases=drop_use_cases,
+        list_drops_use_case=list_drops_use_case,
         settings=settings,
         status_code=status_code,
         drop_error_message=error_message,
@@ -70,7 +70,7 @@ async def drop_panel_success_or_redirect(
     request: Request,
     auth_data: AuthIdentity,
     csrf_service: CsrfTokenService,
-    drop_use_cases: DropUseCaseCollection,
+    list_drops_use_case: ListDropsUseCase,
     settings: Settings,
     slug: str,
     status_message: str,
@@ -80,7 +80,7 @@ async def drop_panel_success_or_redirect(
             request=request,
             auth_data=auth_data,
             csrf_service=csrf_service,
-            drop_use_cases=drop_use_cases,
+            list_drops_use_case=list_drops_use_case,
             settings=settings,
             selected_key=slug,
             drop_status_message=status_message,

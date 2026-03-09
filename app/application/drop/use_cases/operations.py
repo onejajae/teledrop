@@ -13,8 +13,7 @@ from app.application.drop.models import (
 )
 from app.application.drop.ports import (
     DropCreateInput,
-    DropMutationRepositoryPort,
-    DropReadRepositoryPort,
+    DropRepositoryPort,
     DropStoragePort,
     DropUnitOfWorkFactory,
     DropUpdateInput,
@@ -45,7 +44,7 @@ def _assert_password(drop: DropEntity, password: str | None):
 
 
 async def _get_by_slug_or_raise(
-    repository: DropReadRepositoryPort | DropMutationRepositoryPort,
+    repository: DropRepositoryPort,
     slug: str,
 ) -> DropEntity:
     drop = await repository.get_by_slug(slug)
@@ -132,7 +131,7 @@ class CreateDropUseCase:
 class ListDropsUseCase:
     def __init__(
         self,
-        repository: DropReadRepositoryPort,
+        repository: DropRepositoryPort,
         default_page_size: int,
         max_page_size: int,
     ):
@@ -168,7 +167,7 @@ class ListDropsUseCase:
 
 
 class GetDropMetaUseCase:
-    def __init__(self, repository: DropReadRepositoryPort):
+    def __init__(self, repository: DropRepositoryPort):
         self.repository = repository
 
     async def execute(self, query: DropMetaQuery) -> DropDetailDTO:
@@ -184,7 +183,7 @@ class GetDropMetaUseCase:
 
 
 class GetDropStreamSourceUseCase:
-    def __init__(self, repository: DropReadRepositoryPort, storage: DropStoragePort):
+    def __init__(self, repository: DropRepositoryPort, storage: DropStoragePort):
         self.repository = repository
         self.storage = storage
 

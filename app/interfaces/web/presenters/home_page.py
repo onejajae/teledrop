@@ -3,8 +3,8 @@ from fastapi import Request, status
 from app.application.auth.types import AuthIdentity
 from app.application.auth.use_cases.csrf import CsrfTokenService
 from app.core.config import Settings
-from app.interfaces.web.presenters.auth_panel import auth_panel_context
 from app.interfaces.web.presenters.common import templates
+from app.interfaces.web.presenters.auth_panel import auth_panel_context
 from app.interfaces.web.presenters.upload_panel import upload_panel_context
 
 
@@ -30,7 +30,6 @@ def home_page_context(
         )
 
     panel_context["active_nav"] = "home"
-    panel_context["auth_username"] = auth_data.username
     return panel_context
 
 

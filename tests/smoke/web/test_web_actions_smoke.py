@@ -4,10 +4,10 @@ from types import SimpleNamespace
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from app.application.drop.models import DropDetailDTO, DropListDTO, DropListItemDTO, UNSET
-from app.bootstrap.container import get_app_settings
+from app.bootstrap.container import get_app_container, get_app_settings
 from app.domain.drop.errors import DropNotFoundError, DropPasswordInvalidError
 from app.domain.drop.value_objects import AccessScope
-from app.interfaces.api.deps import get_csrf_token_service, get_drop_use_cases, get_revoke_session_use_case, get_verify_session_use_case
+from app.interfaces.api.deps import get_csrf_token_service, get_revoke_session_use_case, get_verify_session_use_case
 from app.interfaces.web.router import router as web_router
 
 class _FakeVerifySessionUseCase:
@@ -133,7 +133,7 @@ class TestWebActionsSmoke:
         app.include_router(web_router)
         fake_use_cases = _FakeDropUseCases()
         fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
-        app.dependency_overrides[get_drop_use_cases] = lambda: fake_use_cases
+        app.dependency_overrides[get_app_container] = lambda: fake_use_cases
         app.dependency_overrides[get_app_settings] = lambda: fake_settings
         app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
         app.dependency_overrides[get_csrf_token_service] = lambda: _FakeCsrfService()

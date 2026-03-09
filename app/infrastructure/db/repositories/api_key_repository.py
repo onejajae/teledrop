@@ -6,8 +6,7 @@ from sqlmodel import Session, select
 
 from app.application.auth.ports import (
     AuthApiKeyCreateInput,
-    AuthApiKeyMutationRepositoryPort,
-    AuthApiKeyReadRepositoryPort,
+    AuthApiKeyRepositoryPort,
     AuthApiKeyRecord,
 )
 from app.infrastructure.db.models.auth_api_key import AuthApiKey
@@ -50,7 +49,7 @@ def _to_record(row: AuthApiKey) -> AuthApiKeyRecord:
     )
 
 
-class SQLModelApiKeyReadRepository(AuthApiKeyReadRepositoryPort):
+class SQLModelApiKeyReadRepository:
     def __init__(self, session_factory: Callable[[], Session]):
         self._session_factory = session_factory
 
@@ -83,7 +82,7 @@ class SQLModelApiKeyReadRepository(AuthApiKeyReadRepositoryPort):
 
 class SQLModelApiKeyMutationRepository(
     SessionBoundMutationRepository,
-    AuthApiKeyMutationRepositoryPort,
+    AuthApiKeyRepositoryPort,
 ):
     def __init__(
         self,
@@ -100,6 +99,11 @@ class SQLModelApiKeyMutationRepository(
         session.flush()
         session.refresh(row)
         return _to_record(row)
+
+    async def list_all(self) -> list[AuthApiKeyRecord]:
+        query = select(AuthApiKey).order_by(AuthApiKey.created_at.desc())
+        rows = self._require_session().exec(query).all()
+        return [_to_record(row) for row in rows]
 
     async def get_by_public_id(self, public_id: str) -> AuthApiKeyRecord | None:
         row = _find_by_public_id(self._require_session(), public_id)
