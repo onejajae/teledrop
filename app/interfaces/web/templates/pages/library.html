@@ -1,19 +1,14 @@
 {% extends "layout/base.html" %}
-{% from "macros/components.html" import drop_list_card %}
+{% from "macros/components.html" import drop_list_card, sort_toolbar %}
 {% from "macros/icons.html" import icon_cloud_arrow_up %}
-{% from "macros/ui.html" import alert, button, empty_state, section, section_header, select_input %}
+{% from "macros/ui.html" import alert, empty_state, page_section, section_header %}
 {% set page_title = "teledrop - 내 drop" %}
 {% set page_description = "업로드한 drop을 정렬하고 다시 관리합니다." %}
 
 {% block page_content %}
-      {% call section() %}
+      {% call page_section() %}
         {% call section_header("내 drop", level="h1") %}
-          <form method="get" action="/drops" class="join w-full sm:w-auto">
-            <input type="hidden" name="orderby" id="drop-orderby" value="{{ drop_orderby or 'desc' }}" />
-            {{ button("오름차순" if drop_orderby == 'asc' else "내림차순", kind="ghost", size="sm", type="button", classes="join-item flex-1 whitespace-nowrap sm:flex-none", attrs='onclick="document.getElementById(&quot;drop-orderby&quot;).value = document.getElementById(&quot;drop-orderby&quot;).value === &quot;asc&quot; ? &quot;desc&quot; : &quot;asc&quot;; this.form.requestSubmit();" title="' ~ ('오름차순' if drop_orderby == 'asc' else '내림차순') ~ '" aria-label="정렬 순서 변경"') }}
-            <label for="drop-sortby" class="sr-only">정렬 기준</label>
-            {{ select_input("sortby", [{"value": "created_at", "label": "날짜"}, {"value": "title", "label": "제목"}, {"value": "size_bytes", "label": "크기"}], input_id="drop-sortby", selected=drop_sortby, classes="join-item select-sm flex-1 sm:w-auto", attrs='onchange="this.form.requestSubmit()"') }}
-          </form>
+          {{ sort_toolbar("/drops", current_order=drop_orderby, current_sort=drop_sortby, toggle_attrs='onclick="document.getElementById(&quot;drop-orderby&quot;).value = document.getElementById(&quot;drop-orderby&quot;).value === &quot;asc&quot; ? &quot;desc&quot; : &quot;asc&quot;; this.form.requestSubmit();" title="' ~ ('오름차순' if drop_orderby == 'asc' else '내림차순') ~ '" aria-label="정렬 순서 변경"') }}
         {% endcall %}
 
         {% if drop_error_message %}

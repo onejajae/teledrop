@@ -1,4 +1,5 @@
 {% from "macros/icons.html" import icon_information_circle, icon_x_circle %}
+{% from "macros/ui.html" import page_section %}
 {% set detail_mode = detail_mode if detail_mode is defined else 'panel' %}
 {% if not selected_key %}
 {% include "panels/drop_detail/_empty_state.html" %}
@@ -6,9 +7,7 @@
 
 {% include "panels/drop_detail/_alerts.html" %}
 
-<section class="card overflow-hidden rounded-[1.75rem] border border-base-300/70 bg-gradient-to-b from-base-100 to-base-200/45 shadow-sm" data-detail-key="{{ selected_key }}"
-  data-detail-password="{{ selected_password or '' }}">
-  <div class="card-body gap-4 p-5">
+{% call page_section(attrs='data-detail-key="' ~ selected_key ~ '" data-detail-password="' ~ (selected_password or '') ~ '"') %}
     {% if not (selected_requires_password and not selected_download_url) %}
     <div class="min-w-0">
       <h2 class="text-lg font-semibold tracking-tight sm:text-xl">{{ selected_drop.title if selected_drop and selected_drop.title else
@@ -28,7 +27,5 @@
     {% else %}
     {% include "panels/drop_detail/_error_variants.html" %}
     {% endif %}
-
-  </div>
-</section>
+{% endcall %}
 {% endif %}

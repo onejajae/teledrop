@@ -1,5 +1,5 @@
 {% extends "layout/base.html" %}
-{% from "macros/ui.html" import badge, button, section %}
+{% from "macros/ui.html" import badge, button, page_section %}
 {% set page_title = "teledrop" %}
 {% set page_description = "teledrop 공유 파일 페이지" %}
 
@@ -9,7 +9,7 @@
 
 {% block page_content %}
       {% if show_shared_admin_bar %}
-      {% call section() %}
+      {% call page_section() %}
         <div class="flex flex-wrap items-start justify-between gap-3 sm:items-center">
           <div class="space-y-1">
             <div class="flex items-center gap-2">

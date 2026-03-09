@@ -1,10 +1,10 @@
 {% extends "layout/base.html" %}
-{% from "macros/ui.html" import alert, badge, button, code_block, empty_state, field, section, section_header, surface_card, text_input %}
+{% from "macros/ui.html" import alert, badge, button, code_block, empty_state, field, page_section, section_header, surface_card, text_input %}
 {% set page_title = "teledrop - API Keys" %}
 {% set page_description = "teledrop API key 관리 페이지" %}
 
 {% block page_content %}
-      {% call section() %}
+      {% call page_section() %}
         {{ section_header("API Keys", "외부 클라이언트에서 사용할 API key를 생성하고 폐기하거나 삭제합니다.", level="h1") }}
 
         {% if api_keys_status_message %}
@@ -45,7 +45,7 @@
         </form>
       {% endcall %}
 
-      {% call section() %}
+      {% call page_section() %}
         {% call section_header("발급된 키") %}
           <p class="text-sm opacity-70">{{ api_keys | length }}개</p>
         {% endcall %}

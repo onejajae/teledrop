@@ -189,6 +189,8 @@ class TestWebTemplateSmoke:
     def test_drop_panel_renders_empty_state_without_macro_error(self):
         html = _render('panels/drop.html', drop_error_message=None, drop_status_message=None, drops=[], drop_preview_urls={}, drop_sortby='created_at', drop_orderby='desc')
         assert '업로드한 파일이 없습니다.' in html
+        assert 'action="/drop-panel"' in html
+        assert 'name="orderby" id="drop-orderby" value="desc"' in html
 
     def test_drop_panel_renders_pdf_item_metadata_row(self):
         item = SimpleNamespace(slug='doc1', title='문서', file_name='guide.pdf', mime_type='application/pdf', size_human='1.50 KB', size_bytes=1536, access_scope='public', is_favorite=True, requires_password=True, created_at_relative='5분 전')
@@ -201,7 +203,11 @@ class TestWebTemplateSmoke:
         assert '비밀번호 보호' in html
         assert 'aria-label="새로고침"' in html
         assert 'aria-label="정렬 순서 변경"' in html
-        assert 'card card-sm overflow-hidden rounded-[1.35rem] border border-base-300/70 bg-base-100/85 shadow-sm' in html
+        assert 'action="/drop-panel"' in html
+        assert 'hx-get="/drop-panel"' in html
+        assert 'name="orderby" id="drop-orderby" value="desc"' in html
+        assert 'name="sortby"' in html
+        assert 'card overflow-hidden rounded-[1.35rem] border border-base-300/70 bg-base-100/85 shadow-sm card-sm transition-all duration-200' in html
         assert 'href="/doc1"' in html
         assert 'hx-get="/drop-detail?slug=doc1"' in html
         assert 'onclick="htmx.ajax(\'GET\', \'/drop-detail\'' not in html
@@ -232,7 +238,7 @@ class TestWebTemplateSmoke:
         assert 'join join-vertical w-full sm:w-auto sm:join-horizontal' not in selected
         assert 'detail-copy-link' in selected
         assert 'rounded-[1.75rem] border border-base-300/70 bg-gradient-to-b from-base-100 to-base-200/45 shadow-sm' in selected
-        assert 'group relative overflow-hidden rounded-[1.35rem] border border-base-300/70 bg-base-100/80 shadow-sm' in selected
+        assert 'card overflow-hidden rounded-[1.35rem] border border-base-300/70 bg-base-100/85 shadow-sm group relative transition-colors duration-200' in selected
         assert 'shadow-xl mb-6' not in selected
         assert 'aria-label="메타데이터 수정"' not in selected
         assert 'aria-label="비밀번호 설정"' not in selected
@@ -256,6 +262,9 @@ class TestWebTemplateSmoke:
         html = _render('pages/library.html', is_login=True, csrf_token='csrf', active_nav='drops', drop_error_message=None, drop_status_message=None, drops=[item], drop_manage_urls={'doc1': '/drops/doc1'}, drop_sortby='created_at', drop_orderby='desc')
         assert '내 drop' in html
         assert '업로드했던 파일을 다시 열어 공유 상태를 관리합니다.' not in html
+        assert 'action="/drops"' in html
+        assert 'name="orderby" id="drop-orderby" value="desc"' in html
+        assert 'name="sortby"' in html
         assert 'href="/drops/doc1"' in html
         assert '관리 페이지 열기' in html
         assert '새 업로드' not in html

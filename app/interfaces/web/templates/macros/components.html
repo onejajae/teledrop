@@ -1,5 +1,5 @@
-{% from "macros/icons.html" import icon_arrow_down_tray, icon_cloud_arrow_up, icon_document, icon_document_duplicate, icon_document_text, icon_eye, icon_eye_slash, icon_film, icon_lock_closed, icon_musical_note, icon_pencil_square, icon_photo, icon_star, icon_trash %}
-{% from "macros/ui.html" import button, field, text_input, textarea_input %}
+{% from "macros/icons.html" import icon_arrow_down_tray, icon_arrow_path, icon_cloud_arrow_up, icon_document, icon_document_duplicate, icon_document_text, icon_eye, icon_eye_slash, icon_film, icon_lock_closed, icon_musical_note, icon_pencil_square, icon_photo, icon_star, icon_trash %}
+{% from "macros/ui.html" import button, field, icon_button, icon_shell, inset_surface, page_section, select_input, surface_card, text_input, textarea_input %}
 
 {% macro file_icon(mime_type, classes="h-5 w-5") -%}
   {% if mime_type and mime_type.startswith("image/") %}
@@ -15,6 +15,33 @@
   {% endif %}
 {%- endmacro %}
 
+{% macro sort_toolbar(action, current_order="desc", current_sort="created_at", orderby_name="orderby", orderby_id="drop-orderby", sortby_name="sortby", sortby_id="drop-sortby", form_classes="join w-full sm:w-auto", form_attrs="", wrapper_classes="", show_refresh=false, refresh_wrapper_classes="tooltip tooltip-bottom", refresh_tip="새로고침", refresh_attrs='title="새로고침" aria-label="새로고침"', toggle_attrs='aria-label="정렬 순서 변경"') -%}
+{% set sort_options = [
+  {"value": "created_at", "label": "날짜"},
+  {"value": "title", "label": "제목"},
+  {"value": "size_bytes", "label": "크기"},
+] %}
+{% if show_refresh or wrapper_classes %}
+<div class="{{ wrapper_classes or 'flex w-full items-center gap-2 sm:w-auto' }}">
+{% endif %}
+  {% if show_refresh %}
+  <div class="{{ refresh_wrapper_classes }}" data-tip="{{ refresh_tip }}">
+    {% call icon_button(label="새로고침", attrs=refresh_attrs) %}
+      {{ icon_arrow_path() }}
+    {% endcall %}
+  </div>
+  {% endif %}
+  <form method="get" action="{{ action }}"{% if form_attrs %} {{ form_attrs | safe }}{% endif %} class="{{ form_classes }}">
+    <input type="hidden" name="{{ orderby_name }}" id="{{ orderby_id }}" value="{{ current_order or 'desc' }}" />
+    {{ button("오름차순" if current_order == 'asc' else "내림차순", kind="ghost", size="sm", type="button", classes="join-item flex-1 whitespace-nowrap sm:flex-none", attrs=toggle_attrs) }}
+    <label for="{{ sortby_id }}" class="sr-only">정렬 기준</label>
+    {{ select_input(sortby_name, sort_options, input_id=sortby_id, selected=current_sort, classes="join-item select-sm flex-1 sm:w-auto", attrs='onchange="this.form.requestSubmit()"') }}
+  </form>
+{% if show_refresh or wrapper_classes %}
+</div>
+{% endif %}
+{%- endmacro %}
+
 {% macro upload_dropzone(prefix="upload") -%}
 <input id="{{ prefix }}-file" type="file" name="file" required class="hidden" />
 
@@ -24,9 +51,9 @@
   <div class="hero-content w-full p-0 text-center">
     <div class="flex min-h-[22rem] w-full flex-1 items-center justify-center px-6 py-10 sm:min-h-[28rem]">
       <div id="{{ prefix }}-drop-placeholder" class="w-full space-y-6">
-        <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.25rem] border border-base-300/70 bg-base-100 text-primary shadow-sm transition-transform duration-200 group-hover:scale-105">
+        {% call icon_shell(classes="mx-auto h-20 w-20 text-primary transition-transform duration-200 group-hover:scale-105") %}
           {{ icon_cloud_arrow_up(class="h-9 w-9") }}
-        </div>
+        {% endcall %}
         <div class="space-y-2">
           <p class="text-lg font-semibold tracking-tight">파일을 선택하거나 끌어서 놓기</p>
           <p class="mx-auto max-w-xs text-sm leading-6 opacity-65">업로드 즉시 private 상태로 생성되며, 다음 화면에서 공유 범위를 설정할 수 있습니다.</p>
@@ -51,44 +78,50 @@
 {%- endmacro %}
 
 {% macro drop_list_card(item, href, title="상세 보기", hx_get=None, hx_target=None, hx_swap=None, hx_push_url=None, data_drop_key=None, data_select_key=None, public_label="전체 공개", private_label="나만 보기", attrs="") -%}
-<a class="card card-sm overflow-hidden rounded-[1.35rem] border border-base-300/70 bg-base-100/85 shadow-sm transition-all duration-200 hover:border-base-300 hover:bg-base-100 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-base-100" href="{{ href }}" title="{{ title }}"{% if hx_get %} hx-get="{{ hx_get }}"{% endif %}{% if hx_target %} hx-target="{{ hx_target }}"{% endif %}{% if hx_swap %} hx-swap="{{ hx_swap }}"{% endif %}{% if hx_push_url %} hx-push-url="{{ hx_push_url }}"{% endif %}{% if data_drop_key %} data-drop-key="{{ data_drop_key }}"{% endif %}{% if data_select_key %} data-select-key="{{ data_select_key }}"{% endif %}{% if attrs %} {{ attrs | safe }}{% endif %}>
-  <div class="card-body gap-3 p-4">
-    <div class="flex items-start gap-3.5">
-      <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-[0.9rem] border border-base-300/70 bg-base-100 text-base-content/70 shadow-sm">
-        {{ file_icon(item.mime_type) }}
-      </div>
+{% set card_attrs = 'href="' ~ href ~ '" title="' ~ title ~ '"' %}
+{% if hx_get %}{% set card_attrs = card_attrs ~ ' hx-get="' ~ hx_get ~ '"' %}{% endif %}
+{% if hx_target %}{% set card_attrs = card_attrs ~ ' hx-target="' ~ hx_target ~ '"' %}{% endif %}
+{% if hx_swap %}{% set card_attrs = card_attrs ~ ' hx-swap="' ~ hx_swap ~ '"' %}{% endif %}
+{% if hx_push_url %}{% set card_attrs = card_attrs ~ ' hx-push-url="' ~ hx_push_url ~ '"' %}{% endif %}
+{% if data_drop_key %}{% set card_attrs = card_attrs ~ ' data-drop-key="' ~ data_drop_key ~ '"' %}{% endif %}
+{% if data_select_key %}{% set card_attrs = card_attrs ~ ' data-select-key="' ~ data_select_key ~ '"' %}{% endif %}
+{% if attrs %}{% set card_attrs = card_attrs ~ ' ' ~ attrs %}{% endif %}
+{% call surface_card(tag="a", classes="card-sm transition-all duration-200 hover:border-base-300 hover:bg-base-100 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-base-100", attrs=card_attrs) %}
+  <div class="flex items-start gap-3.5">
+    {% call icon_shell(classes="h-10 w-10 shrink-0") %}
+      {{ file_icon(item.mime_type) }}
+    {% endcall %}
 
-      <div class="min-w-0 flex-1">
-        <div class="card-title text-sm leading-5 sm:text-base">
-          {% if item.is_favorite %}
-          {{ icon_star(class="h-4 w-4", filled=true) }}
-          {% endif %}
-          <span class="truncate">{{ item.title or item.file_name or item.slug }}</span>
-        </div>
-        {% if item.title and item.file_name and item.title != item.file_name %}
-        <p class="truncate text-xs leading-4 opacity-60">{{ item.file_name }}</p>
+    <div class="min-w-0 flex-1">
+      <div class="card-title text-sm leading-5 sm:text-base">
+        {% if item.is_favorite %}
+        {{ icon_star(class="h-4 w-4", filled=true) }}
         {% endif %}
-        <p class="truncate text-xs leading-4 opacity-70">
-          {{ item.size_human if item.size_human else item.size_bytes }}
-          {% if item.access_scope == "private" %}
-          · {{ private_label }}
-          {% else %}
-          · {{ public_label }}
-          {% endif %}
-          {% if item.created_at_relative %}
-          · {{ item.created_at_relative }}
-          {% endif %}
-        </p>
+        <span class="truncate">{{ item.title or item.file_name or item.slug }}</span>
       </div>
-
-      {% if item.requires_password %}
-      <span class="inline-flex shrink-0 items-center justify-center opacity-70" title="비밀번호 보호">
-        {{ icon_lock_closed(class="h-4 w-4") }}
-      </span>
+      {% if item.title and item.file_name and item.title != item.file_name %}
+      <p class="truncate text-xs leading-4 opacity-60">{{ item.file_name }}</p>
       {% endif %}
+      <p class="truncate text-xs leading-4 opacity-70">
+        {{ item.size_human if item.size_human else item.size_bytes }}
+        {% if item.access_scope == "private" %}
+        · {{ private_label }}
+        {% else %}
+        · {{ public_label }}
+        {% endif %}
+        {% if item.created_at_relative %}
+        · {{ item.created_at_relative }}
+        {% endif %}
+      </p>
     </div>
+
+    {% if item.requires_password %}
+    <span class="inline-flex shrink-0 items-center justify-center opacity-70" title="비밀번호 보호">
+      {{ icon_lock_closed(class="h-4 w-4") }}
+    </span>
+    {% endif %}
   </div>
-</a>
+{% endcall %}
 {%- endmacro %}
 
 {% macro detail_action_bar(selected_download_url, selected_page_preview_url, can_copy_link=true, detail_mode="panel") -%}
@@ -112,7 +145,8 @@
 {%- endmacro %}
 
 {% macro metadata_card(selected_drop, download_url=None, page_preview_url=None, can_copy_link=false) -%}
-<div class="group relative overflow-hidden rounded-[1.35rem] border border-base-300/70 bg-base-100/80 shadow-sm transition-colors duration-200{% if download_url %} hover:border-primary/25 hover:bg-base-100{% endif %}">
+{% set card_classes = "group relative transition-colors duration-200" ~ (" hover:border-primary/25 hover:bg-base-100" if download_url else "") %}
+{% call surface_card(classes=card_classes, body_classes="pointer-events-none relative z-10 flex-row items-start gap-4") %}
   {% if download_url %}
   <a href="{{ download_url }}" download
     class="absolute inset-0 z-0 rounded-[1.35rem] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-inset"
@@ -121,58 +155,61 @@
   </a>
   {% endif %}
 
-  <div class="pointer-events-none relative z-10 flex items-start gap-4 p-4">
-    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-base-300/70 bg-base-100 text-base-content/70 shadow-sm">
-      {{ file_icon(selected_drop.mime_type, "h-10 w-10") }}
-    </div>
+  {% call icon_shell(classes="h-12 w-12 shrink-0") %}
+    {{ file_icon(selected_drop.mime_type, "h-10 w-10") }}
+  {% endcall %}
 
-    <div class="min-w-0 flex-1 space-y-1 text-sm">
-      <p class="card-title truncate text-base">{{ selected_drop.file_name }}</p>
-      <p class="opacity-80">
-        {% if selected_drop.size_human %}
-        {{ selected_drop.size_human }}
-        {% else %}
-        {{ selected_drop.size_bytes }} bytes
-        {% endif %}
-      </p>
-      <p class="opacity-80">
-        {{ selected_drop.created_at_label or selected_drop.created_at }} 에 업로드
-        {% if selected_drop.created_at_relative %}
-        <span class="opacity-70">({{ selected_drop.created_at_relative }})</span>
-        {% endif %}
-      </p>
-      {% if selected_drop.updated_at %}
-      <p class="opacity-70">수정: {{ selected_drop.updated_at_label or selected_drop.updated_at }}</p>
+  <div class="min-w-0 flex-1 space-y-1 text-sm">
+    <p class="card-title truncate text-base">{{ selected_drop.file_name }}</p>
+    <p class="opacity-80">
+      {% if selected_drop.size_human %}
+      {{ selected_drop.size_human }}
+      {% else %}
+      {{ selected_drop.size_bytes }} bytes
       {% endif %}
-      {% if download_url %}
-      <p class="text-xs font-medium uppercase tracking-[0.18em] text-base-content/45">카드 클릭 시 다운로드</p>
+    </p>
+    <p class="opacity-80">
+      {{ selected_drop.created_at_label or selected_drop.created_at }} 에 업로드
+      {% if selected_drop.created_at_relative %}
+      <span class="opacity-70">({{ selected_drop.created_at_relative }})</span>
       {% endif %}
-    </div>
-
-    {% if can_copy_link and page_preview_url %}
-    <div class="pointer-events-auto shrink-0">
-      {% call button(kind="ghost", size="sm", classes="detail-copy-link rounded-xl border border-base-300/70 bg-base-100/90 px-3 hover:bg-base-100", attrs='data-copy-url="' ~ page_preview_url ~ '" aria-label="링크 복사" title="링크 복사"') %}
-        {{ icon_document_duplicate() }}
-        <span class="detail-copy-label">링크 복사</span>
-      {% endcall %}
-    </div>
+    </p>
+    {% if selected_drop.updated_at %}
+    <p class="opacity-70">수정: {{ selected_drop.updated_at_label or selected_drop.updated_at }}</p>
+    {% endif %}
+    {% if download_url %}
+    <p class="text-xs font-medium uppercase tracking-[0.18em] text-base-content/45">카드 클릭 시 다운로드</p>
     {% endif %}
   </div>
-</div>
+
+  {% if can_copy_link and page_preview_url %}
+  <div class="pointer-events-auto shrink-0">
+    {% call button(kind="ghost", size="sm", classes="detail-copy-link rounded-xl border border-base-300/70 bg-base-100/90 px-3 hover:bg-base-100", attrs='data-copy-url="' ~ page_preview_url ~ '" aria-label="링크 복사" title="링크 복사"') %}
+      {{ icon_document_duplicate() }}
+      <span class="detail-copy-label">링크 복사</span>
+    {% endcall %}
+  </div>
+  {% endif %}
+{% endcall %}
 {%- endmacro %}
 
 {% macro locked_prompt(selected_key, detail_error_message=None, detail_mode="panel", is_login=false, locked_form_action=None, locked_form_use_hx=true, locked_form_target=None, locked_form_swap="innerHTML", locked_form_include_slug=true) -%}
 {% set locked_form_action = locked_form_action or "/drop-detail" %}
 {% set locked_form_target = locked_form_target or "#main-panel" %}
+{% if locked_form_use_hx %}
+  {% set form_attrs = 'hx-get="' ~ locked_form_action ~ '" hx-target="' ~ locked_form_target ~ '" hx-swap="' ~ locked_form_swap ~ '"' %}
+{% else %}
+  {% set form_attrs = 'method="get" action="' ~ locked_form_action ~ '"' %}
+{% endif %}
 <div class="mx-auto w-full max-w-sm space-y-5 text-center">
   <div class="space-y-4">
-    <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-[1rem] border border-base-300/70 bg-base-100 text-base-content/70 shadow-sm">
+    {% call icon_shell(classes="mx-auto h-16 w-16") %}
       {{ icon_lock_closed(class="h-7 w-7") }}
-    </div>
+    {% endcall %}
     <h3 class="text-lg font-semibold">비밀번호 입력</h3>
     <p class="mt-1 text-sm opacity-70">이 파일은 비밀번호로 보호되어 있습니다.</p>
   </div>
-  <form {% if locked_form_use_hx %}hx-get="{{ locked_form_action }}" hx-target="{{ locked_form_target }}" hx-swap="{{ locked_form_swap }}"{% else %}method="get" action="{{ locked_form_action }}"{% endif %} class="space-y-4 rounded-[1.15rem] border border-base-300/70 bg-base-100/70 p-4 text-left shadow-sm">
+  {% call inset_surface(tag="form", classes="space-y-4 p-4 text-left", attrs=form_attrs) %}
     {% if locked_form_include_slug %}
     <input type="hidden" name="slug" value="{{ selected_key }}" />
     {% endif %}
@@ -185,7 +222,7 @@
     <div class="pt-2">
       {{ button("확인", kind="primary", type="submit", block=true) }}
     </div>
-  </form>
+  {% endcall %}
   {% if detail_mode == "manage" %}
   <p class="text-xs opacity-60">현재 비밀번호를 입력해야 미리보기와 관리 작업을 계속할 수 있습니다.</p>
   {% elif is_login %}
@@ -259,8 +296,9 @@
 {%- endmacro %}
 
 {% macro modal_form(dialog_id, title, form_action, submit_label, description=None, form_id=None, form_attrs="", form_classes="mt-4 space-y-3", close_label="취소", close_attrs=None, submit_id=None, submit_disabled=false, submit_kind="primary", submit_classes="") -%}
+{% set cleaned_form_classes = form_classes | replace('mt-4 ', '') | replace('mt-4', '') %}
 <dialog id="{{ dialog_id }}" class="modal modal-bottom sm:modal-middle">
-  <div class="modal-box overflow-hidden rounded-[1.75rem] border border-base-300/70 bg-gradient-to-b from-base-100 to-base-200/45 p-0 shadow-xl">
+  {% call page_section(tag="div", classes="modal-box p-0 shadow-xl", body_classes="gap-0 p-0") %}
     <div class="border-b border-base-200/80 px-5 py-4 sm:px-6 sm:py-5">
       <div class="space-y-1.5">
         <h3 class="text-lg font-semibold tracking-tight sm:text-xl">{{ title }}</h3>
@@ -269,16 +307,16 @@
         {% endif %}
       </div>
     </div>
-    <form method="post" action="{{ form_action }}"{% if form_id %} id="{{ form_id }}"{% endif %}{% if form_attrs %} {{ form_attrs | safe }}{% endif %} class="{{ form_classes | replace('mt-4 ', '') | replace('mt-4', '') }} px-5 py-5 sm:px-6 sm:py-6">
-      <div class="space-y-5 rounded-[1.25rem] border border-base-300/70 bg-base-100/75 p-4 shadow-sm sm:p-5">
+    <form method="post" action="{{ form_action }}"{% if form_id %} id="{{ form_id }}"{% endif %}{% if form_attrs %} {{ form_attrs | safe }}{% endif %} class="{{ cleaned_form_classes }} px-5 py-5 sm:px-6 sm:py-6">
+      {% call inset_surface(classes="space-y-5 p-4 sm:p-5") %}
         {% if caller is defined %}{{ caller() }}{% endif %}
-      </div>
+      {% endcall %}
       <div class="mt-5 flex flex-col-reverse gap-2 border-t border-base-200/80 pt-4 sm:flex-row sm:justify-end">
         {{ button(close_label, kind="ghost", size="sm", type="button", classes="rounded-xl border border-base-300/80 bg-base-100/85 px-4 hover:bg-base-100", attrs=close_attrs or ('data-td-action="close-dialog" data-td-dialog-id="' ~ dialog_id ~ '"')) }}
         {{ button(submit_label, kind=submit_kind, size="sm", classes="rounded-xl px-4 " ~ submit_classes, type="submit", attrs=('id="' ~ submit_id ~ '"') if submit_id else "", disabled=submit_disabled) }}
       </div>
     </form>
-  </div>
+  {% endcall %}
   <form method="dialog" class="modal-backdrop">
     <button>닫기</button>
   </form>

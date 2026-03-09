@@ -1,13 +1,13 @@
 {% extends "layout/base.html" %}
-{% from "macros/components.html" import detail_action_bar, drop_list_card, locked_prompt, metadata_card, modal_form, owner_action_group, upload_dropzone %}
+{% from "macros/components.html" import detail_action_bar, drop_list_card, locked_prompt, metadata_card, modal_form, owner_action_group, sort_toolbar, upload_dropzone %}
 {% from "macros/icons.html" import icon_cloud_arrow_up, icon_document_duplicate, icon_lock_closed %}
-{% from "macros/ui.html" import alert, badge, button, code_block, empty_state, field, icon_button, section, section_header, select_input, surface_card, text_input, textarea_input %}
+{% from "macros/ui.html" import alert, badge, button, code_block, empty_state, field, icon_button, icon_shell, inset_surface, page_section, section_header, select_input, surface_card, text_input, textarea_input %}
 {% set page_title = "teledrop - Components" %}
 {% set page_description = "teledrop 내부용 웹 컴포넌트 카탈로그" %}
 {% set include_htmx = false %}
 
 {% block page_content %}
-      {% call section() %}
+      {% call page_section() %}
         {% call section_header("Web Components", "현재 운영 UI에서 실제 사용하는 DaisyUI 기반 모듈만 모아둔 숨김 카탈로그입니다.", level="h1") %}
           <div class="flex flex-wrap gap-2">
             {{ badge("Hidden route", appearance="outline") }}
@@ -17,13 +17,13 @@
         {% endcall %}
       {% endcall %}
 
-      {% call section() %}
+      {% call page_section() %}
         {{ section_header("Foundation", "레이아웃과 기본 표면 규칙") }}
         <div class="space-y-3">
           {% call surface_card(body_classes="space-y-1") %}
-            <p class="text-base font-semibold">Section</p>
+            <p class="text-base font-semibold">Page section</p>
             <p class="text-xs uppercase tracking-[0.16em] opacity-50">Used in: `home`, `library`, `manage_drop`, `api_keys`</p>
-            {% call section(classes="mt-4") %}
+            {% call page_section(classes="mt-4") %}
               {{ section_header("Compact section", "동일한 패딩/간격 규칙으로 패널을 묶습니다.") }}
             {% endcall %}
           {% endcall %}
@@ -35,10 +35,20 @@
               <p class="mt-1 text-sm opacity-70">반복적인 bordered content block은 이 패턴으로 통일합니다.</p>
             {% endcall %}
           {% endcall %}
+          {% call surface_card(body_classes="space-y-1") %}
+            <p class="text-base font-semibold">Inset surface & icon shell</p>
+            <p class="text-xs uppercase tracking-[0.16em] opacity-50">Used in: auth, locked prompt, detail errors, modal forms</p>
+            {% call inset_surface(classes="mt-4 space-y-4 p-5") %}
+              {% call icon_shell(classes="h-16 w-16") %}
+                {{ icon_lock_closed(class="h-7 w-7") }}
+              {% endcall %}
+              <p class="text-sm opacity-70">폼이나 설명성 박스를 위한 안쪽 표면입니다.</p>
+            {% endcall %}
+          {% endcall %}
         </div>
       {% endcall %}
 
-      {% call section() %}
+      {% call page_section() %}
         {{ section_header("Actions", "버튼과 액션 컨트롤 variant") }}
         <div class="space-y-3">
           {% call surface_card(body_classes="space-y-1") %}
@@ -66,7 +76,7 @@
         </div>
       {% endcall %}
 
-      {% call section() %}
+      {% call page_section() %}
         {{ section_header("Feedback", "상태 전달과 보조 시각 요소") }}
         <div class="space-y-3">
           {% call surface_card(body_classes="space-y-1") %}
@@ -103,7 +113,7 @@
         </div>
       {% endcall %}
 
-      {% call section() %}
+      {% call page_section() %}
         {{ section_header("Forms", "입력 필드와 업로드 인터랙션") }}
         <div class="space-y-3">
           {% call surface_card(body_classes="space-y-1") %}
@@ -129,10 +139,17 @@
               {{ button("업로드 후 관리로 이동", kind="primary", block=true, disabled=true) }}
             </form>
           {% endcall %}
+          {% call surface_card(body_classes="space-y-1") %}
+            <p class="text-base font-semibold">Sort toolbar</p>
+            <p class="text-xs uppercase tracking-[0.16em] opacity-50">Used in: drop panel, library</p>
+            <div class="mt-4">
+              {{ sort_toolbar("#", current_order="desc", current_sort="created_at", show_refresh=true, refresh_attrs='title="새로고침" aria-label="새로고침"', toggle_attrs='onclick="document.getElementById(&quot;drop-orderby&quot;).value = document.getElementById(&quot;drop-orderby&quot;).value === &quot;asc&quot; ? &quot;desc&quot; : &quot;asc&quot;; this.form.requestSubmit();" title="내림차순" aria-label="정렬 순서 변경"') }}
+            </div>
+          {% endcall %}
         </div>
       {% endcall %}
 
-      {% call section() %}
+      {% call page_section() %}
         {{ section_header("Data Display", "비어 있는 상태와 파일 메타데이터") }}
         <div class="space-y-3">
           {% call surface_card(body_classes="space-y-1") %}
@@ -152,7 +169,7 @@
         </div>
       {% endcall %}
 
-      {% call section() %}
+      {% call page_section() %}
         {{ section_header("Drop Composites", "실제 운영 화면에서 조합되어 쓰이는 블록") }}
         <div class="space-y-3">
           {% call surface_card(body_classes="space-y-1") %}

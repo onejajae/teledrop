@@ -1,6 +1,6 @@
-{% from "macros/components.html" import drop_list_card %}
-{% from "macros/icons.html" import icon_arrow_path, icon_cloud_arrow_up %}
-{% from "macros/ui.html" import alert, button, empty_state, icon_button, section, section_header, select_input %}
+{% from "macros/components.html" import drop_list_card, sort_toolbar %}
+{% from "macros/icons.html" import icon_cloud_arrow_up %}
+{% from "macros/ui.html" import alert, empty_state, page_section, section_header %}
 <div class="space-y-4">
   {% if drop_error_message %}
   {{ alert(drop_error_message, tone="error") }}
@@ -10,22 +10,9 @@
   {{ alert(drop_status_message, tone="success") }}
   {% endif %}
 
-  {% call section() %}
+  {% call page_section() %}
     {% call section_header("내 drop") %}
-      <div class="flex w-full items-center gap-2 sm:w-auto">
-        <div class="tooltip tooltip-bottom" data-tip="새로고침">
-          {% call icon_button(label="새로고침", attrs='title="새로고침" aria-label="새로고침" data-td-action="drop-panel-refresh"') %}
-            {{ icon_arrow_path() }}
-          {% endcall %}
-        </div>
-        <form method="get" action="/drop-panel" hx-get="/drop-panel" hx-target="#drop-panel" hx-swap="innerHTML"
-          class="join flex-1 sm:flex-none">
-          <input type="hidden" name="orderby" id="drop-orderby" value="{{ drop_orderby or 'desc' }}" />
-          {{ button("오름차순" if drop_orderby == 'asc' else "내림차순", kind="ghost", size="sm", type="button", classes="join-item flex-1 whitespace-nowrap sm:flex-none", attrs=('title="' ~ ('오름차순' if drop_orderby == 'asc' else '내림차순') ~ '" aria-label="정렬 순서 변경" data-td-action="drop-sort-toggle"')) }}
-          <label for="drop-sortby" class="sr-only">정렬 기준</label>
-          {{ select_input("sortby", [{"value": "created_at", "label": "날짜"}, {"value": "title", "label": "제목"}, {"value": "size_bytes", "label": "크기"}], input_id="drop-sortby", selected=drop_sortby, classes="join-item select-sm flex-1 sm:w-auto", attrs='onchange="this.form.requestSubmit()"') }}
-        </form>
-      </div>
+      {{ sort_toolbar("/drop-panel", current_order=drop_orderby, current_sort=drop_sortby, form_classes="join flex-1 sm:flex-none", form_attrs='hx-get="/drop-panel" hx-target="#drop-panel" hx-swap="innerHTML"', wrapper_classes="flex w-full items-center gap-2 sm:w-auto", show_refresh=true, refresh_attrs='title="새로고침" aria-label="새로고침" data-td-action="drop-panel-refresh"', toggle_attrs=('title="' ~ ('오름차순' if drop_orderby == 'asc' else '내림차순') ~ '" aria-label="정렬 순서 변경" data-td-action="drop-sort-toggle"')) }}
     {% endcall %}
 
     {% if drops %}
