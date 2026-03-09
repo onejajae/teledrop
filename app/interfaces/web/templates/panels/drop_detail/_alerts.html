@@ -1,8 +1,13 @@
 {% from "macros/ui.html" import alert %}
-{% if detail_error_message and (selected_requires_password or selected_drop) and not (selected_requires_password and not selected_download_url) %}
-{{ alert(detail_error_message, tone="error", classes="mb-4") }}
-{% endif %}
+{% set show_detail_error = detail_error_message and (selected_requires_password or selected_drop) and not (selected_requires_password and not selected_download_url) %}
+{% if show_detail_error or detail_status_message %}
+<div class="space-y-3">
+  {% if show_detail_error %}
+  {{ alert(detail_error_message, tone="error") }}
+  {% endif %}
 
-{% if detail_status_message %}
-{{ alert(detail_status_message, tone="success", classes="mb-4") }}
+  {% if detail_status_message %}
+  {{ alert(detail_status_message, tone="success") }}
+  {% endif %}
+</div>
 {% endif %}

@@ -23,7 +23,7 @@
           {% call surface_card(body_classes="space-y-1") %}
             <p class="text-base font-semibold">Section</p>
             <p class="text-xs uppercase tracking-[0.16em] opacity-50">Used in: `home`, `library`, `manage_drop`, `api_keys`</p>
-            {% call section(compact=true, classes="mt-4") %}
+            {% call section(classes="mt-4") %}
               {{ section_header("Compact section", "동일한 패딩/간격 규칙으로 패널을 묶습니다.") }}
             {% endcall %}
           {% endcall %}
@@ -139,7 +139,7 @@
             <p class="text-base font-semibold">Empty state</p>
             <p class="text-xs uppercase tracking-[0.16em] opacity-50">Used in: drop, library, api_keys, detail</p>
             <div class="mt-4">
-              {{ empty_state("업로드한 파일이 없습니다.", "새 업로드를 만들어 시작해보세요.", icon_cloud_arrow_up(class="h-12 w-12 opacity-40")) }}
+              {{ empty_state("업로드한 파일이 없습니다.", "새 업로드를 만들어 시작해보세요.", icon_cloud_arrow_up(class="h-7 w-7")) }}
             </div>
           {% endcall %}
           {% call surface_card(body_classes="space-y-1") %}
@@ -173,7 +173,7 @@
           {% endcall %}
           {% call surface_card(body_classes="space-y-1") %}
             <p class="text-base font-semibold">Owner action group</p>
-            <p class="text-xs uppercase tracking-[0.16em] opacity-50">Used in: drop detail owner toolbar</p>
+            <p class="text-xs uppercase tracking-[0.16em] opacity-50">Used in: manage page action panel</p>
             <div class="mt-4">
               {{ owner_action_group(catalog_public_drop, "catalog-demo", interactive=false) }}
             </div>
@@ -220,19 +220,19 @@
 
       {% call modal_form("catalog-edit-modal", "메타데이터 수정", "#", "저장", close_attrs='onclick="document.getElementById(&quot;catalog-edit-modal&quot;).close()"') %}
         {% call field("제목", "catalog-edit-title") %}
-          {{ text_input("title", input_id="catalog-edit-title", value=catalog_public_drop.title, classes="input-sm") }}
+          {{ text_input("title", input_id="catalog-edit-title", value=catalog_public_drop.title) }}
         {% endcall %}
         {% call field("내용", "catalog-edit-description") %}
-          {{ textarea_input("description", input_id="catalog-edit-description", value=catalog_public_drop.description) }}
+          {{ textarea_input("description", input_id="catalog-edit-description", value=catalog_public_drop.description, rows=5) }}
         {% endcall %}
       {% endcall %}
 
       {% call modal_form("catalog-password-modal", "비밀번호 설정", "#", "적용", description="비워두면 비밀번호를 해제합니다.", close_attrs='onclick="document.getElementById(&quot;catalog-password-modal&quot;).close()"', submit_id="catalog-password-submit") %}
         {% call field("새 비밀번호", "catalog-password-new") %}
-          {{ text_input("new_password", input_id="catalog-password-new", input_type="password", placeholder="•••••", classes="input-sm") }}
+          {{ text_input("new_password", input_id="catalog-password-new", input_type="password", placeholder="•••••") }}
         {% endcall %}
         {% call field("비밀번호 확인", "catalog-password-confirm") %}
-          {{ text_input("confirm_password", input_id="catalog-password-confirm", input_type="password", placeholder="•••••", classes="input-sm") }}
+          {{ text_input("confirm_password", input_id="catalog-password-confirm", input_type="password", placeholder="•••••") }}
         {% endcall %}
       {% endcall %}
 {% endblock %}

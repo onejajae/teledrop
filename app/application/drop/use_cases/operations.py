@@ -208,7 +208,8 @@ class UpdateDropUseCase:
     async def execute(self, command: UpdateDropCommand) -> DropDetailDTO:
         async with self.uow_factory() as uow:
             drop = await _get_by_slug_or_raise(uow.repository, command.slug)
-            _assert_password(drop, command.current_password)
+            if not command.bypass_password_check:
+                _assert_password(drop, command.current_password)
 
             update = DropUpdateInput()
             if command.title is not COMMAND_UNSET:

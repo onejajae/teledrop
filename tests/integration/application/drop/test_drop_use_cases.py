@@ -422,6 +422,37 @@ class TestDropUseCases:
             )
             assert explicit_null_title.title is None
 
+    async def test_update_can_clear_password_with_bypass_flag(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo = _InMemoryRepository()
+            use_cases = _build_use_cases(repo, temp_dir)
+
+            await use_cases.create_drop_use_case.execute(
+                CreateDropCommand(
+                    file_stream=io.BytesIO(b"hello"),
+                    file_name="hello.txt",
+                    mime_type="text/plain",
+                    size_bytes=5,
+                    slug="k-clear",
+                    access_scope=AccessScope.PRIVATE,
+                    drop_password="pw",
+                    title="locked",
+                    description=None,
+                )
+            )
+
+            updated = await use_cases.update_drop_use_case.execute(
+                UpdateDropCommand(
+                    slug="k-clear",
+                    current_password=None,
+                    bypass_password_check=True,
+                    new_password=None,
+                )
+            )
+
+            assert updated.requires_password is False
+            assert repo.items["k-clear"].drop_password is None
+
     async def test_delete_finalizes_staged_file_on_success(self):
         repo = _InMemoryRepository()
         storage = _DeleteStorageSpy(staged_key="staged-1")

@@ -43,7 +43,6 @@ async def shared_page_context(
             "auth_username": auth_data.username,
             "detail_mode": "shared",
             "selected_manage_page_url": drop_manage_page_url(slug, password),
-            "show_owner_actions": False,
             "selected_can_copy_link": bool(
                 selected_drop and selected_drop.access_scope == "public"
             ),

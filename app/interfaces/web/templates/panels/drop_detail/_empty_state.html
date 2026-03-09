@@ -1,15 +1,3 @@
-<section class="card bg-base-200 shadow-xl" aria-label="상세 안내">
-  <div class="card-body">
-    <div class="hero min-h-[220px] rounded-box bg-base-100 text-center">
-      <div class="hero-content">
-        <div class="mx-auto max-w-sm">
-          <div class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-base-300/70">
-            {{ icon_information_circle(class="h-5 w-5") }}
-          </div>
-          <h3 class="mt-3 text-lg font-semibold">파일을 선택해 주세요</h3>
-          <p class="mt-2 text-sm opacity-70">파일을 선택하면 상세 정보를 볼 수 있습니다.</p>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
+{% from "macros/icons.html" import icon_information_circle %}
+{% from "macros/ui.html" import empty_state %}
+{{ empty_state("파일을 선택해 주세요", "파일을 선택하면 상세 정보를 볼 수 있습니다.", icon_information_circle(class="h-7 w-7")) }}

@@ -418,10 +418,21 @@ async def ui_update_drop_password(
     current_password: str | None = Form(default=None),
     csrf_token: str = Form(default=""),
 ):
+    normalized_current_password = normalize_drop_password(current_password)
+    normalized_new_password = normalize_drop_password(new_password)
+    allow_admin_clear_without_current_password = (
+        bool(auth_data.username)
+        and normalized_current_password is None
+        and normalized_new_password is None
+    )
     return await _handle_drop_mutation(
         request=request,
         slug=slug,
-        status_message="드롭 비밀번호가 변경되었습니다.",
+        status_message=(
+            "드롭 비밀번호가 해제되었습니다."
+            if normalized_new_password is None
+            else "드롭 비밀번호가 변경되었습니다."
+        ),
         csrf_token=csrf_token,
         password=current_password,
         auth_data=auth_data,
@@ -431,8 +442,9 @@ async def ui_update_drop_password(
         mutation=lambda: drop_use_cases.update_drop_use_case.execute(
             UpdateDropCommand(
                 slug=slug,
-                current_password=normalize_drop_password(current_password),
-                new_password=normalize_drop_password(new_password),
+                current_password=normalized_current_password,
+                bypass_password_check=allow_admin_clear_without_current_password,
+                new_password=normalized_new_password,
             )
         ),
         expected_exceptions=(DropNotFoundError, DropPasswordInvalidError),

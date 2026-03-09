@@ -1,33 +1,48 @@
 {% from "macros/icons.html" import icon_moon, icon_sun %}
 {% from "macros/ui.html" import button %}
-<header class="space-y-1 sm:space-y-2">
-  <div class="flex min-h-9 items-center justify-between gap-2">
-    <div>
-      {% if is_login %}
-      <div class="flex items-center gap-1">
-        {{ button("내 drop", href="/drops", kind="ghost", size="sm", normal_case=true, classes="bg-base-200" if active_nav == 'drops' else "") }}
-        {{ button("API Keys", href="/settings/api-keys", kind="ghost", size="sm", normal_case=true) }}
+{% set drops_nav_classes = "border-base-300 bg-base-100 shadow-sm text-base-content" if active_nav == 'drops' else "border-transparent bg-transparent text-base-content/70 hover:border-base-300/80 hover:bg-base-200/70 hover:text-base-content" %}
+{% set api_keys_nav_classes = "border-base-300 bg-base-100 shadow-sm text-base-content" if active_nav == 'api_keys' else "border-transparent bg-transparent text-base-content/70 hover:border-base-300/80 hover:bg-base-200/70 hover:text-base-content" %}
+<header>
+  {% if is_login %}
+  <div class="flex flex-col gap-3">
+    <div class="flex flex-wrap items-center gap-2.5">
+      <nav class="flex min-w-0 flex-1 flex-wrap items-center gap-2" aria-label="주요 탐색">
+        {{ button("내 drop", href="/drops", kind="ghost", size="sm", normal_case=true, classes="h-9 rounded-xl border px-4 " ~ drops_nav_classes, attrs='aria-current="page"' if active_nav == 'drops' else "") }}
+        {{ button("API Keys", href="/settings/api-keys", kind="ghost", size="sm", normal_case=true, classes="h-9 rounded-xl border px-4 " ~ api_keys_nav_classes, attrs='aria-current="page"' if active_nav == 'api_keys' else "") }}
+      </nav>
+
+      <div class="flex flex-wrap items-center justify-end gap-2 sm:ml-auto">
+        <form method="post" action="/actions/auth/logout" hx-post="/actions/auth/logout" hx-swap="none">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
+          {{ button("로그아웃", kind="ghost", size="sm", type="submit", normal_case=true, classes="h-9 rounded-xl px-4") }}
+        </form>
+        {% call button(kind="ghost", size="sm", square=true, classes="swap swap-rotate rounded-xl", attrs='id="theme-toggle" aria-label="테마 전환" aria-pressed="false"') %}
+          {{ icon_sun(class="swap-off h-4 w-4") }}
+          {{ icon_moon(class="swap-on h-4 w-4") }}
+        {% endcall %}
       </div>
-      {% endif %}
     </div>
-    <div class="flex items-center gap-1">
-      {% if is_login %}
-      <form method="post" action="/actions/auth/logout" hx-post="/actions/auth/logout" hx-swap="none">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
-        {{ button("로그아웃", kind="ghost", size="sm", type="submit", normal_case=true) }}
-      </form>
-      {% endif %}
-      {% call button(kind="ghost", size="sm", square=true, classes="swap swap-rotate", attrs='id="theme-toggle" aria-label="테마 전환" aria-pressed="false"') %}
+
+    <div class="flex justify-center border-t border-base-200/80 pt-3">
+      <a href="/" class="block" aria-label="teledrop">
+        <span class="td-logo-wordmark block h-12 w-[15rem]" aria-hidden="true"></span>
+      </a>
+    </div>
+  </div>
+  {% else %}
+  <div class="flex flex-col gap-3">
+    <div class="flex justify-end">
+      {% call button(kind="ghost", size="sm", square=true, classes="swap swap-rotate rounded-xl", attrs='id="theme-toggle" aria-label="테마 전환" aria-pressed="false"') %}
         {{ icon_sun(class="swap-off h-4 w-4") }}
         {{ icon_moon(class="swap-on h-4 w-4") }}
       {% endcall %}
     </div>
-  </div>
-  <div class="flex justify-center">
-    <div class="w-full max-w-[16rem] py-1 sm:max-w-sm sm:py-2">
+
+    <div class="flex justify-center border-t border-base-200/80 pt-3">
       <a href="/" class="block" aria-label="teledrop">
-        <span class="td-logo-wordmark" aria-hidden="true"></span>
+        <span class="td-logo-wordmark block h-12 w-[15rem]" aria-hidden="true"></span>
       </a>
     </div>
   </div>
+  {% endif %}
 </header>

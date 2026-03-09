@@ -4,15 +4,16 @@
 {% set og_title = "teledrop" %}
 {% set og_description = "개인 파일을 업로드하고 안전하게 관리하는 self-hosted workspace" %}
 {% set og_type = "website" %}
-{% set main_classes = "mx-auto flex min-h-screen w-full max-w-screen-sm flex-col px-3 py-3" %}
+{% set main_classes = "mx-auto flex min-h-screen w-full max-w-[50rem] flex-col px-4 pb-5 pt-3" %}
+{% set page_content_classes = "flex flex-1 pb-4 pt-3" %}
 
 {% block page_scripts %}
 <script src="/static/js/upload-panel.js" defer></script>
 {% endblock %}
 
 {% block page_content %}
-<section class="flex flex-1 items-center justify-center py-6">
-  <div id="main-panel" class="w-full max-w-xl">
+<section class="flex w-full flex-1">
+  <div id="main-panel" class="mx-auto flex w-full max-w-[50rem] flex-1">
     {% if is_login %}
     {% include "panels/upload.html" %}
     {% else %}

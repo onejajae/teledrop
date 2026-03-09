@@ -52,7 +52,6 @@ async def manage_page_context(
             "auth_username": auth_data.username,
             "detail_mode": "manage",
             "selected_manage_page_url": drop_manage_page_url(slug),
-            "show_owner_actions": True,
             "selected_can_copy_link": bool(
                 context.get("selected_drop")
                 and context["selected_drop"].access_scope == "public"

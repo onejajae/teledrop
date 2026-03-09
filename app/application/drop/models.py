@@ -24,6 +24,7 @@ class CreateDropCommand:
 class UpdateDropCommand:
     slug: str
     current_password: str | None
+    bypass_password_check: bool = False
     title: str | None | object = UNSET
     description: str | None | object = UNSET
     access_scope: AccessScope | object = UNSET

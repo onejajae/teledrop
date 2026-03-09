@@ -97,7 +97,7 @@ class _FakeDropUseCases:
             if item is None:
                 raise DropNotFoundError()
             expected = item['password']
-            if expected and expected != command.current_password:
+            if expected and expected != command.current_password and not getattr(command, 'bypass_password_check', False):
                 raise DropPasswordInvalidError()
             dto = item['dto']
             if command.title is not UNSET:
@@ -110,6 +110,7 @@ class _FakeDropUseCases:
                 dto.is_favorite = command.is_favorite
             if command.new_password is not UNSET:
                 item['password'] = command.new_password
+                dto.requires_password = bool(command.new_password)
             return dto
 
     class _DeleteDropUseCase:
@@ -153,3 +154,28 @@ class TestWebActionsSmoke:
         logout = client.post('/actions/auth/logout', headers=headers, data={'csrf_token': 'csrf'})
         assert logout.status_code == 204
         assert logout.headers.get('HX-Redirect') == '/'
+
+    def test_manage_password_clear_allows_logged_in_user_without_current_password(self):
+        app = FastAPI()
+        app.include_router(web_router)
+        fake_use_cases = _FakeDropUseCases()
+        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
+        app.dependency_overrides[get_app_container] = lambda: fake_use_cases
+        app.dependency_overrides[get_app_settings] = lambda: fake_settings
+        app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
+        app.dependency_overrides[get_csrf_token_service] = lambda: _FakeCsrfService()
+        app.dependency_overrides[get_revoke_session_use_case] = lambda: _FakeRevokeSessionUseCase()
+        client = TestClient(app)
+        client.cookies.set('session_id', 'sid')
+
+        fake_use_cases.items['locked'] = {
+            'dto': DropDetailDTO(slug='locked', title='locked', description=None, file_name='locked.txt', mime_type='text/plain', size_bytes=5, access_scope=AccessScope.PRIVATE, is_favorite=False, requires_password=True, created_at=datetime.now(timezone.utc), updated_at=None, sha256='sha'),
+            'password': 'pw',
+        }
+
+        cleared = client.post('/actions/drop/locked/password', data={'csrf_token': 'csrf', 'current_password': '', 'new_password': ''})
+
+        assert cleared.status_code == 200
+        assert '드롭 비밀번호가 해제되었습니다.' in cleared.text
+        assert fake_use_cases.items['locked']['password'] is None
+        assert fake_use_cases.items['locked']['dto'].requires_password is False

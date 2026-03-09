@@ -6,23 +6,16 @@
 
 {% include "panels/drop_detail/_alerts.html" %}
 
-<section class="card bg-base-200 shadow-xl mb-6" data-detail-key="{{ selected_key }}"
+<section class="card overflow-hidden rounded-[1.75rem] border border-base-300/70 bg-gradient-to-b from-base-100 to-base-200/45 shadow-sm" data-detail-key="{{ selected_key }}"
   data-detail-password="{{ selected_password or '' }}">
-  <div class="card-body gap-3 p-4 sm:p-6">
+  <div class="card-body gap-4 p-5">
     {% if not (selected_requires_password and not selected_download_url) %}
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-      <div class="min-w-0">
-        <h2 class="card-title text-lg">{{ selected_drop.title if selected_drop and selected_drop.title else
-          (selected_drop.file_name if selected_drop else selected_key) }}</h2>
-      </div>
-
-      {% set show_owner_actions = show_owner_actions if show_owner_actions is defined else is_login %}
-      {% if show_owner_actions %}
-      {% include "panels/drop_detail/_owner_actions.html" %}
-      {% endif %}
+    <div class="min-w-0">
+      <h2 class="text-lg font-semibold tracking-tight sm:text-xl">{{ selected_drop.title if selected_drop and selected_drop.title else
+        (selected_drop.file_name if selected_drop else selected_key) }}</h2>
     </div>
 
-    <div class="divider"></div>
+    <div class="border-t border-base-200/80"></div>
     {% endif %}
 
     {% if selected_requires_password and not selected_download_url %}

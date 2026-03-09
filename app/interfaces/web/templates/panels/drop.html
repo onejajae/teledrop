@@ -1,40 +1,41 @@
 {% from "macros/components.html" import drop_list_card %}
 {% from "macros/icons.html" import icon_arrow_path, icon_cloud_arrow_up %}
-{% from "macros/ui.html" import alert, button, empty_state, icon_button, section, select_input %}
-{% if drop_error_message %}
-{{ alert(drop_error_message, tone="error", classes="mb-4") }}
-{% endif %}
-
-{% if drop_status_message %}
-{{ alert(drop_status_message, tone="success", classes="mb-4") }}
-{% endif %}
-
-{% call section() %}
-  <div class="flex flex-wrap items-center justify-between gap-3">
-    <div class="flex items-center gap-1">
-      <h2 class="card-title text-lg">내 업로드</h2>
-      <div class="tooltip tooltip-bottom" data-tip="새로고침">
-        {% call icon_button(label="새로고침", attrs='title="새로고침" aria-label="새로고침" data-td-action="drop-panel-refresh"') %}
-          {{ icon_arrow_path() }}
-        {% endcall %}
-      </div>
-    </div>
-    <form method="get" action="/drop-panel" hx-get="/drop-panel" hx-target="#drop-panel" hx-swap="innerHTML"
-      class="join self-start">
-      <input type="hidden" name="orderby" id="drop-orderby" value="{{ drop_orderby or 'desc' }}" />
-      {{ button("오름차순" if drop_orderby == 'asc' else "내림차순", kind="ghost", size="sm", type="button", classes="join-item whitespace-nowrap", attrs=('title="' ~ ('오름차순' if drop_orderby == 'asc' else '내림차순') ~ '" aria-label="정렬 순서 변경" data-td-action="drop-sort-toggle"')) }}
-      <label for="drop-sortby" class="sr-only">정렬 기준</label>
-      {{ select_input("sortby", [{"value": "created_at", "label": "날짜"}, {"value": "title", "label": "제목"}, {"value": "size_bytes", "label": "크기"}], input_id="drop-sortby", selected=drop_sortby, classes="join-item select-sm w-auto", attrs='onchange="this.form.requestSubmit()"') }}
-    </form>
-  </div>
-
-  {% if drops %}
-  <div class="space-y-2">
-    {% for item in drops %}
-      {{ drop_list_card(item, drop_preview_urls[item.slug], hx_get='/drop-detail?slug=' ~ (item.slug | urlencode), hx_target="#main-panel", hx_swap="innerHTML", hx_push_url=drop_preview_urls[item.slug], data_drop_key=item.slug, data_select_key=item.slug, title="상세 보기") }}
-    {% endfor %}
-  </div>
-  {% else %}
-    {{ empty_state("업로드한 파일이 없습니다.", "파일을 업로드해 시작해보세요.", icon_cloud_arrow_up(class="mx-auto mb-3 h-12 w-12 opacity-40")) }}
+{% from "macros/ui.html" import alert, button, empty_state, icon_button, section, section_header, select_input %}
+<div class="space-y-4">
+  {% if drop_error_message %}
+  {{ alert(drop_error_message, tone="error") }}
   {% endif %}
-{% endcall %}
+
+  {% if drop_status_message %}
+  {{ alert(drop_status_message, tone="success") }}
+  {% endif %}
+
+  {% call section() %}
+    {% call section_header("내 drop") %}
+      <div class="flex w-full items-center gap-2 sm:w-auto">
+        <div class="tooltip tooltip-bottom" data-tip="새로고침">
+          {% call icon_button(label="새로고침", attrs='title="새로고침" aria-label="새로고침" data-td-action="drop-panel-refresh"') %}
+            {{ icon_arrow_path() }}
+          {% endcall %}
+        </div>
+        <form method="get" action="/drop-panel" hx-get="/drop-panel" hx-target="#drop-panel" hx-swap="innerHTML"
+          class="join flex-1 sm:flex-none">
+          <input type="hidden" name="orderby" id="drop-orderby" value="{{ drop_orderby or 'desc' }}" />
+          {{ button("오름차순" if drop_orderby == 'asc' else "내림차순", kind="ghost", size="sm", type="button", classes="join-item flex-1 whitespace-nowrap sm:flex-none", attrs=('title="' ~ ('오름차순' if drop_orderby == 'asc' else '내림차순') ~ '" aria-label="정렬 순서 변경" data-td-action="drop-sort-toggle"')) }}
+          <label for="drop-sortby" class="sr-only">정렬 기준</label>
+          {{ select_input("sortby", [{"value": "created_at", "label": "날짜"}, {"value": "title", "label": "제목"}, {"value": "size_bytes", "label": "크기"}], input_id="drop-sortby", selected=drop_sortby, classes="join-item select-sm flex-1 sm:w-auto", attrs='onchange="this.form.requestSubmit()"') }}
+        </form>
+      </div>
+    {% endcall %}
+
+    {% if drops %}
+    <div class="space-y-2">
+      {% for item in drops %}
+        {{ drop_list_card(item, drop_preview_urls[item.slug], hx_get='/drop-detail?slug=' ~ (item.slug | urlencode), hx_target="#main-panel", hx_swap="innerHTML", hx_push_url=drop_preview_urls[item.slug], data_drop_key=item.slug, data_select_key=item.slug, title="상세 보기") }}
+      {% endfor %}
+    </div>
+    {% else %}
+      {{ empty_state("업로드한 파일이 없습니다.", "파일을 업로드해 시작해보세요.", icon_cloud_arrow_up(class="h-7 w-7")) }}
+    {% endif %}
+  {% endcall %}
+</div>

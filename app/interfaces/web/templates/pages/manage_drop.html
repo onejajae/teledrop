@@ -1,5 +1,4 @@
 {% extends "layout/base.html" %}
-{% from "macros/icons.html" import icon_document_duplicate %}
 {% from "macros/ui.html" import badge, button, section %}
 {% set page_title = "teledrop - drop 관리" %}
 {% set page_description = "업로드한 drop을 미리보기하고 공유 상태를 관리합니다." %}
@@ -10,54 +9,26 @@
 
 {% block page_content %}
       {% if selected_drop %}
-      {% call section(compact=true) %}
-        <div class="flex flex-wrap items-start justify-between gap-4">
-          <div class="space-y-2">
-            <div class="flex items-center gap-2">
-              {{ button("목록으로", href="/drops", kind="ghost", size="xs", normal_case=true) }}
-              {% if selected_status_label %}
-              {{ badge(selected_status_label, appearance="outline") }}
-              {% endif %}
-            </div>
-            <div class="space-y-1">
-              <h1 class="card-title text-lg">{{ selected_drop.title or selected_drop.file_name or selected_key }}</h1>
-              {% if selected_status_description %}
-              <p class="text-sm opacity-70">{{ selected_status_description }}</p>
-              {% endif %}
-            </div>
-          </div>
-
-          {% if selected_requires_password and not selected_download_url %}
-          <p class="text-sm opacity-70">현재 비밀번호를 입력하면 관리와 미리보기를 계속할 수 있습니다.</p>
+      {% call section() %}
+        <div class="flex flex-wrap items-center gap-4">
+          {% if selected_requires_password %}
+          <form method="post" action="/actions/drop/{{ selected_key }}/password"
+            class="w-full sm:ml-auto sm:w-auto"
+            onsubmit="return confirm('정말 비밀번호를 해제하시겠습니까?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
+            <input type="hidden" name="current_password" value="" />
+            <input type="hidden" name="new_password" value="" />
+            {{ button("비밀번호 해제", kind="outline", size="sm", type="submit", classes="w-full rounded-xl sm:w-auto") }}
+          </form>
           {% else %}
-          <div class="join join-vertical w-full sm:w-auto sm:join-horizontal">
-            {{ button("공유 페이지 보기", href=selected_page_preview_url, kind="ghost", size="sm", classes="join-item w-full sm:w-auto") }}
-            {% if selected_drop.access_scope == 'private' %}
-            <form method="post" action="/actions/drop/{{ selected_key }}/access">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
-              <input type="hidden" name="password" value="{{ selected_password or '' }}" />
-              <input type="hidden" name="user_only" value="false" />
-              {{ button("공유 시작", kind="primary", size="sm", type="submit", classes="join-item w-full sm:w-auto") }}
-            </form>
-            {% else %}
-            {% call button(kind="outline", size="sm", classes="join-item detail-copy-link w-full sm:w-auto", attrs='data-copy-url="' ~ selected_page_preview_url ~ '" aria-label="공유 링크 복사" title="공유 링크 복사"') %}
-              {{ icon_document_duplicate() }}
-              <span class="detail-copy-label">링크 복사</span>
-            {% endcall %}
-            <form method="post" action="/actions/drop/{{ selected_key }}/access">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
-              <input type="hidden" name="password" value="{{ selected_password or '' }}" />
-              <input type="hidden" name="user_only" value="true" />
-              {{ button("공유 중단", kind="outline", size="sm", type="submit", classes="join-item w-full sm:w-auto") }}
-            </form>
-            {% endif %}
-          </div>
+          {% if selected_status_label %}
+          {{ badge(selected_status_label, appearance="ghost", classes="mr-auto") }}
+          {% endif %}
+          {% set owner_action_group_chromed = false %}
+          {% set owner_action_group_classes = "" if selected_status_label else "ml-auto" %}
+          {% include "panels/drop_detail/_owner_actions.html" %}
           {% endif %}
         </div>
-
-        {% if selected_drop.access_scope == 'public' and selected_drop.requires_password %}
-        <p class="text-xs opacity-70">공유 링크는 그대로 유지되고, 비밀번호는 별도로 전달해야 합니다.</p>
-        {% endif %}
       {% endcall %}
       {% endif %}
 

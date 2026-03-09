@@ -4,10 +4,10 @@
   <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
   <input type="hidden" name="password" value="{{ selected_password or '' }}" />
   {% call field("제목", "detail-edit-title") %}
-    {{ text_input("title", input_id="detail-edit-title", value=selected_drop.title or '', classes="input-sm") }}
+    {{ text_input("title", input_id="detail-edit-title", value=selected_drop.title or '') }}
   {% endcall %}
   {% call field("내용", "detail-edit-description") %}
-    {{ textarea_input("description", input_id="detail-edit-description", value=selected_drop.description or '') }}
+    {{ textarea_input("description", input_id="detail-edit-description", value=selected_drop.description or '', rows=5) }}
   {% endcall %}
 {% endcall %}
 
@@ -15,10 +15,10 @@
   <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
   <input type="hidden" name="current_password" value="{{ selected_password or '' }}" />
   {% call field("새 비밀번호", "detail-password-new") %}
-    {{ text_input("new_password", input_id="detail-password-new", input_type="password", placeholder="•••••", classes="input-sm") }}
+    {{ text_input("new_password", input_id="detail-password-new", input_type="password", placeholder="•••••") }}
   {% endcall %}
   {% call field("비밀번호 확인", "detail-password-confirm") %}
-    {{ text_input("confirm_password", input_id="detail-password-confirm", input_type="password", placeholder="•••••", classes="input-sm") }}
+    {{ text_input("confirm_password", input_id="detail-password-confirm", input_type="password", placeholder="•••••") }}
   {% endcall %}
   <p id="detail-password-mismatch" class="hidden text-xs text-error">비밀번호가 일치하지 않습니다.</p>
 {% endcall %}

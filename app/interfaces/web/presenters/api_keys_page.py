@@ -41,6 +41,7 @@ async def api_keys_page_context(
     return {
         "request": request,
         "is_login": bool(auth_data.username),
+        "active_nav": "api_keys",
         "auth_username": auth_data.username,
         "csrf_token": csrf_token_for_request(request, settings, csrf_service),
         "api_keys": [_as_template_api_key(item) for item in items],

@@ -27,12 +27,7 @@
     let dragDepth = 0;
 
     const setDragState = (isDragging) => {
-      dropzone.classList.toggle("border-primary", isDragging);
-      dropzone.classList.toggle("ring", isDragging);
-      dropzone.classList.toggle("ring-primary/15", isDragging);
-      dropzone.classList.toggle("bg-base-200", isDragging);
-      dropzone.classList.toggle("border-base-300", !isDragging);
-      dropzone.classList.toggle("bg-base-100", !isDragging);
+      dropzone.dataset.dragging = isDragging ? "true" : "false";
     };
 
     const revokePreviewUrl = () => {
@@ -133,6 +128,7 @@
       progress.setAttribute("value", (event.detail.loaded / event.detail.total) * 100);
     });
 
+    setDragState(false);
     updateSubmitState();
   };
 

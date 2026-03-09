@@ -1,35 +1,35 @@
 {% if detail_error_code == 'forbidden' %}
 <div class="mx-auto max-w-sm text-center">
   <div class="grid place-items-center gap-2">
-    <div class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-error/10 text-error">
+    <div class="inline-flex h-14 w-14 items-center justify-center rounded-[1rem] border border-error/20 bg-error/10 text-error shadow-sm">
       {{ icon_x_circle(class="h-5 w-5") }}
     </div>
     <h3 class="text-lg font-semibold">{% if detail_mode == 'shared' and not is_login %}링크를 사용할 수 없습니다.{% else %}권한이 없습니다.{% endif %}</h3>
   </div>
   {% if detail_error_message and not (detail_mode == 'shared' and not is_login) %}
-  <p class="mt-2 text-sm opacity-70">{{ detail_error_message }}</p>
+  <p class="mt-3 text-sm leading-6 opacity-70">{{ detail_error_message }}</p>
   {% endif %}
   <div class="mt-5 text-center">
-    <a href="{% if detail_mode == 'manage' %}/drops{% else %}/{% endif %}" class="btn btn-outline btn-sm rounded-full px-8">돌아가기</a>
+    <a href="{% if detail_mode == 'manage' %}/drops{% else %}/{% endif %}" class="btn btn-outline btn-sm rounded-xl px-8">돌아가기</a>
   </div>
 </div>
 {% elif detail_error_code == 'not_found' %}
 <div class="mx-auto max-w-sm text-center">
   <div class="grid place-items-center gap-2">
-    <div class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-base-200">
+    <div class="inline-flex h-14 w-14 items-center justify-center rounded-[1rem] border border-base-300/70 bg-base-100 text-base-content/70 shadow-sm">
       {{ icon_information_circle(class="h-5 w-5") }}
     </div>
     <h3 class="text-lg font-semibold">존재하지 않습니다.</h3>
   </div>
   {% if detail_error_message %}
-  <p class="mt-2 text-sm opacity-70">{{ detail_error_message }}</p>
+  <p class="mt-3 text-sm leading-6 opacity-70">{{ detail_error_message }}</p>
   {% endif %}
   <div class="mt-5 text-center">
-    <a href="/" class="btn btn-outline btn-sm rounded-full px-8">돌아가기</a>
+    <a href="/" class="btn btn-outline btn-sm rounded-xl px-8">돌아가기</a>
   </div>
 </div>
 {% else %}
-<div class="rounded-box border border-base-300 p-8 text-center">
+<div class="rounded-[1.35rem] border border-base-300/70 bg-base-100/75 p-8 text-center shadow-sm">
   <p class="font-semibold">{{ detail_error_message or "파일을 불러올 수 없습니다." }}</p>
   <div class="mt-4">
     {% if is_login %}

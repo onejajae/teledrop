@@ -290,6 +290,30 @@ class TestWebActionRoutesIntegration:
         assert len(drop_use_cases.create_calls) == 1
         assert drop_use_cases.create_calls[0].access_scope == AccessScope.PRIVATE
 
+    def test_password_clear_without_current_password_sets_bypass_flag(self):
+        drop_use_cases = _FakeDropUseCases()
+        csrf_service = _FakeCsrfService(verify_result=True)
+        client = _client(
+            drop_use_cases=drop_use_cases,
+            api_key_use_cases=_FakeApiKeyUseCases(),
+            csrf_service=csrf_service,
+            revoke_use_case=_FakeRevokeSessionUseCase(),
+        )
+        client.cookies.set("session_id", "sid")
+
+        response = client.post(
+            "/actions/drop/k1/password",
+            data={"csrf_token": "csrf", "current_password": "", "new_password": ""},
+        )
+
+        assert response.status_code == 200
+        assert "드롭 비밀번호가 해제되었습니다." in response.text
+        assert len(drop_use_cases.update_calls) == 1
+        assert drop_use_cases.update_calls[0].slug == "k1"
+        assert drop_use_cases.update_calls[0].current_password is None
+        assert drop_use_cases.update_calls[0].new_password is None
+        assert drop_use_cases.update_calls[0].bypass_password_check is True
+
     def test_logout_csrf_failure_returns_403_without_revoke_call(self):
         revoke_use_case = _FakeRevokeSessionUseCase()
         client = _client(
