@@ -239,6 +239,11 @@ class TestWebTemplateSmoke:
         assert 'detail-copy-link' in selected
         assert 'rounded-[1.75rem] border border-base-300/70 bg-gradient-to-b from-base-100 to-base-200/45 shadow-sm' in selected
         assert 'card overflow-hidden rounded-[1.35rem] border border-base-300/70 bg-base-100/85 shadow-sm group relative transition-colors duration-200' in selected
+        assert 'id="detail-edit-modal"' in selected
+        assert 'id="detail-password-modal"' in selected
+        assert 'name="csrf_token" value="csrf"' in selected
+        assert 'id="detail-edit-title"' in selected
+        assert 'id="detail-password-new"' in selected
         assert 'shadow-xl mb-6' not in selected
         assert 'aria-label="메타데이터 수정"' not in selected
         assert 'aria-label="비밀번호 설정"' not in selected

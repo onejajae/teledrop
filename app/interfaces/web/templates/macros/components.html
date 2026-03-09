@@ -297,6 +297,9 @@
 
 {% macro modal_form(dialog_id, title, form_action, submit_label, description=None, form_id=None, form_attrs="", form_classes="mt-4 space-y-3", close_label="취소", close_attrs=None, submit_id=None, submit_disabled=false, submit_kind="primary", submit_classes="") -%}
 {% set cleaned_form_classes = form_classes | replace('mt-4 ', '') | replace('mt-4', '') %}
+{% set modal_content %}
+  {% if caller is defined %}{{ caller() }}{% endif %}
+{% endset %}
 <dialog id="{{ dialog_id }}" class="modal modal-bottom sm:modal-middle">
   {% call page_section(tag="div", classes="modal-box p-0 shadow-xl", body_classes="gap-0 p-0") %}
     <div class="border-b border-base-200/80 px-5 py-4 sm:px-6 sm:py-5">
@@ -309,7 +312,7 @@
     </div>
     <form method="post" action="{{ form_action }}"{% if form_id %} id="{{ form_id }}"{% endif %}{% if form_attrs %} {{ form_attrs | safe }}{% endif %} class="{{ cleaned_form_classes }} px-5 py-5 sm:px-6 sm:py-6">
       {% call inset_surface(classes="space-y-5 p-4 sm:p-5") %}
-        {% if caller is defined %}{{ caller() }}{% endif %}
+        {{ modal_content }}
       {% endcall %}
       <div class="mt-5 flex flex-col-reverse gap-2 border-t border-base-200/80 pt-4 sm:flex-row sm:justify-end">
         {{ button(close_label, kind="ghost", size="sm", type="button", classes="rounded-xl border border-base-300/80 bg-base-100/85 px-4 hover:bg-base-100", attrs=close_attrs or ('data-td-action="close-dialog" data-td-dialog-id="' ~ dialog_id ~ '"')) }}
