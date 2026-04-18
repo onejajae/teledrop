@@ -1,18 +1,25 @@
 from datetime import datetime, timezone
-from types import SimpleNamespace
 from urllib.parse import quote
 
 from fastapi import Request, Response, status
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from app.application.auth.models import ApiKeyDTO, CreatedApiKeyDTO
 from app.application.auth.use_cases.csrf import CsrfTokenService
 from app.application.auth.types import AuthIdentity
 from app.application.drop.models import DropDetailDTO, DropListItemDTO
 from app.bootstrap.runtime_paths import template_dir
-from app.core.auth import get_session_id_from_request
+from app.core.auth import clear_session_cookie, get_session_id_from_request
 from app.core.config import Settings
 from app.interfaces.web.theme_config import web_theme
+from app.interfaces.web.presenters.view_models import (
+    ApiKeyVM,
+    CreatedApiKeyVM,
+    DropVM,
+)
+
+_CLEAR_SESSION_COOKIE_ATTR = "clear_session_cookie_pending"
 
 
 def configure_templates(templates: Jinja2Templates) -> Jinja2Templates:
@@ -45,12 +52,38 @@ def csrf_is_valid(
     return csrf_service.verify(session_id, csrf_token)
 
 
-def unauthorized_ui_response(request: Request):
+def mark_session_cookie_for_clear(request: Request):
+    setattr(request.state, _CLEAR_SESSION_COOKIE_ATTR, True)
+
+
+def finalize_ui_response(request: Request, response: Response, settings: Settings) -> Response:
+    if getattr(request.state, _CLEAR_SESSION_COOKIE_ATTR, False):
+        clear_session_cookie(response, settings)
+        setattr(request.state, _CLEAR_SESSION_COOKIE_ATTR, False)
+    return response
+
+
+def build_query_url(url: str, **params: str | None) -> str:
+    serialized = [
+        f"{key}={quote(value, safe='')}"
+        for key, value in params.items()
+        if value is not None
+    ]
+    if not serialized:
+        return url
+    return f"{url}?{'&'.join(serialized)}"
+
+
+def unauthorized_ui_response(request: Request, settings: Settings):
     if request.headers.get("HX-Request") == "true":
         response = Response(status_code=status.HTTP_204_NO_CONTENT)
         response.headers["HX-Redirect"] = "/"
-        return response
-    return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
+        return finalize_ui_response(request, response, settings)
+    return finalize_ui_response(
+        request,
+        RedirectResponse(url="/", status_code=status.HTTP_302_FOUND),
+        settings,
+    )
 
 
 def base_template_context(
@@ -75,38 +108,32 @@ def normalize_sort_value(sortby: str | None) -> str:
     return sortby or "created_at"
 
 
-def drop_file_urls(slug: str, password: str | None) -> tuple[str, str]:
+def drop_file_urls(slug: str) -> tuple[str, str]:
     encoded_slug = quote(slug, safe="")
-    if password:
-        encoded_password = quote(password, safe="")
-        download_url = f"/api/drop/{encoded_slug}?drop_password={encoded_password}"
-        preview_url = (
-            f"/api/drop/{encoded_slug}?disposition=inline&drop_password={encoded_password}"
-        )
-    else:
-        download_url = f"/api/drop/{encoded_slug}"
-        preview_url = f"/api/drop/{encoded_slug}?disposition=inline"
-
-    return download_url, preview_url
+    return (
+        f"/api/drop/{encoded_slug}",
+        f"/api/drop/{encoded_slug}?disposition=inline",
+    )
 
 
-def drop_preview_page_url(slug: str, password: str | None) -> str:
+def drop_preview_page_url(slug: str) -> str:
     encoded_slug = quote(slug, safe="")
-    if password:
-        encoded_password = quote(password, safe="")
-        return f"/{encoded_slug}?password={encoded_password}"
     return f"/{encoded_slug}"
 
 
-def drop_manage_page_url(slug: str, password: str | None = None) -> str:
+def drop_unlock_action_url(slug: str) -> str:
     encoded_slug = quote(slug, safe="")
-    if password:
-        encoded_password = quote(password, safe="")
-        return f"/drops/{encoded_slug}?password={encoded_password}"
+    return f"/actions/drop/{encoded_slug}/unlock"
+
+
+def drop_manage_page_url(slug: str) -> str:
+    encoded_slug = quote(slug, safe="")
     return f"/drops/{encoded_slug}"
 
 
-def drop_access_status_badge(selected_drop) -> tuple[str | None, str | None, str | None]:
+def drop_access_status_badge(
+    selected_drop: DropVM | None,
+) -> tuple[str | None, str | None, str | None]:
     if selected_drop is None:
         return None, None, None
     if selected_drop.access_scope == "private":
@@ -180,13 +207,13 @@ def _format_relative_time_ko(value: datetime | None, now: datetime | None = None
     return f"{seconds // (60 * 60 * 24 * 365)}년 전"
 
 
-def as_template_drop(item: DropListItemDTO | DropDetailDTO) -> SimpleNamespace:
+def as_drop_vm(item: DropListItemDTO | DropDetailDTO) -> DropVM:
     slug = item.slug
     size_human = _humanize_size_jedec(item.size_bytes)
     created_at_label = _format_datetime_label_ko(item.created_at)
     updated_at_label = _format_datetime_label_ko(item.updated_at)
     created_at_relative = _format_relative_time_ko(item.created_at)
-    return SimpleNamespace(
+    return DropVM(
         slug=slug,
         title=item.title,
         description=item.description,
@@ -203,3 +230,25 @@ def as_template_drop(item: DropListItemDTO | DropDetailDTO) -> SimpleNamespace:
         updated_at_label=updated_at_label,
         created_at_relative=created_at_relative,
     )
+
+
+def as_api_key_vm(item: ApiKeyDTO) -> ApiKeyVM:
+    now = datetime.now(tz=timezone.utc)
+    expires_at = item.expires_at
+    if expires_at is not None and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+    return ApiKeyVM(
+        public_id=item.public_id,
+        name=item.name,
+        created_by_username=item.created_by_username,
+        created_at=item.created_at,
+        expires_at=expires_at,
+        last_used_at=item.last_used_at,
+        revoked_at=item.revoked_at,
+        is_active=item.revoked_at is None and (expires_at is None or expires_at > now),
+    )
+
+
+def as_created_api_key_vm(item: CreatedApiKeyDTO) -> CreatedApiKeyVM:
+    return CreatedApiKeyVM(key=item.key)

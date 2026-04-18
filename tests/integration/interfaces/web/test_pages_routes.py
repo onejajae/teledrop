@@ -5,12 +5,18 @@ from fastapi.testclient import TestClient
 
 from app.bootstrap.container import get_app_settings, get_csrf_token_service
 from app.bootstrap.providers.auth import get_list_api_keys_use_case, get_verify_session_use_case
+from app.domain.auth.errors import SessionInvalid
 from app.interfaces.web.router import router as web_router
 
 
 class _FakeVerifySessionUseCase:
     async def execute(self, _query) -> str:
         return "tester"
+
+
+class _FakeInvalidVerifySessionUseCase:
+    async def execute(self, _query) -> str:
+        raise SessionInvalid()
 
 
 class _FakeCsrfService:
@@ -35,6 +41,7 @@ def _client() -> TestClient:
         SESSION_COOKIE_SECURE=False,
         SESSION_COOKIE_SAMESITE="lax",
         SESSION_TTL_SECONDS=86400,
+        CSRF_SECRET_KEY="csrf-secret",
         DEFAULT_PAGE_SIZE=10,
         MAX_PAGE_SIZE=200,
     )
@@ -87,3 +94,38 @@ class TestWebPagesRoutes:
         assert response.status_code == 200
         assert "API Keys" in response.text
         assert "API key 생성" in response.text
+
+    def test_home_renders_auth_error_banner_from_query(self):
+        client = _client()
+
+        response = client.get("/?auth_error=login_invalid")
+
+        assert response.status_code == 200
+        assert "아이디 또는 비밀번호가 올바르지 않습니다." in response.text
+
+    def test_home_clears_stale_session_cookie(self):
+        app = FastAPI()
+        app.include_router(web_router)
+        fake_settings = SimpleNamespace(
+            SESSION_COOKIE_NAME="session_id",
+            SESSION_COOKIE_PATH="/",
+            SESSION_COOKIE_SECURE=False,
+            SESSION_COOKIE_SAMESITE="lax",
+            SESSION_TTL_SECONDS=86400,
+            CSRF_SECRET_KEY="csrf-secret",
+            DEFAULT_PAGE_SIZE=10,
+            MAX_PAGE_SIZE=200,
+        )
+        app.dependency_overrides[get_app_settings] = lambda: fake_settings
+        app.dependency_overrides[get_verify_session_use_case] = (
+            lambda: _FakeInvalidVerifySessionUseCase()
+        )
+        app.dependency_overrides[get_csrf_token_service] = lambda: _FakeCsrfService()
+        app.dependency_overrides[get_list_api_keys_use_case] = lambda: _FakeListApiKeysUseCase()
+        client = TestClient(app)
+        client.cookies.set("session_id", "stale")
+
+        response = client.get("/")
+
+        assert response.status_code == 200
+        assert "session_id=" in response.headers.get("set-cookie", "")

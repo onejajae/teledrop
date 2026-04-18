@@ -10,6 +10,9 @@ from app.domain.drop.errors import DropSlugUnavailableError
 DEFAULT_RESERVED_SLUGS = {
     "api",
     "actions",
+    "dev",
+    "drops",
+    "settings",
     "static",
     "auth-panel",
     "drop-panel",

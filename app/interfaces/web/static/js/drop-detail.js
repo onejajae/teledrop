@@ -1,98 +1,81 @@
 (() => {
-  const toggleDialog = (trigger) => {
-    const action = trigger.dataset.tdAction;
-    if (action !== "open-dialog" && action !== "close-dialog") {
-      return false;
+  const getPasswordFormParts = (form) => {
+    if (!form) {
+      return null;
     }
 
-    const dialogId = trigger.dataset.tdDialogId;
-    const dialog = dialogId ? document.getElementById(dialogId) : null;
-    if (!dialog) {
-      return true;
+    const password = form.querySelector('[data-td-role="password-input"]');
+    const confirm = form.querySelector('[data-td-role="password-confirm"]');
+    const mismatch = form.querySelector('[data-td-role="password-mismatch"]');
+    const submit = form.querySelector('[data-td-role="password-submit"]');
+
+    if (!password || !confirm || !mismatch || !submit) {
+      return null;
     }
 
-    if (action === "open-dialog" && typeof dialog.showModal === "function") {
-      dialog.showModal();
-      return true;
-    }
-
-    if (action === "close-dialog" && typeof dialog.close === "function") {
-      dialog.close();
-    }
-    return true;
+    return { password, confirm, mismatch, submit };
   };
 
-  const copyPreviewUrl = (button) => {
-    const relativeUrl = button.dataset.copyUrl;
-    if (!relativeUrl) {
+  const syncPasswordForm = (form) => {
+    const parts = getPasswordFormParts(form);
+    if (!parts) {
       return;
     }
 
-    const label = button.querySelector(".detail-copy-label");
-    const original = label?.textContent ?? "";
-    const originalAriaLabel = button.getAttribute("aria-label") ?? "";
-    const originalTitle = button.getAttribute("title") ?? "";
-    navigator.clipboard.writeText(`${window.location.origin}${relativeUrl}`).then(() => {
-      if (label) {
-        label.textContent = "복사됨";
-      }
-      button.setAttribute("aria-label", "링크 복사됨");
-      button.setAttribute("title", "링크 복사됨");
-      window.setTimeout(() => {
-        if (label) {
-          label.textContent = original;
-        }
-        if (originalAriaLabel) {
-          button.setAttribute("aria-label", originalAriaLabel);
-        }
-        if (originalTitle) {
-          button.setAttribute("title", originalTitle);
-        }
-      }, 1200);
-    });
+    const { password, confirm, mismatch, submit } = parts;
+    const isMatch = password.value === confirm.value;
+    const showMismatch = confirm.value.length > 0 && !isMatch;
+    mismatch.classList.toggle("hidden", !showMismatch);
+    submit.disabled = showMismatch;
   };
 
-  const initDetailPasswordForm = () => {
-    const form = document.getElementById("detail-password-form");
+  const initPasswordForm = (form) => {
     if (!form || form.dataset.initialized === "true") {
+      return;
+    }
+    const parts = getPasswordFormParts(form);
+    if (!parts) {
       return;
     }
     form.dataset.initialized = "true";
 
-    const password = document.getElementById("detail-password-new");
-    const confirm = document.getElementById("detail-password-confirm");
-    const mismatch = document.getElementById("detail-password-mismatch");
-    const submit = document.getElementById("detail-password-submit");
-
-    if (!password || !confirm || !mismatch || !submit) {
-      return;
-    }
-
-    const sync = () => {
-      const isMatch = password.value === confirm.value;
-      const showMismatch = confirm.value.length > 0 && !isMatch;
-      mismatch.classList.toggle("hidden", !showMismatch);
-      submit.disabled = !isMatch;
-    };
-
-    password.addEventListener("input", sync);
-    confirm.addEventListener("input", sync);
-    sync();
+    const { password, confirm } = parts;
+    const handleSync = () => syncPasswordForm(form);
+    password.addEventListener("input", handleSync);
+    password.addEventListener("change", handleSync);
+    confirm.addEventListener("input", handleSync);
+    confirm.addEventListener("change", handleSync);
+    handleSync();
   };
 
-  document.addEventListener("DOMContentLoaded", initDetailPasswordForm);
-  document.body.addEventListener("htmx:afterSwap", initDetailPasswordForm);
-  document.addEventListener("click", (event) => {
-    const tdActionTrigger = event.target.closest("[data-td-action]");
-    if (tdActionTrigger && toggleDialog(tdActionTrigger)) {
-      event.preventDefault();
+  const initDetailPanel = (root) => {
+    if (!root) {
       return;
     }
 
-    const button = event.target.closest(".detail-copy-link");
-    if (!button) {
+    root.querySelectorAll('[data-td-role="password-form"]').forEach(initPasswordForm);
+  };
+
+  const initDetailPanels = () => {
+    document
+      .querySelectorAll('[data-td-controller="drop-detail"]')
+      .forEach(initDetailPanel);
+  };
+
+  document.addEventListener("input", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) {
       return;
     }
-    copyPreviewUrl(button);
+
+    const form = target.closest('[data-td-role="password-form"]');
+    if (!form) {
+      return;
+    }
+
+    syncPasswordForm(form);
   });
+
+  document.addEventListener("DOMContentLoaded", initDetailPanels);
+  document.body.addEventListener("htmx:afterSwap", initDetailPanels);
 })();

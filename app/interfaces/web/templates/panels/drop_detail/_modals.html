@@ -1,24 +1,24 @@
-{% from "macros/components.html" import modal_form %}
+{% from "macros/drop_detail.html" import modal_form %}
 {% from "macros/ui.html" import field, text_input, textarea_input %}
-{% call modal_form("detail-edit-modal", "메타데이터 수정", "/actions/drop/" ~ selected_key ~ "/detail", "저장") %}
+{% call modal_form("detail-edit-modal", "메타데이터 수정", "/actions/drop/" ~ detail.key ~ "/detail", "저장") %}
   <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
-  <input type="hidden" name="password" value="{{ selected_password or '' }}" />
   {% call field("제목", "detail-edit-title") %}
-    {{ text_input("title", input_id="detail-edit-title", value=selected_drop.title or '') }}
+    {{ text_input("title", input_id="detail-edit-title", value=detail.drop.title or '') }}
   {% endcall %}
   {% call field("내용", "detail-edit-description") %}
-    {{ textarea_input("description", input_id="detail-edit-description", value=selected_drop.description or '', rows=5) }}
+    {{ textarea_input("description", input_id="detail-edit-description", value=detail.drop.description or '', rows=5) }}
   {% endcall %}
 {% endcall %}
 
-{% call modal_form("detail-password-modal", "비밀번호 설정", "/actions/drop/" ~ selected_key ~ "/password", "적용", description="비워두면 비밀번호를 해제합니다.", form_id="detail-password-form", submit_id="detail-password-submit", submit_disabled=true) %}
+{% if not detail.drop.requires_password %}
+{% call modal_form("detail-password-modal", "비밀번호 설정", "/actions/drop/" ~ detail.key ~ "/password", "설정", description="새 비밀번호를 설정합니다.", form_attrs='data-td-role="password-form"', submit_attrs='data-td-role="password-submit"') %}
   <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
-  <input type="hidden" name="current_password" value="{{ selected_password or '' }}" />
   {% call field("새 비밀번호", "detail-password-new") %}
-    {{ text_input("new_password", input_id="detail-password-new", input_type="password", placeholder="•••••") }}
+    {{ text_input("new_password", input_id="detail-password-new", input_type="password", placeholder="•••••", attrs='data-td-role="password-input"') }}
   {% endcall %}
   {% call field("비밀번호 확인", "detail-password-confirm") %}
-    {{ text_input("confirm_password", input_id="detail-password-confirm", input_type="password", placeholder="•••••") }}
+    {{ text_input("confirm_password", input_id="detail-password-confirm", input_type="password", placeholder="•••••", attrs='data-td-role="password-confirm"') }}
   {% endcall %}
-  <p id="detail-password-mismatch" class="hidden text-xs text-error">비밀번호가 일치하지 않습니다.</p>
+  <p data-td-role="password-mismatch" class="hidden text-xs text-error">비밀번호가 일치하지 않습니다.</p>
 {% endcall %}
+{% endif %}

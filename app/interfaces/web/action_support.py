@@ -1,11 +1,11 @@
 from collections.abc import Awaitable, Callable
 
-from fastapi import Request, Response
+from fastapi import Request, Response, status
 from fastapi.responses import RedirectResponse
 
+from app.application.auth.types import AuthIdentity
 from app.application.auth.use_cases.csrf import CsrfTokenService
 from app.core.config import Settings
-from app.application.auth.types import AuthIdentity
 from app.interfaces.web.presenters.common import csrf_is_valid, unauthorized_ui_response
 
 
@@ -27,7 +27,7 @@ async def require_auth_and_csrf(
     on_csrf_failure: Callable[[], Awaitable[Response]],
 ) -> Response | None:
     if not auth_data.username:
-        return unauthorized_ui_response(request)
+        return unauthorized_ui_response(request, settings)
 
     if not csrf_is_valid(request, settings, csrf_service, csrf_token):
         return await on_csrf_failure()

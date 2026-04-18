@@ -10,6 +10,7 @@ from app.bootstrap.providers.auth import (
 )
 from app.core.auth import clear_session_cookie, get_session_id_from_request, set_session_cookie
 from app.core.config import Settings
+from app.core.drop_grants import clear_drop_grant_cookies
 from app.domain.auth.errors import LoginInvalid
 from app.interfaces.api.deps.auth import get_required_api_auth
 from app.interfaces.api.errors import login_invalid_exception
@@ -58,6 +59,7 @@ async def logout(
     if session_id:
         await revoke_session_use_case.execute(session_id)
     clear_session_cookie(response, settings)
+    clear_drop_grant_cookies(response, request, settings)
 
 
 @router.post("/logout")
@@ -72,3 +74,4 @@ async def logout_post(
     if session_id:
         await revoke_session_use_case.execute(session_id)
     clear_session_cookie(response, settings)
+    clear_drop_grant_cookies(response, request, settings)

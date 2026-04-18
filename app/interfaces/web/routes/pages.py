@@ -27,12 +27,14 @@ async def ui(
     settings: Settings = Depends(get_app_settings),
     auth_data: AuthIdentity = Depends(get_optional_session_auth),
     csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
+    auth_error: str | None = Query(default=None),
 ):
     return render_home_page(
         request=request,
         auth_data=auth_data,
         csrf_service=csrf_service,
         settings=settings,
+        auth_error_code=auth_error,
     )
 
 
@@ -47,7 +49,7 @@ async def ui_library(
     orderby: str | None = Query(default="desc"),
 ):
     if not auth_data.username:
-        return unauthorized_ui_response(request)
+        return unauthorized_ui_response(request, settings)
 
     return await render_library_page(
         request=request,
@@ -68,10 +70,9 @@ async def ui_manage_drop(
     auth_data: AuthIdentity = Depends(get_optional_session_auth),
     csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
     get_drop_meta_use_case: GetDropMetaUseCase = Depends(get_get_drop_meta_use_case),
-    password: str | None = Query(default=None),
 ):
     if not auth_data.username:
-        return unauthorized_ui_response(request)
+        return unauthorized_ui_response(request, settings)
 
     return await render_manage_page(
         request=request,
@@ -80,7 +81,6 @@ async def ui_manage_drop(
         get_drop_meta_use_case=get_drop_meta_use_case,
         settings=settings,
         slug=slug,
-        password=password,
     )
 
 
@@ -93,7 +93,7 @@ async def ui_api_keys(
     list_api_keys_use_case: ListApiKeysUseCase = Depends(get_list_api_keys_use_case),
 ):
     if not auth_data.username:
-        return unauthorized_ui_response(request)
+        return unauthorized_ui_response(request, settings)
 
     return await render_api_keys_page(
         request=request,
@@ -127,7 +127,6 @@ async def ui_preview(
     auth_data: AuthIdentity = Depends(get_optional_session_auth),
     csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
     get_drop_meta_use_case: GetDropMetaUseCase = Depends(get_get_drop_meta_use_case),
-    password: str | None = Query(default=None),
 ):
     return await render_shared_page(
         request=request,
@@ -136,5 +135,4 @@ async def ui_preview(
         get_drop_meta_use_case=get_drop_meta_use_case,
         settings=settings,
         slug=slug,
-        password=password,
     )

@@ -6,7 +6,7 @@
 
   {% call page_section(classes="flex min-h-full flex-1 flex-col", body_classes="flex flex-1 justify-center") %}
     {{ section_header("로그인", centered=true, classes="pb-3") }}
-    <form method="post" action="/actions/auth/login" hx-post="/actions/auth/login" hx-target="#main-panel"
+    <form method="post" action="/actions/auth/login" hx-post="/actions/auth/login" hx-target="closest [data-td-swap-root]"
       hx-swap="innerHTML" class="mx-auto w-full max-w-md space-y-5">
       {% call inset_surface(classes="space-y-5 p-5") %}
         <div class="space-y-2">

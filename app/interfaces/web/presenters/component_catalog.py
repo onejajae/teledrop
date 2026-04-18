@@ -1,11 +1,21 @@
-from types import SimpleNamespace
+from datetime import datetime
 
 from fastapi import Request, status
 
 from app.application.auth.types import AuthIdentity
 from app.application.auth.use_cases.csrf import CsrfTokenService
 from app.core.config import Settings
-from app.interfaces.web.presenters.common import base_template_context, templates
+from app.interfaces.web.presenters.common import (
+    base_template_context,
+    finalize_ui_response,
+    templates,
+)
+from app.interfaces.web.presenters.view_models import (
+    ApiKeyVM,
+    CreatedApiKeyVM,
+    DropVM,
+    SortOptionVM,
+)
 
 
 def _sample_drop(
@@ -22,8 +32,8 @@ def _sample_drop(
     created_at_relative: str,
     updated_at: str | None = None,
     updated_at_label: str | None = None,
-) -> SimpleNamespace:
-    return SimpleNamespace(
+) -> DropVM:
+    return DropVM(
         slug=slug,
         title=title,
         description=description,
@@ -55,9 +65,9 @@ def component_catalog_context(
         csrf_service=csrf_service,
         active_nav=None,
         catalog_sort_options=[
-            SimpleNamespace(value="created_at", label="날짜"),
-            SimpleNamespace(value="title", label="제목"),
-            SimpleNamespace(value="size_bytes", label="크기"),
+            SortOptionVM(value="created_at", label="날짜"),
+            SortOptionVM(value="title", label="제목"),
+            SortOptionVM(value="size_bytes", label="크기"),
         ],
         catalog_public_drop=_sample_drop(
             slug="spring-launch-kit",
@@ -85,15 +95,17 @@ def component_catalog_context(
             created_at_label="2026-03-07 (토) 20:14:00",
             created_at_relative="5시간 전",
         ),
-        catalog_api_key=SimpleNamespace(
+        catalog_api_key=ApiKeyVM(
             name="shortcuts",
             public_id="tdp_01HZY8M4T2B6C9",
-            is_active=True,
             created_by_username="tester",
+            created_at=datetime.fromisoformat("2026-03-01T09:00:00+09:00"),
             expires_at="2026-04-01 09:00:00+09:00",
             last_used_at="2026-03-08 08:11:00+09:00",
+            revoked_at=None,
+            is_active=True,
         ),
-        catalog_created_api_key=SimpleNamespace(
+        catalog_created_api_key=CreatedApiKeyVM(
             key="td_live_demo_sample_secret_key",
         ),
     )
@@ -112,11 +124,15 @@ def render_component_catalog_page(
         csrf_service=csrf_service,
         settings=settings,
     )
-    return templates().TemplateResponse(
-        request=request,
-        name="pages/components.html",
-        context=context,
-        status_code=status_code,
+    return finalize_ui_response(
+        request,
+        templates().TemplateResponse(
+            request=request,
+            name="pages/components.html",
+            context=context,
+            status_code=status_code,
+        ),
+        settings,
     )
 
 

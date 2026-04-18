@@ -21,6 +21,7 @@ from app.bootstrap.container import (
     get_file_storage,
 )
 from app.core.config import Settings
+from app.domain.drop.grants import DropPasswordGrantService
 from app.infrastructure.db.repositories import SQLModelDropReadRepository
 from app.infrastructure.db.uow_drop import SQLModelDropUnitOfWork
 from app.infrastructure.storage.local_file_storage import LocalFileStorage
@@ -73,35 +74,53 @@ def get_list_drops_use_case(
     )
 
 
+def get_drop_password_grant_service(
+    settings: Settings = Depends(get_app_settings),
+) -> DropPasswordGrantService:
+    return DropPasswordGrantService(
+        getattr(settings, "CSRF_SECRET_KEY", "teledrop-drop-grant-dev-secret"),
+        ttl_seconds=settings.SESSION_TTL_SECONDS,
+    )
+
+
 def get_get_drop_meta_use_case(
     repository: SQLModelDropReadRepository = Depends(get_drop_read_repository),
+    grant_service: DropPasswordGrantService = Depends(get_drop_password_grant_service),
 ) -> GetDropMetaUseCase:
-    return GetDropMetaUseCase(repository=repository)
+    return GetDropMetaUseCase(repository=repository, grant_service=grant_service)
 
 
 def get_get_drop_stream_source_use_case(
     repository: SQLModelDropReadRepository = Depends(get_drop_read_repository),
     storage: LocalFileStorage = Depends(get_file_storage),
+    grant_service: DropPasswordGrantService = Depends(get_drop_password_grant_service),
 ) -> GetDropStreamSourceUseCase:
     return GetDropStreamSourceUseCase(
         repository=repository,
         storage=storage,
+        grant_service=grant_service,
     )
 
 
 def get_update_drop_use_case(
     uow_factory: DropUnitOfWorkFactory = Depends(get_drop_uow_factory),
+    grant_service: DropPasswordGrantService = Depends(get_drop_password_grant_service),
 ) -> UpdateDropUseCase:
-    return UpdateDropUseCase(uow_factory=uow_factory)
+    return UpdateDropUseCase(
+        uow_factory=uow_factory,
+        grant_service=grant_service,
+    )
 
 
 def get_delete_drop_use_case(
     storage: LocalFileStorage = Depends(get_file_storage),
     uow_factory: DropUnitOfWorkFactory = Depends(get_drop_uow_factory),
+    grant_service: DropPasswordGrantService = Depends(get_drop_password_grant_service),
 ) -> DeleteDropUseCase:
     return DeleteDropUseCase(
         storage=storage,
         uow_factory=uow_factory,
+        grant_service=grant_service,
     )
 
 
@@ -115,6 +134,7 @@ __all__ = [
     "get_check_slug_availability_use_case",
     "get_create_drop_use_case",
     "get_delete_drop_use_case",
+    "get_drop_password_grant_service",
     "get_drop_read_repository",
     "get_drop_slug_service",
     "get_drop_uow_factory",

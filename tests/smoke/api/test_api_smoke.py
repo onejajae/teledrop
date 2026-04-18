@@ -16,10 +16,27 @@ from app.bootstrap.providers.drop import (
     get_list_drops_use_case,
     get_update_drop_use_case,
 )
+from app.core.drop_grants import drop_grant_cookie_name
 from app.domain.auth.errors import ApiKeyInvalid
 from app.domain.drop.errors import DropAccessDeniedError, DropNotFoundError, DropPasswordInvalidError
 from app.domain.drop.value_objects import AccessScope
 from app.interfaces.api.router import api_router
+
+
+def _credential_matches(expected: str | None, credential) -> bool:
+    if expected is None:
+        return credential is None or getattr(credential, 'password', None) in (None, '')
+    if credential is None:
+        return False
+    raw_password = getattr(credential, 'password', credential)
+    if raw_password == expected:
+        return True
+    return bool(getattr(credential, 'grant_token', None))
+
+
+def _is_authenticated(auth) -> bool:
+    return bool(auth and getattr(auth, 'username', None))
+
 
 class _FakeVerifySessionUseCase:
 
@@ -88,7 +105,7 @@ class _FakeDropUseCases:
             if item is None:
                 raise DropNotFoundError()
             expected = item['password']
-            if expected and expected != query.drop_password:
+            if not _is_authenticated(query.auth) and not _credential_matches(expected, query.drop_password):
                 raise DropPasswordInvalidError()
             return item['dto']
 
@@ -115,7 +132,7 @@ class _FakeDropUseCases:
             if item is None:
                 raise DropNotFoundError()
             expected = item['password']
-            if expected and expected != command.current_password:
+            if not _credential_matches(expected, command.current_password):
                 raise DropPasswordInvalidError()
             dto = item['dto']
             if command.title is not UNSET:
@@ -140,7 +157,7 @@ class _FakeDropUseCases:
             if item is None:
                 raise DropNotFoundError()
             expected = item['password']
-            if expected and expected != command.current_password:
+            if not _credential_matches(expected, command.current_password):
                 raise DropPasswordInvalidError()
             self.parent.items.pop(command.slug, None)
             self.parent.payloads.pop(command.slug, None)
@@ -183,10 +200,10 @@ class TestApiSmoke:
         assert patched.status_code == 200
         assert patched.json()['title'] == 'updated'
         assert patched.json()['slug'] == 'k1'
-        streamed = client.get('/api/drop/k1?disposition=inline&drop_password=pw')
+        streamed = client.get('/api/drop/k1?disposition=inline', headers={'X-Drop-Password': 'pw'})
         assert streamed.status_code == 200
         assert streamed.content == b'hello world'
-        deleted = client.delete('/api/drop/k1?current_password=pw')
+        deleted = client.delete('/api/drop/k1', headers={'X-Drop-Password': 'pw'})
         assert deleted.status_code == 200
 
     def test_auth_unauthorized_response_includes_session_headers(self):
@@ -209,6 +226,58 @@ class TestApiSmoke:
         assert response.status_code == 401
         assert response.headers.get('www-authenticate') == 'Session, ApiKey'
         assert 'session_id=' in response.headers.get('set-cookie', '')
+
+    def test_delete_requires_explicit_password_even_with_drop_grant_cookie(self):
+        app = FastAPI()
+        app.include_router(api_router, prefix='/api')
+        fake_use_cases = _FakeDropUseCases()
+        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
+        app.dependency_overrides[get_check_slug_availability_use_case] = lambda: fake_use_cases.check_slug_availability_use_case
+        app.dependency_overrides[get_create_drop_use_case] = lambda: fake_use_cases.create_drop_use_case
+        app.dependency_overrides[get_delete_drop_use_case] = lambda: fake_use_cases.delete_drop_use_case
+        app.dependency_overrides[get_get_drop_meta_use_case] = lambda: fake_use_cases.get_drop_meta_use_case
+        app.dependency_overrides[get_get_drop_stream_source_use_case] = lambda: fake_use_cases.get_drop_stream_source_use_case
+        app.dependency_overrides[get_list_drops_use_case] = lambda: fake_use_cases.list_drops_use_case
+        app.dependency_overrides[get_update_drop_use_case] = lambda: fake_use_cases.update_drop_use_case
+        app.dependency_overrides[get_app_settings] = lambda: fake_settings
+        app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
+        app.dependency_overrides[get_verify_api_key_use_case] = lambda: _FakeVerifyApiKeyUseCase()
+        client = TestClient(app)
+        client.cookies.set('session_id', 'sid')
+        upload = client.post('/api/drop', data={'slug': 'k-grant', 'access_scope': 'private', 'drop_password': 'pw'}, files={'file': ('hello.txt', io.BytesIO(b'hello world'), 'text/plain')})
+        assert upload.status_code == 200
+        client.cookies.set(drop_grant_cookie_name('k-grant'), 'grant-token')
+
+        deleted = client.delete('/api/drop/k-grant')
+
+        assert deleted.status_code == 401
+
+    def test_authenticated_read_bypasses_drop_password(self):
+        app = FastAPI()
+        app.include_router(api_router, prefix='/api')
+        fake_use_cases = _FakeDropUseCases()
+        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
+        app.dependency_overrides[get_check_slug_availability_use_case] = lambda: fake_use_cases.check_slug_availability_use_case
+        app.dependency_overrides[get_create_drop_use_case] = lambda: fake_use_cases.create_drop_use_case
+        app.dependency_overrides[get_delete_drop_use_case] = lambda: fake_use_cases.delete_drop_use_case
+        app.dependency_overrides[get_get_drop_meta_use_case] = lambda: fake_use_cases.get_drop_meta_use_case
+        app.dependency_overrides[get_get_drop_stream_source_use_case] = lambda: fake_use_cases.get_drop_stream_source_use_case
+        app.dependency_overrides[get_list_drops_use_case] = lambda: fake_use_cases.list_drops_use_case
+        app.dependency_overrides[get_update_drop_use_case] = lambda: fake_use_cases.update_drop_use_case
+        app.dependency_overrides[get_app_settings] = lambda: fake_settings
+        app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
+        app.dependency_overrides[get_verify_api_key_use_case] = lambda: _FakeVerifyApiKeyUseCase()
+        client = TestClient(app)
+        client.cookies.set('session_id', 'sid')
+        upload = client.post('/api/drop', data={'slug': 'k-auth', 'access_scope': 'private', 'drop_password': 'pw'}, files={'file': ('hello.txt', io.BytesIO(b'hello world'), 'text/plain')})
+        assert upload.status_code == 200
+
+        meta = client.get('/api/drop/k-auth/meta')
+        streamed = client.get('/api/drop/k-auth?disposition=inline')
+
+        assert meta.status_code == 200
+        assert streamed.status_code == 200
+        assert streamed.content == b'hello world'
 
     def test_drop_crud_flow_with_api_key(self):
         app = FastAPI()
@@ -238,7 +307,7 @@ class TestApiSmoke:
         patched = client.patch('/api/drop/k2', headers=headers, json={'title': 'updated', 'current_password': 'pw'})
         assert patched.status_code == 200
 
-        deleted = client.delete('/api/drop/k2?current_password=pw', headers=headers)
+        deleted = client.delete('/api/drop/k2', headers={**headers, 'X-Drop-Password': 'pw'})
         assert deleted.status_code == 200
 
     def test_auth_me_accepts_api_key(self):

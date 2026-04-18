@@ -31,6 +31,7 @@ from app.application.drop.use_cases import (
 )
 from app.domain.drop.entities import DropEntity
 from app.domain.drop.errors import DropAccessDeniedError
+from app.domain.drop.grants import DropPasswordCredential, DropPasswordGrantService
 from app.domain.drop.value_objects import AccessScope, DropSortField
 from app.infrastructure.storage.local_file_storage import LocalFileStorage
 
@@ -178,6 +179,7 @@ class _UseCases:
 
 def _build_use_cases(repo: _InMemoryRepository, temp_dir: str) -> _UseCases:
     storage = LocalFileStorage(temp_dir)
+    grant_service = DropPasswordGrantService(secret_key="test-secret", ttl_seconds=3600)
     slug_service = DropSlugService(
         repository=repo,
         candidate_generator=_StubSlugCandidateGenerator(),
@@ -198,14 +200,25 @@ def _build_use_cases(repo: _InMemoryRepository, temp_dir: str) -> _UseCases:
         stream_source_use_case=GetDropStreamSourceUseCase(
             repository=repo,
             storage=storage,
+            grant_service=grant_service,
         ),
-        update_drop_use_case=UpdateDropUseCase(uow_factory=uow_factory),
+        update_drop_use_case=UpdateDropUseCase(
+            uow_factory=uow_factory,
+            grant_service=grant_service,
+        ),
         delete_drop_use_case=DeleteDropUseCase(
             storage=storage,
             uow_factory=uow_factory,
+            grant_service=grant_service,
         ),
         availability_use_case=CheckSlugAvailabilityUseCase(slug_service=slug_service),
     )
+
+
+def _password_credential(password: str | None) -> DropPasswordCredential | None:
+    if password is None:
+        return None
+    return DropPasswordCredential(password=password)
 
 
 async def _seed_drop(
@@ -270,7 +283,7 @@ class TestDropUseCases:
             updated = await use_cases.update_drop_use_case.execute(
                 UpdateDropCommand(
                     slug="k1",
-                    current_password="pw",
+                    current_password=_password_credential("pw"),
                     title="t2",
                     is_favorite=True,
                 )
@@ -281,7 +294,7 @@ class TestDropUseCases:
             detail, storage_key = await use_cases.stream_source_use_case.execute(
                 DropStreamQuery(
                     slug="k1",
-                    drop_password="pw",
+                    drop_password=_password_credential("pw"),
                     auth=AuthIdentity(username="tester"),
                 )
             )
@@ -295,7 +308,10 @@ class TestDropUseCases:
             assert b"".join(chunks) == b"hello"
 
             await use_cases.delete_drop_use_case.execute(
-                DeleteDropCommand(slug="k1", current_password="pw")
+                DeleteDropCommand(
+                    slug="k1",
+                    current_password=_password_credential("pw"),
+                )
             )
             assert (
                 await use_cases.list_drops_use_case.execute(
@@ -406,7 +422,7 @@ class TestDropUseCases:
             omitted_title = await use_cases.update_drop_use_case.execute(
                 UpdateDropCommand(
                     slug="k-update",
-                    current_password="pw",
+                    current_password=_password_credential("pw"),
                     description=None,
                 )
             )
@@ -416,7 +432,7 @@ class TestDropUseCases:
             explicit_null_title = await use_cases.update_drop_use_case.execute(
                 UpdateDropCommand(
                     slug="k-update",
-                    current_password="pw",
+                    current_password=_password_credential("pw"),
                     title=None,
                 )
             )
@@ -460,9 +476,15 @@ class TestDropUseCases:
         use_case = DeleteDropUseCase(
             storage=storage,
             uow_factory=lambda: _InMemoryDropUow(repo),
+            grant_service=DropPasswordGrantService(secret_key="test-secret", ttl_seconds=3600),
         )
 
-        await use_case.execute(DeleteDropCommand(slug="k-delete", current_password="pw"))
+        await use_case.execute(
+            DeleteDropCommand(
+                slug="k-delete",
+                current_password=_password_credential("pw"),
+            )
+        )
 
         assert storage.stage_calls == ["storage-k-delete"]
         assert storage.rollback_calls == []
@@ -475,10 +497,16 @@ class TestDropUseCases:
         use_case = DeleteDropUseCase(
             storage=storage,
             uow_factory=lambda: _CommitFailingDropUow(repo),
+            grant_service=DropPasswordGrantService(secret_key="test-secret", ttl_seconds=3600),
         )
 
         with pytest.raises(RuntimeError, match="forced commit failure"):
-            await use_case.execute(DeleteDropCommand(slug="k-rollback", current_password="pw"))
+            await use_case.execute(
+                DeleteDropCommand(
+                    slug="k-rollback",
+                    current_password=_password_credential("pw"),
+                )
+            )
 
         assert storage.stage_calls == ["storage-k-rollback"]
         assert storage.rollback_calls == [("storage-k-rollback", "staged-2")]

@@ -3,7 +3,11 @@ from fastapi import Request, status
 from app.application.auth.use_cases.csrf import CsrfTokenService
 from app.core.config import Settings
 from app.application.auth.types import AuthIdentity
-from app.interfaces.web.presenters.common import base_template_context, templates
+from app.interfaces.web.presenters.common import (
+    base_template_context,
+    finalize_ui_response,
+    templates,
+)
 
 
 # Upload panel context intentionally avoids drop list queries.
@@ -38,9 +42,13 @@ def render_upload_panel(
         settings=settings,
         upload_error_message=upload_error_message,
     )
-    return templates().TemplateResponse(
-        request=request,
-        name="panels/upload.html",
-        context=context,
-        status_code=status_code,
+    return finalize_ui_response(
+        request,
+        templates().TemplateResponse(
+            request=request,
+            name="panels/upload.html",
+            context=context,
+            status_code=status_code,
+        ),
+        settings,
     )

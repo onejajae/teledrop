@@ -1,6 +1,6 @@
 from urllib import parse
 
-from fastapi import APIRouter, Depends, File, Form, Header, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Header, Query, Request, UploadFile, status
 from fastapi.responses import StreamingResponse
 
 from app.application.auth.types import AuthIdentity
@@ -22,6 +22,7 @@ from app.application.drop.use_cases import (
     ListDropsUseCase,
     UpdateDropUseCase,
 )
+from app.bootstrap.container import get_app_settings
 from app.bootstrap.providers.drop import (
     get_check_slug_availability_use_case,
     get_create_drop_use_case,
@@ -30,6 +31,11 @@ from app.bootstrap.providers.drop import (
     get_get_drop_stream_source_use_case,
     get_list_drops_use_case,
     get_update_drop_use_case,
+)
+from app.core.config import Settings
+from app.core.drop_grants import (
+    build_drop_password_credential,
+    request_drop_password_credential,
 )
 from app.core.exceptions import InvalidRangeHeader, RangeNotSatisfiable
 from app.core.utils import parse_range_header
@@ -136,15 +142,22 @@ async def upload_drop(
 @router.get("/{slug}/meta", response_model=DropDetailResponse)
 async def drop_meta(
     slug: str,
+    request: Request,
+    settings: Settings = Depends(get_app_settings),
     auth_data: AuthIdentity = Depends(get_optional_api_auth),
     get_drop_meta_use_case: GetDropMetaUseCase = Depends(get_get_drop_meta_use_case),
-    drop_password: str | None = Query(default=None),
+    drop_password: str | None = Header(default=None, alias="X-Drop-Password"),
 ):
     try:
         result = await get_drop_meta_use_case.execute(
             DropMetaQuery(
                 slug=slug,
-                drop_password=normalize_drop_password(drop_password),
+                drop_password=request_drop_password_credential(
+                    request,
+                    settings,
+                    slug,
+                    password=drop_password,
+                ),
                 auth=auth_data,
             )
         )
@@ -157,19 +170,26 @@ async def drop_meta(
 @router.get("/{slug}")
 async def drop_stream(
     slug: str,
+    request: Request,
+    settings: Settings = Depends(get_app_settings),
     auth_data: AuthIdentity = Depends(get_optional_api_auth),
     get_drop_stream_source_use_case: GetDropStreamSourceUseCase = Depends(
         get_get_drop_stream_source_use_case
     ),
     disposition: str = Query(default="attachment"),
-    drop_password: str | None = Query(default=None),
+    drop_password: str | None = Header(default=None, alias="X-Drop-Password"),
     range_header: str | None = Header(None, alias="Range"),
 ):
     try:
         detail, storage_key = await get_drop_stream_source_use_case.execute(
             DropStreamQuery(
                 slug=slug,
-                drop_password=normalize_drop_password(drop_password),
+                drop_password=request_drop_password_credential(
+                    request,
+                    settings,
+                    slug,
+                    password=drop_password,
+                ),
                 auth=auth_data,
             )
         )
@@ -241,7 +261,9 @@ async def patch_drop(
         result = await update_drop_use_case.execute(
             UpdateDropCommand(
                 slug=slug,
-                current_password=normalize_drop_password(payload.current_password),
+                current_password=build_drop_password_credential(
+                    password=normalize_drop_password(payload.current_password)
+                ),
                 title=title,
                 description=description,
                 access_scope=access_scope,
@@ -260,13 +282,15 @@ async def delete_drop(
     slug: str,
     _auth_data: AuthIdentity = Depends(get_required_api_auth),
     delete_drop_use_case: DeleteDropUseCase = Depends(get_delete_drop_use_case),
-    current_password: str | None = Query(default=None),
+    current_password: str | None = Header(default=None, alias="X-Drop-Password"),
 ):
     try:
         await delete_drop_use_case.execute(
             DeleteDropCommand(
                 slug=slug,
-                current_password=normalize_drop_password(current_password),
+                current_password=build_drop_password_credential(
+                    password=normalize_drop_password(current_password)
+                ),
             )
         )
     except Exception as exc:

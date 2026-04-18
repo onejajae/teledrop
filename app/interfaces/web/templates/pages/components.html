@@ -1,7 +1,9 @@
 {% extends "layout/base.html" %}
-{% from "macros/components.html" import detail_action_bar, drop_list_card, locked_prompt, metadata_card, modal_form, owner_action_group, sort_toolbar, upload_dropzone %}
+{% from "macros/drop_detail.html" import detail_action_bar, locked_prompt, metadata_card, modal_form, owner_action_group %}
+{% from "macros/drop_listing.html" import drop_list_card, sort_toolbar %}
 {% from "macros/icons.html" import icon_cloud_arrow_up, icon_document_duplicate, icon_lock_closed %}
 {% from "macros/ui.html" import alert, badge, button, code_block, empty_state, field, icon_button, icon_shell, inset_surface, page_section, section_header, select_input, surface_card, text_input, textarea_input %}
+{% from "macros/upload.html" import upload_dropzone %}
 {% set page_title = "teledrop - Components" %}
 {% set page_description = "teledrop 내부용 웹 컴포넌트 카탈로그" %}
 {% set include_htmx = false %}
@@ -135,16 +137,16 @@
           {% call surface_card(body_classes="space-y-1") %}
             <p class="text-base font-semibold">Upload dropzone</p>
             <p class="text-xs uppercase tracking-[0.16em] opacity-50">Used in: upload panel</p>
-            <form class="mt-4 space-y-4" onsubmit="return false;">
+            <div class="mt-4 space-y-4">
               {{ upload_dropzone(prefix="catalog-upload") }}
               {{ button("업로드 후 관리로 이동", kind="primary", block=true, disabled=true) }}
-            </form>
+            </div>
           {% endcall %}
           {% call surface_card(body_classes="space-y-1") %}
             <p class="text-base font-semibold">Sort toolbar</p>
             <p class="text-xs uppercase tracking-[0.16em] opacity-50">Used in: drop panel, library</p>
             <div class="mt-4">
-              {{ sort_toolbar("#", current_order="desc", current_sort="created_at", show_refresh=true, refresh_attrs='title="새로고침" aria-label="새로고침"', toggle_attrs='onclick="document.getElementById(&quot;drop-orderby&quot;).value = document.getElementById(&quot;drop-orderby&quot;).value === &quot;asc&quot; ? &quot;desc&quot; : &quot;asc&quot;; this.form.requestSubmit();" title="내림차순" aria-label="정렬 순서 변경"') }}
+              {{ sort_toolbar("#", current_order="desc", current_sort="created_at", show_refresh=true) }}
             </div>
           {% endcall %}
         </div>
@@ -200,7 +202,7 @@
             <p class="text-base font-semibold">Locked prompt</p>
             <p class="text-xs uppercase tracking-[0.16em] opacity-50">Used in: password-protected detail states</p>
             <div class="mt-4">
-              {{ locked_prompt("catalog-demo", detail_error_message="비밀번호가 올바르지 않습니다.", detail_mode="manage", locked_form_action="#", locked_form_use_hx=false) }}
+              {{ locked_prompt("catalog-demo", form_action="#", error_message="비밀번호가 올바르지 않습니다.", detail_mode="manage") }}
             </div>
           {% endcall %}
           {% call surface_card(body_classes="space-y-1") %}
@@ -229,14 +231,14 @@
             <p class="text-base font-semibold">Modal form</p>
             <p class="text-xs uppercase tracking-[0.16em] opacity-50">Used in: detail metadata/password dialogs</p>
             <div class="mt-4 flex flex-wrap gap-2">
-              {{ button("메타데이터 모달 열기", kind="outline", attrs='onclick="document.getElementById(&quot;catalog-edit-modal&quot;).showModal()"') }}
-              {{ button("비밀번호 모달 열기", kind="outline", attrs='onclick="document.getElementById(&quot;catalog-password-modal&quot;).showModal()"') }}
+              {{ button("메타데이터 모달 열기", kind="outline", attrs='data-td-action="open-dialog" data-td-dialog="catalog-edit-modal"') }}
+              {{ button("비밀번호 모달 열기", kind="outline", attrs='data-td-action="open-dialog" data-td-dialog="catalog-password-modal"') }}
             </div>
           {% endcall %}
         </div>
       {% endcall %}
 
-      {% call modal_form("catalog-edit-modal", "메타데이터 수정", "#", "저장", close_attrs='onclick="document.getElementById(&quot;catalog-edit-modal&quot;).close()"') %}
+      {% call modal_form("catalog-edit-modal", "메타데이터 수정", "#", "저장") %}
         {% call field("제목", "catalog-edit-title") %}
           {{ text_input("title", input_id="catalog-edit-title", value=catalog_public_drop.title) }}
         {% endcall %}
@@ -245,7 +247,7 @@
         {% endcall %}
       {% endcall %}
 
-      {% call modal_form("catalog-password-modal", "비밀번호 설정", "#", "적용", description="비워두면 비밀번호를 해제합니다.", close_attrs='onclick="document.getElementById(&quot;catalog-password-modal&quot;).close()"', submit_id="catalog-password-submit") %}
+      {% call modal_form("catalog-password-modal", "비밀번호 설정", "#", "적용", description="비워두면 비밀번호를 해제합니다.", submit_id="catalog-password-submit") %}
         {% call field("새 비밀번호", "catalog-password-new") %}
           {{ text_input("new_password", input_id="catalog-password-new", input_type="password", placeholder="•••••") }}
         {% endcall %}

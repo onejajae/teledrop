@@ -1,4 +1,4 @@
-{% from "macros/components.html" import upload_dropzone %}
+{% from "macros/upload.html" import upload_dropzone %}
 {% from "macros/ui.html" import alert, button %}
 <div class="{% if is_login %}flex flex-1 flex-col{% else %}space-y-4{% endif %}">
   {% if not is_login %}
@@ -9,8 +9,8 @@
   {% endif %}
   <section class="flex min-h-full flex-1 flex-col overflow-hidden rounded-[1.6rem] border border-base-300/70 bg-base-100 shadow-sm">
     <form id="upload-form" method="post" action="/actions/drop/upload" enctype="multipart/form-data"
-      hx-encoding="multipart/form-data" hx-post="/actions/drop/upload" hx-target="#main-panel" hx-swap="innerHTML"
-      class="flex flex-1 flex-col gap-5 px-6 py-6">
+      hx-encoding="multipart/form-data" hx-post="/actions/drop/upload" hx-target="closest [data-td-swap-root]" hx-swap="innerHTML"
+      data-td-controller="upload-panel" class="flex flex-1 flex-col gap-5 px-6 py-6">
       <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
       <input type="hidden" name="user_only" value="true" />
 
@@ -19,11 +19,11 @@
       </div>
 
       <div class="pt-2">
-        {{ button("업로드 후 관리로 이동", kind="primary", type="submit", block=true, classes="rounded-xl shadow-sm", attrs='id="upload-submit"', disabled=true) }}
+        {{ button("업로드 후 관리로 이동", kind="primary", type="submit", block=true, classes="rounded-xl shadow-sm", attrs='data-td-role="submit"', disabled=true) }}
       </div>
 
-      <div class="hidden text-center" id="upload-progress">
-        <progress id="progress" class="progress progress-primary w-full" value="0" max="100"></progress>
+      <div data-td-role="progress-wrap" class="hidden text-center">
+        <progress data-td-role="progress" class="progress progress-primary w-full" value="0" max="100"></progress>
       </div>
     </form>
   </section>

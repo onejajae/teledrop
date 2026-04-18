@@ -1,7 +1,2 @@
-{% set locked_form_action = locked_form_action if locked_form_action is defined else (selected_page_preview_url if selected_page_preview_url is defined and selected_page_preview_url else '#') %}
-{% set locked_form_use_hx = locked_form_use_hx if locked_form_use_hx is defined else false %}
-{% set locked_form_target = locked_form_target if locked_form_target is defined else '#main-panel' %}
-{% set locked_form_swap = locked_form_swap if locked_form_swap is defined else 'innerHTML' %}
-{% set locked_form_include_slug = locked_form_include_slug if locked_form_include_slug is defined else false %}
-{% from "macros/components.html" import locked_prompt %}
-{{ locked_prompt(selected_key, detail_error_message=detail_error_message, detail_mode=detail_mode, is_login=is_login, locked_form_action=locked_form_action, locked_form_use_hx=locked_form_use_hx, locked_form_target=locked_form_target, locked_form_swap=locked_form_swap, locked_form_include_slug=locked_form_include_slug) }}
+{% from "macros/drop_detail.html" import locked_prompt %}
+{{ locked_prompt(detail.key, form_action=detail.forms.locked_prompt_action, error_message=detail.error.message, detail_mode=detail.mode, is_login=is_login, target_view=detail.forms.unlock_target_view, unlock_token=detail.forms.unlock_token) }}

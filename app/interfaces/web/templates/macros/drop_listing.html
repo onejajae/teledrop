@@ -1,0 +1,90 @@
+{% from "macros/icons.html" import icon_arrow_path, icon_document, icon_document_text, icon_film, icon_lock_closed, icon_musical_note, icon_photo, icon_star %}
+{% from "macros/ui.html" import button, icon_button, icon_shell, select_input, surface_card %}
+
+{% macro file_icon(mime_type, classes="h-5 w-5") -%}
+  {% if mime_type and mime_type.startswith("image/") %}
+    {{ icon_photo(class=classes) }}
+  {% elif mime_type and mime_type.startswith("video/") %}
+    {{ icon_film(class=classes) }}
+  {% elif mime_type and mime_type.startswith("audio/") %}
+    {{ icon_musical_note(class=classes) }}
+  {% elif mime_type and mime_type.startswith("application/pdf") %}
+    {{ icon_document_text(class=classes ~ " text-error") }}
+  {% else %}
+    {{ icon_document(class=classes) }}
+  {% endif %}
+{%- endmacro %}
+
+{% macro sort_toolbar(action, current_order="desc", current_sort="created_at", orderby_name="orderby", orderby_id="drop-orderby", sortby_name="sortby", sortby_id="drop-sortby", form_classes="join w-full sm:w-auto", form_attrs="", wrapper_classes="", show_refresh=false, refresh_wrapper_classes="tooltip tooltip-bottom", refresh_tip="새로고침") -%}
+{% set sort_options = [
+  {"value": "created_at", "label": "날짜"},
+  {"value": "title", "label": "제목"},
+  {"value": "size_bytes", "label": "크기"},
+] %}
+{% if show_refresh or wrapper_classes %}
+<div class="{{ wrapper_classes or 'flex w-full items-center gap-2 sm:w-auto' }}">
+{% endif %}
+  {% if show_refresh %}
+  <div class="{{ refresh_wrapper_classes }}" data-tip="{{ refresh_tip }}">
+    {% call icon_button(label="새로고침", attrs='title="새로고침" aria-label="새로고침"', type="button") %}
+      {{ icon_arrow_path() }}
+    {% endcall %}
+  </div>
+  {% endif %}
+  <form method="get" action="{{ action }}"{% if form_attrs %} {{ form_attrs | safe }}{% endif %} class="{{ form_classes }}">
+    <input type="hidden" name="{{ orderby_name }}" id="{{ orderby_id }}" value="{{ current_order or 'desc' }}" />
+    {{ button("오름차순" if current_order == 'asc' else "내림차순", kind="ghost", size="sm", type="button", classes="join-item flex-1 whitespace-nowrap sm:flex-none", attrs='data-td-action="toggle-sort" data-td-sort-target="' ~ orderby_id ~ '" title="' ~ ('오름차순' if current_order == 'asc' else '내림차순') ~ '" aria-label="정렬 순서 변경"') }}
+    <label for="{{ sortby_id }}" class="sr-only">정렬 기준</label>
+    {{ select_input(sortby_name, sort_options, input_id=sortby_id, selected=current_sort, classes="join-item select-sm flex-1 sm:w-auto", attrs='data-td-action="submit-form"') }}
+  </form>
+{% if show_refresh or wrapper_classes %}
+</div>
+{% endif %}
+{%- endmacro %}
+
+{% macro drop_list_card(item, href, title="상세 보기", hx_get=None, hx_target=None, hx_swap=None, hx_push_url=None, data_drop_key=None, data_select_key=None, public_label="전체 공개", private_label="나만 보기", attrs="") -%}
+{% set card_attrs = 'href="' ~ href ~ '" title="' ~ title ~ '"' %}
+{% if hx_get %}{% set card_attrs = card_attrs ~ ' hx-get="' ~ hx_get ~ '"' %}{% endif %}
+{% if hx_target %}{% set card_attrs = card_attrs ~ ' hx-target="' ~ hx_target ~ '"' %}{% endif %}
+{% if hx_swap %}{% set card_attrs = card_attrs ~ ' hx-swap="' ~ hx_swap ~ '"' %}{% endif %}
+{% if hx_push_url %}{% set card_attrs = card_attrs ~ ' hx-push-url="' ~ hx_push_url ~ '"' %}{% endif %}
+{% if data_drop_key %}{% set card_attrs = card_attrs ~ ' data-drop-key="' ~ data_drop_key ~ '"' %}{% endif %}
+{% if data_select_key %}{% set card_attrs = card_attrs ~ ' data-select-key="' ~ data_select_key ~ '"' %}{% endif %}
+{% if attrs %}{% set card_attrs = card_attrs ~ ' ' ~ attrs %}{% endif %}
+{% call surface_card(tag="a", classes="card-sm transition-all duration-200 hover:border-base-300 hover:bg-base-100 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-base-100", attrs=card_attrs) %}
+  <div class="flex items-start gap-3.5">
+    {% call icon_shell(classes="h-10 w-10 shrink-0") %}
+      {{ file_icon(item.mime_type) }}
+    {% endcall %}
+
+    <div class="min-w-0 flex-1">
+      <div class="card-title text-sm leading-5 sm:text-base">
+        {% if item.is_favorite %}
+        {{ icon_star(class="h-4 w-4", filled=true) }}
+        {% endif %}
+        <span class="truncate">{{ item.title or item.file_name or item.slug }}</span>
+      </div>
+      {% if item.title and item.file_name and item.title != item.file_name %}
+      <p class="truncate text-xs leading-4 opacity-60">{{ item.file_name }}</p>
+      {% endif %}
+      <p class="truncate text-xs leading-4 opacity-70">
+        {{ item.size_human if item.size_human else item.size_bytes }}
+        {% if item.access_scope == "private" %}
+        · {{ private_label }}
+        {% else %}
+        · {{ public_label }}
+        {% endif %}
+        {% if item.created_at_relative %}
+        · {{ item.created_at_relative }}
+        {% endif %}
+      </p>
+    </div>
+
+    {% if item.requires_password %}
+    <span class="inline-flex shrink-0 items-center justify-center opacity-70" title="비밀번호 보호">
+      {{ icon_lock_closed(class="h-4 w-4") }}
+    </span>
+    {% endif %}
+  </div>
+{% endcall %}
+{%- endmacro %}

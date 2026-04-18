@@ -1,33 +1,32 @@
-{% from "macros/components.html" import metadata_card %}
+{% from "macros/drop_detail.html" import metadata_card %}
 {% from "macros/ui.html" import alert %}
-{% set can_copy_link = selected_can_copy_link if selected_can_copy_link is defined else true %}
-{{ metadata_card(selected_drop, download_url=selected_download_url, page_preview_url=selected_page_preview_url, can_copy_link=can_copy_link) }}
+{{ metadata_card(detail.drop, download_url=detail.urls.download, page_url=detail.urls.page, can_copy_link=detail.actions.can_copy_link) }}
 
 <div class="pt-1">
-  {% if selected_drop.mime_type.startswith('image/') %}
-  <img src="{{ selected_preview_url }}" alt="{{ selected_drop.file_name }}"
+  {% if detail.drop.mime_type.startswith('image/') %}
+  <img src="{{ detail.urls.preview }}" alt="{{ detail.drop.file_name }}"
     class="rounded-xl max-h-[600px] object-contain mx-auto" />
-  {% elif selected_drop.mime_type.startswith('video/') %}
+  {% elif detail.drop.mime_type.startswith('video/') %}
   <video controls class="w-full rounded-xl">
-    <source src="{{ selected_preview_url }}" type="{{ selected_drop.mime_type }}">
+    <source src="{{ detail.urls.preview }}" type="{{ detail.drop.mime_type }}">
     이 브라우저에서는 비디오 재생을 지원하지 않습니다.
   </video>
-  {% elif selected_drop.mime_type.startswith('audio/') %}
+  {% elif detail.drop.mime_type.startswith('audio/') %}
   <audio controls class="w-full">
-    <source src="{{ selected_preview_url }}" type="{{ selected_drop.mime_type }}">
+    <source src="{{ detail.urls.preview }}" type="{{ detail.drop.mime_type }}">
     이 브라우저에서는 오디오 재생을 지원하지 않습니다.
   </audio>
-  {% elif selected_drop.mime_type == 'application/pdf' %}
-  <object data="{{ selected_preview_url }}" type="application/pdf" class="w-full h-[800px] rounded-xl">
-    <p>PDF를 표시할 수 없습니다. <a href="{{ selected_download_url }}">다운로드</a>해서 확인해 주세요.</p>
+  {% elif detail.drop.mime_type == 'application/pdf' %}
+  <object data="{{ detail.urls.preview }}" type="application/pdf" class="w-full h-[800px] rounded-xl">
+    <p>PDF를 표시할 수 없습니다. <a href="{{ detail.urls.download }}">다운로드</a>해서 확인해 주세요.</p>
   </object>
   {% else %}
   {{ alert("이 파일 형식은 미리보기를 지원하지 않습니다.", tone="info", classes="shadow-none") }}
   {% endif %}
 </div>
 
-{% if selected_drop.description %}
+{% if detail.drop.description %}
 <div>
-  <p class="text-sm whitespace-pre-wrap">{{ selected_drop.description }}</p>
+  <p class="text-sm whitespace-pre-wrap">{{ detail.drop.description }}</p>
   </div>
 {% endif %}

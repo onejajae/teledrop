@@ -13,7 +13,7 @@
 
 {% block page_content %}
 <section class="flex w-full flex-1">
-  <div id="main-panel" class="mx-auto flex w-full max-w-[50rem] flex-1">
+  <div id="main-panel" data-td-swap-root class="mx-auto flex w-full max-w-[50rem] flex-1">
     {% if is_login %}
     {% include "panels/upload.html" %}
     {% else %}

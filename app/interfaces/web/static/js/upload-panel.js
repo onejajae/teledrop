@@ -1,23 +1,23 @@
 (() => {
-  const initUploadPanel = () => {
-    const form = document.getElementById("upload-form");
-    if (!form || form.dataset.initialized === "true") {
+  const initUploadPanel = (root) => {
+    if (!root || root.dataset.initialized === "true") {
       return;
     }
-    form.dataset.initialized = "true";
+    root.dataset.initialized = "true";
 
-    const fileInput = document.getElementById("upload-file");
-    const dropzone = document.getElementById("upload-dropzone");
-    const placeholder = document.getElementById("upload-drop-placeholder");
-    const preview = document.getElementById("upload-preview");
-    const previewImage = document.getElementById("upload-preview-image");
-    const previewVideo = document.getElementById("upload-preview-video");
-    const previewVideoSource = document.getElementById("upload-preview-video-source");
-    const previewFile = document.getElementById("upload-preview-file");
-    const fileNameText = document.getElementById("upload-filename");
-    const submitButton = document.getElementById("upload-submit");
-    const progressWrap = document.getElementById("upload-progress");
-    const progress = document.getElementById("progress");
+    const form = root;
+    const fileInput = root.querySelector('[data-td-role="file-input"]');
+    const dropzone = root.querySelector('[data-td-role="dropzone"]');
+    const placeholder = root.querySelector('[data-td-role="placeholder"]');
+    const preview = root.querySelector('[data-td-role="preview"]');
+    const previewImage = root.querySelector('[data-td-role="preview-image"]');
+    const previewVideo = root.querySelector('[data-td-role="preview-video"]');
+    const previewVideoSource = root.querySelector('[data-td-role="preview-video-source"]');
+    const previewFile = root.querySelector('[data-td-role="preview-file"]');
+    const fileNameText = root.querySelector('[data-td-role="filename"]');
+    const submitButton = root.querySelector('[data-td-role="submit"]');
+    const progressWrap = root.querySelector('[data-td-role="progress-wrap"]');
+    const progress = root.querySelector('[data-td-role="progress"]');
 
     if (!fileInput || !dropzone || !submitButton) {
       return;
@@ -44,32 +44,42 @@
 
     const renderPreview = (file) => {
       revokePreviewUrl();
-      previewImage.classList.add("hidden");
-      previewVideo.classList.add("hidden");
-      previewFile.classList.add("hidden");
+      previewImage?.classList.add("hidden");
+      previewVideo?.classList.add("hidden");
+      previewFile?.classList.add("hidden");
 
       if (!file) {
-        placeholder.classList.remove("hidden");
-        preview.classList.add("hidden");
-        fileNameText.textContent = "";
+        placeholder?.classList.remove("hidden");
+        preview?.classList.add("hidden");
+        if (fileNameText) {
+          fileNameText.textContent = "";
+        }
         updateSubmitState();
         return;
       }
 
-      placeholder.classList.add("hidden");
-      preview.classList.remove("hidden");
-      fileNameText.textContent = file.name;
+      placeholder?.classList.add("hidden");
+      preview?.classList.remove("hidden");
+      if (fileNameText) {
+        fileNameText.textContent = file.name;
+      }
       previewUrl = URL.createObjectURL(file);
 
       if (file.type.startsWith("image/")) {
-        previewImage.src = previewUrl;
-        previewImage.classList.remove("hidden");
+        if (previewImage) {
+          previewImage.src = previewUrl;
+          previewImage.classList.remove("hidden");
+        }
       } else if (file.type.startsWith("video/")) {
-        previewVideoSource.src = previewUrl;
-        previewVideo.load();
-        previewVideo.classList.remove("hidden");
+        if (previewVideoSource) {
+          previewVideoSource.src = previewUrl;
+        }
+        if (previewVideo) {
+          previewVideo.load();
+          previewVideo.classList.remove("hidden");
+        }
       } else {
-        previewFile.classList.remove("hidden");
+        previewFile?.classList.remove("hidden");
       }
 
       updateSubmitState();
@@ -119,19 +129,29 @@
         return;
       }
       setDragState(false);
-      progressWrap.classList.remove("hidden");
-      progress.value = 0;
+      progressWrap?.classList.remove("hidden");
+      if (progress) {
+        progress.value = 0;
+      }
     });
 
-    htmx.on(form, "htmx:xhr:progress", (event) => {
-      progressWrap.classList.remove("hidden");
-      progress.setAttribute("value", (event.detail.loaded / event.detail.total) * 100);
-    });
+    if (typeof htmx !== "undefined") {
+      htmx.on(form, "htmx:xhr:progress", (event) => {
+        progressWrap?.classList.remove("hidden");
+        progress?.setAttribute("value", (event.detail.loaded / event.detail.total) * 100);
+      });
+    }
 
     setDragState(false);
     updateSubmitState();
   };
 
-  document.addEventListener("DOMContentLoaded", initUploadPanel);
-  document.body.addEventListener("htmx:afterSwap", initUploadPanel);
+  const initUploadPanels = () => {
+    document
+      .querySelectorAll('[data-td-controller="upload-panel"]')
+      .forEach(initUploadPanel);
+  };
+
+  document.addEventListener("DOMContentLoaded", initUploadPanels);
+  document.body.addEventListener("htmx:afterSwap", initUploadPanels);
 })();

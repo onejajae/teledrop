@@ -1,27 +1,25 @@
-{% from "macros/icons.html" import icon_information_circle, icon_x_circle %}
 {% from "macros/ui.html" import page_section %}
-{% set detail_mode = detail_mode if detail_mode is defined else 'panel' %}
-{% if not selected_key %}
+{% if not detail or not detail.key %}
 {% include "panels/drop_detail/_empty_state.html" %}
 {% else %}
 
 {% include "panels/drop_detail/_alerts.html" %}
 
-{% call page_section(attrs='data-detail-key="' ~ selected_key ~ '" data-detail-password="' ~ (selected_password or '') ~ '"') %}
-    {% if not (selected_requires_password and not selected_download_url) %}
+{% call page_section(attrs='data-td-controller="drop-detail"') %}
+    {% if not (detail.requires_password and not detail.urls.download) %}
     <div class="min-w-0">
-      <h2 class="text-lg font-semibold tracking-tight sm:text-xl">{{ selected_drop.title if selected_drop and selected_drop.title else
-        (selected_drop.file_name if selected_drop else selected_key) }}</h2>
+      <h2 class="text-lg font-semibold tracking-tight sm:text-xl">{{ detail.drop.title if detail.drop and detail.drop.title else
+        (detail.drop.file_name if detail.drop else detail.key) }}</h2>
     </div>
 
     <div class="border-t border-base-200/80"></div>
     {% endif %}
 
-    {% if selected_requires_password and not selected_download_url %}
+    {% if detail.requires_password and not detail.access_granted %}
     {% include "panels/drop_detail/_locked_prompt.html" %}
-    {% elif selected_drop %}
+    {% elif detail.drop %}
     {% include "panels/drop_detail/_content.html" %}
-    {% if detail_mode != 'shared' and is_login %}
+    {% if detail.mode != 'shared' and is_login %}
     {% include "panels/drop_detail/_modals.html" %}
     {% endif %}
     {% else %}

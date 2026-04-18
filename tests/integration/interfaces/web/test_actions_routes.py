@@ -11,6 +11,7 @@ from app.bootstrap.providers.auth import (
     get_create_api_key_use_case,
     get_delete_api_key_use_case,
     get_list_api_keys_use_case,
+    get_password_login_use_case,
     get_revoke_api_key_use_case,
     get_revoke_session_use_case,
     get_verify_session_use_case,
@@ -23,6 +24,8 @@ from app.bootstrap.providers.drop import (
     get_update_drop_use_case,
 )
 from app.domain.auth.errors import ApiKeyNotFound
+from app.domain.auth.errors import LoginInvalid
+from app.domain.drop.errors import DropNotFoundError
 from app.domain.drop.value_objects import AccessScope
 from app.interfaces.web.router import router as web_router
 
@@ -30,6 +33,13 @@ from app.interfaces.web.router import router as web_router
 class _FakeVerifySessionUseCase:
     async def execute(self, _query) -> str:
         return "tester"
+
+
+class _FakeInvalidVerifySessionUseCase:
+    async def execute(self, _query) -> str:
+        from app.domain.auth.errors import SessionInvalid
+
+        raise SessionInvalid()
 
 
 class _FakeCsrfService:
@@ -53,13 +63,25 @@ class _FakeRevokeSessionUseCase:
         self.calls.append(sid)
 
 
+class _FakeDeleteApiKeyUseCase:
+    def __init__(self, parent: "_FakeApiKeyUseCases"):
+        self.parent = parent
+
+    async def execute(self, command):
+        for idx, item in enumerate(self.parent.items):
+            if item.public_id == command.public_id:
+                self.parent.items.pop(idx)
+                return None
+        raise ApiKeyNotFound()
+
+
 class _FakeApiKeyUseCases:
     def __init__(self):
         self.items = []
         self.create_api_key_use_case = self._CreateApiKeyUseCase(self)
         self.list_api_keys_use_case = self._ListApiKeysUseCase(self)
         self.revoke_api_key_use_case = self._RevokeApiKeyUseCase(self)
-        self.delete_api_key_use_case = self._DeleteApiKeyUseCase(self)
+        self.delete_api_key_use_case = _FakeDeleteApiKeyUseCase(self)
 
     class _CreateApiKeyUseCase:
         def __init__(self, parent: "_FakeApiKeyUseCases"):
@@ -98,16 +120,9 @@ class _FakeApiKeyUseCases:
                     return item
             raise ApiKeyNotFound()
 
-    class _DeleteApiKeyUseCase:
-        def __init__(self, parent: "_FakeApiKeyUseCases"):
-            self.parent = parent
-
-        async def execute(self, command):
-            for idx, item in enumerate(self.parent.items):
-                if item.public_id == command.public_id:
-                    self.parent.items.pop(idx)
-                    return None
-            raise ApiKeyNotFound()
+class _FakePasswordLoginUseCase:
+    async def execute(self, _command):
+        raise LoginInvalid()
 
 
 def _detail_dto(slug: str) -> DropDetailDTO:
@@ -188,6 +203,7 @@ def _client(
         SESSION_COOKIE_SECURE=False,
         SESSION_COOKIE_SAMESITE="lax",
         SESSION_TTL_SECONDS=86400,
+        CSRF_SECRET_KEY="csrf-secret",
         DEFAULT_PAGE_SIZE=10,
         MAX_PAGE_SIZE=200,
     )
@@ -213,6 +229,7 @@ def _client(
     app.dependency_overrides[get_delete_api_key_use_case] = (
         lambda: api_key_use_cases.delete_api_key_use_case
     )
+    app.dependency_overrides[get_password_login_use_case] = lambda: _FakePasswordLoginUseCase()
     return TestClient(app)
 
 
@@ -313,7 +330,11 @@ class TestWebActionRoutesIntegration:
 
         response = client.post(
             "/actions/drop/k1/password",
-            data={"csrf_token": "csrf", "current_password": "", "new_password": ""},
+            data={
+                "csrf_token": "csrf",
+                "new_password": "",
+                "confirm_password": "",
+            },
         )
 
         assert response.status_code == 200
@@ -324,7 +345,99 @@ class TestWebActionRoutesIntegration:
         assert drop_use_cases.update_calls[0].new_password is None
         assert drop_use_cases.update_calls[0].bypass_password_check is True
 
-    def test_logout_csrf_failure_returns_403_without_revoke_call(self):
+    def test_detail_update_sets_bypass_flag_for_logged_in_admin(self):
+        drop_use_cases = _FakeDropUseCases()
+        client = _client(
+            drop_use_cases=drop_use_cases,
+            api_key_use_cases=_FakeApiKeyUseCases(),
+            csrf_service=_FakeCsrfService(verify_result=True),
+            revoke_use_case=_FakeRevokeSessionUseCase(),
+        )
+        client.cookies.set("session_id", "sid")
+
+        response = client.post(
+            "/actions/drop/k1/detail",
+            data={"csrf_token": "csrf", "title": "new"},
+        )
+
+        assert response.status_code == 200
+        assert len(drop_use_cases.update_calls) == 1
+        assert drop_use_cases.update_calls[0].bypass_password_check is True
+
+    def test_delete_sets_bypass_flag_for_logged_in_admin(self):
+        class _CapturingDeleteDropUseCase:
+            def __init__(self):
+                self.command = None
+
+            async def execute(self, command):
+                self.command = command
+
+        drop_use_cases = _FakeDropUseCases()
+        delete_drop_use_case = _CapturingDeleteDropUseCase()
+        app = FastAPI()
+        app.include_router(web_router)
+        fake_settings = SimpleNamespace(
+            SESSION_COOKIE_NAME="session_id",
+            SESSION_COOKIE_PATH="/",
+            SESSION_COOKIE_SECURE=False,
+            SESSION_COOKIE_SAMESITE="lax",
+            SESSION_TTL_SECONDS=86400,
+            CSRF_SECRET_KEY="csrf-secret",
+            DEFAULT_PAGE_SIZE=10,
+            MAX_PAGE_SIZE=200,
+        )
+        app.dependency_overrides[get_app_settings] = lambda: fake_settings
+        app.dependency_overrides[get_verify_session_use_case] = (
+            lambda: _FakeVerifySessionUseCase()
+        )
+        app.dependency_overrides[get_csrf_token_service] = (
+            lambda: _FakeCsrfService(verify_result=True)
+        )
+        app.dependency_overrides[get_revoke_session_use_case] = (
+            lambda: _FakeRevokeSessionUseCase()
+        )
+        app.dependency_overrides[get_create_drop_use_case] = (
+            lambda: drop_use_cases.create_drop_use_case
+        )
+        app.dependency_overrides[get_delete_drop_use_case] = lambda: delete_drop_use_case
+        app.dependency_overrides[get_get_drop_meta_use_case] = (
+            lambda: drop_use_cases.get_drop_meta_use_case
+        )
+        app.dependency_overrides[get_list_drops_use_case] = (
+            lambda: drop_use_cases.list_drops_use_case
+        )
+        app.dependency_overrides[get_update_drop_use_case] = (
+            lambda: drop_use_cases.update_drop_use_case
+        )
+        app.dependency_overrides[get_create_api_key_use_case] = (
+            lambda: _FakeApiKeyUseCases().create_api_key_use_case
+        )
+        app.dependency_overrides[get_list_api_keys_use_case] = (
+            lambda: _FakeApiKeyUseCases().list_api_keys_use_case
+        )
+        app.dependency_overrides[get_revoke_api_key_use_case] = (
+            lambda: _FakeApiKeyUseCases().revoke_api_key_use_case
+        )
+        app.dependency_overrides[get_delete_api_key_use_case] = (
+            lambda: _FakeApiKeyUseCases().delete_api_key_use_case
+        )
+        app.dependency_overrides[get_password_login_use_case] = lambda: _FakePasswordLoginUseCase()
+        client = TestClient(app)
+        client.cookies.set("session_id", "sid")
+
+        response = client.post(
+            "/actions/drop/k1/delete",
+            data={"csrf_token": "csrf"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 303
+        assert response.headers["location"] == "/drops"
+        assert delete_drop_use_case.command is not None
+        assert delete_drop_use_case.command.current_password is None
+        assert delete_drop_use_case.command.bypass_password_check is True
+
+    def test_logout_csrf_failure_redirects_without_revoke_call(self):
         revoke_use_case = _FakeRevokeSessionUseCase()
         client = _client(
             drop_use_cases=_FakeDropUseCases(),
@@ -334,10 +447,64 @@ class TestWebActionRoutesIntegration:
         )
         client.cookies.set("session_id", "sid")
 
-        response = client.post("/actions/auth/logout", data={"csrf_token": "bad"})
+        response = client.post(
+            "/actions/auth/logout",
+            data={"csrf_token": "bad"},
+            follow_redirects=False,
+        )
 
-        assert response.status_code == 403
+        assert response.status_code == 302
+        assert response.headers["location"] == "/?auth_error=logout_csrf_invalid"
         assert revoke_use_case.calls == []
+
+    def test_logout_csrf_failure_returns_hx_redirect_for_htmx(self):
+        revoke_use_case = _FakeRevokeSessionUseCase()
+        client = _client(
+            drop_use_cases=_FakeDropUseCases(),
+            api_key_use_cases=_FakeApiKeyUseCases(),
+            csrf_service=_FakeCsrfService(verify_result=False),
+            revoke_use_case=revoke_use_case,
+        )
+        client.cookies.set("session_id", "sid")
+
+        response = client.post(
+            "/actions/auth/logout",
+            headers={"HX-Request": "true"},
+            data={"csrf_token": "bad"},
+        )
+
+        assert response.status_code == 204
+        assert response.headers["HX-Redirect"] == "/?auth_error=logout_csrf_invalid"
+        assert revoke_use_case.calls == []
+
+    def test_logout_clears_session_and_drop_grant_cookies(self):
+        revoke_use_case = _FakeRevokeSessionUseCase()
+        client = _client(
+            drop_use_cases=_FakeDropUseCases(),
+            api_key_use_cases=_FakeApiKeyUseCases(),
+            csrf_service=_FakeCsrfService(verify_result=True),
+            revoke_use_case=revoke_use_case,
+        )
+        client.cookies.set("session_id", "sid")
+        client.cookies.set("tdg_drop_1", "grant-1")
+        client.cookies.set("tdg_drop_2", "grant-2")
+        client.cookies.set("unrelated", "keep")
+
+        response = client.post(
+            "/actions/auth/logout",
+            headers={"HX-Request": "true"},
+            data={"csrf_token": "csrf"},
+        )
+
+        set_cookie_headers = response.headers.get_list("set-cookie")
+
+        assert response.status_code == 204
+        assert response.headers["HX-Redirect"] == "/"
+        assert revoke_use_case.calls == ["sid"]
+        assert any(header.startswith("session_id=") for header in set_cookie_headers)
+        assert any(header.startswith("tdg_drop_1=") for header in set_cookie_headers)
+        assert any(header.startswith("tdg_drop_2=") for header in set_cookie_headers)
+        assert not any(header.startswith("unrelated=") for header in set_cookie_headers)
 
     def test_api_key_actions_require_login_and_csrf(self):
         api_key_use_cases = _FakeApiKeyUseCases()
@@ -402,3 +569,131 @@ class TestWebActionRoutesIntegration:
         assert deleted.status_code == 200
         assert "삭제되었습니다" in deleted.text
         assert api_key_use_cases.items == []
+
+    def test_api_key_create_normalizes_local_expiration_to_utc(self):
+        api_key_use_cases = _FakeApiKeyUseCases()
+        client = _client(
+            drop_use_cases=_FakeDropUseCases(),
+            api_key_use_cases=api_key_use_cases,
+            csrf_service=_FakeCsrfService(verify_result=True),
+            revoke_use_case=_FakeRevokeSessionUseCase(),
+        )
+        client.cookies.set("session_id", "sid")
+
+        response = client.post(
+            "/actions/auth/api-keys/create",
+            data={
+                "csrf_token": "csrf",
+                "name": "mobile",
+                "expires_at": "2026-04-20T09:30",
+                "timezone_offset_minutes": "-540",
+            },
+        )
+
+        assert response.status_code == 200
+        assert api_key_use_cases.items[0].expires_at == datetime(
+            2026, 4, 20, 0, 30, tzinfo=timezone.utc
+        )
+
+    def test_non_hx_login_failure_redirects_home_with_error_code(self):
+        client = _client(
+            drop_use_cases=_FakeDropUseCases(),
+            api_key_use_cases=_FakeApiKeyUseCases(),
+            csrf_service=_FakeCsrfService(verify_result=True),
+            revoke_use_case=_FakeRevokeSessionUseCase(),
+        )
+
+        response = client.post(
+            "/actions/auth/login",
+            data={"username": "tester", "password": "wrong"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.headers["location"] == "/?auth_error=login_invalid"
+
+    def test_password_route_renders_404_for_stale_slug(self):
+        class _MissingGetDropMetaUseCase:
+            async def execute_for_display(self, slug, auth=None):
+                _ = (slug, auth)
+                raise DropNotFoundError()
+
+            async def execute(self, _query):
+                raise AssertionError("Unexpected execute call")
+
+        drop_use_cases = _FakeDropUseCases()
+        drop_use_cases.get_drop_meta_use_case = _MissingGetDropMetaUseCase()
+        client = _client(
+            drop_use_cases=drop_use_cases,
+            api_key_use_cases=_FakeApiKeyUseCases(),
+            csrf_service=_FakeCsrfService(verify_result=True),
+            revoke_use_case=_FakeRevokeSessionUseCase(),
+        )
+        client.cookies.set("session_id", "sid")
+
+        response = client.post(
+            "/actions/drop/missing/password",
+            data={"csrf_token": "csrf", "new_password": "", "confirm_password": ""},
+        )
+
+        assert response.status_code == 404
+        assert "파일이 존재하지 않습니다." in response.text
+
+    def test_stale_session_cookie_is_cleared_on_home_response(self):
+        app = FastAPI()
+        app.include_router(web_router)
+        fake_settings = SimpleNamespace(
+            SESSION_COOKIE_NAME="session_id",
+            SESSION_COOKIE_PATH="/",
+            SESSION_COOKIE_SECURE=False,
+            SESSION_COOKIE_SAMESITE="lax",
+            SESSION_TTL_SECONDS=86400,
+            CSRF_SECRET_KEY="csrf-secret",
+            DEFAULT_PAGE_SIZE=10,
+            MAX_PAGE_SIZE=200,
+        )
+        app.dependency_overrides[get_app_settings] = lambda: fake_settings
+        app.dependency_overrides[get_verify_session_use_case] = (
+            lambda: _FakeInvalidVerifySessionUseCase()
+        )
+        app.dependency_overrides[get_csrf_token_service] = (
+            lambda: _FakeCsrfService(verify_result=True)
+        )
+        app.dependency_overrides[get_revoke_session_use_case] = (
+            lambda: _FakeRevokeSessionUseCase()
+        )
+        app.dependency_overrides[get_create_drop_use_case] = (
+            lambda: _FakeDropUseCases().create_drop_use_case
+        )
+        app.dependency_overrides[get_delete_drop_use_case] = (
+            lambda: _FakeDropUseCases().delete_drop_use_case
+        )
+        app.dependency_overrides[get_get_drop_meta_use_case] = (
+            lambda: _FakeDropUseCases().get_drop_meta_use_case
+        )
+        app.dependency_overrides[get_list_drops_use_case] = (
+            lambda: _FakeDropUseCases().list_drops_use_case
+        )
+        app.dependency_overrides[get_update_drop_use_case] = (
+            lambda: _FakeDropUseCases().update_drop_use_case
+        )
+        app.dependency_overrides[get_create_api_key_use_case] = (
+            lambda: _FakeApiKeyUseCases().create_api_key_use_case
+        )
+        app.dependency_overrides[get_list_api_keys_use_case] = (
+            lambda: _FakeApiKeyUseCases().list_api_keys_use_case
+        )
+        app.dependency_overrides[get_revoke_api_key_use_case] = (
+            lambda: _FakeApiKeyUseCases().revoke_api_key_use_case
+        )
+        app.dependency_overrides[get_delete_api_key_use_case] = (
+            lambda: _FakeApiKeyUseCases().delete_api_key_use_case
+        )
+        app.dependency_overrides[get_password_login_use_case] = lambda: _FakePasswordLoginUseCase()
+        client = TestClient(app)
+        client.cookies.set("session_id", "stale-sid")
+
+        response = client.get("/")
+
+        assert response.status_code == 200
+        assert "session_id=" in response.headers.get("set-cookie", "")

@@ -69,6 +69,8 @@ class TestDropSlugService:
         service = DropSlugService(repository=repo, candidate_generator=_CandidateGenerator(['x']))
         with pytest.raises(DropSlugUnavailableError):
             await service.resolve('api')
+        with pytest.raises(DropSlugUnavailableError):
+            await service.resolve('drops')
 
     async def test_manual_slug_duplicate_raises(self):
         repo = _Repo()

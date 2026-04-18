@@ -29,6 +29,7 @@
 
         <form method="post" action="/actions/auth/api-keys/create" class="space-y-4">
           <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
+          <input type="hidden" name="timezone_offset_minutes" value="0" data-td-role="timezone-offset" />
           <div class="grid gap-4 sm:grid-cols-2">
             {% call field("이름", "api-key-name") %}
               {{ text_input("name", input_id="api-key-name", placeholder="shortcuts", required=true, attrs='maxlength="100"') }}
@@ -76,7 +77,8 @@
                   {{ button("revoke", kind="ghost", size="sm", type="submit", classes="join-item") }}
                 </form>
                 <form method="post" action="/actions/auth/api-keys/{{ item.public_id }}/delete"
-                  onsubmit="return confirm('정말 삭제하시겠습니까?')">
+                  data-td-action="confirm-submit"
+                  data-td-confirm="정말 삭제하시겠습니까?">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
                   {{ button("delete", kind="ghost", size="sm", type="submit", classes="join-item text-error") }}
                 </form>

@@ -42,7 +42,7 @@ def _normalize_datetime(value: datetime | None) -> datetime | None:
         return None
     if value.tzinfo is None:
         return value.replace(tzinfo=timezone.utc)
-    return value
+    return value.astimezone(timezone.utc)
 
 
 def _hash_key_material(public_id: str, secret: str) -> str:

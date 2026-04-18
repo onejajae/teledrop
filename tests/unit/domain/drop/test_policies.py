@@ -4,6 +4,7 @@ import pytest
 
 from app.domain.drop.entities import DropEntity
 from app.domain.drop.errors import DropAccessDeniedError, DropPasswordInvalidError
+from app.domain.drop.grants import DropPasswordCredential, DropPasswordGrantService
 from app.domain.drop.policies import (
     RequestAuthContext,
     assert_drop_access_allowed,
@@ -36,7 +37,15 @@ def _drop(
     )
 
 
+def _credential(password: str | None) -> DropPasswordCredential | None:
+    if password is None:
+        return None
+    return DropPasswordCredential(password=password)
+
+
 class TestDropPolicies:
+    _grant_service = DropPasswordGrantService(secret_key="test-secret", ttl_seconds=3600)
+
     @pytest.mark.parametrize(
         ("raw_password", "expected"),
         [
@@ -68,14 +77,21 @@ class TestDropPolicies:
         )
 
     def test_assert_drop_password_matches_accepts_none_pair_and_trimmed_match(self):
-        assert_drop_password_matches(_drop(drop_password=None), None)
-        assert_drop_password_matches(_drop(drop_password="  secret  "), "secret")
+        assert_drop_password_matches(
+            _drop(drop_password=None),
+            None,
+            self._grant_service,
+        )
+        assert_drop_password_matches(
+            _drop(drop_password="  secret  "),
+            _credential("secret"),
+            self._grant_service,
+        )
 
     @pytest.mark.parametrize(
         ("expected", "provided"),
         [
             ("secret", None),
-            (None, "secret"),
             ("secret", "wrong"),
         ],
     )
@@ -85,4 +101,15 @@ class TestDropPolicies:
         provided: str | None,
     ):
         with pytest.raises(DropPasswordInvalidError):
-            assert_drop_password_matches(_drop(drop_password=expected), provided)
+            assert_drop_password_matches(
+                _drop(drop_password=expected),
+                _credential(provided),
+                self._grant_service,
+            )
+
+    def test_assert_drop_password_matches_ignores_credential_when_password_not_required(self):
+        assert_drop_password_matches(
+            _drop(drop_password=None),
+            _credential("secret"),
+            self._grant_service,
+        )

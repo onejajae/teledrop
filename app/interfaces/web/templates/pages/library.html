@@ -1,5 +1,5 @@
 {% extends "layout/base.html" %}
-{% from "macros/components.html" import drop_list_card, sort_toolbar %}
+{% from "macros/drop_listing.html" import drop_list_card, sort_toolbar %}
 {% from "macros/icons.html" import icon_cloud_arrow_up %}
 {% from "macros/ui.html" import alert, empty_state, page_section, section_header %}
 {% set page_title = "teledrop - 내 drop" %}
@@ -8,7 +8,7 @@
 {% block page_content %}
       {% call page_section() %}
         {% call section_header("내 drop", level="h1") %}
-          {{ sort_toolbar("/drops", current_order=drop_orderby, current_sort=drop_sortby, toggle_attrs='onclick="document.getElementById(&quot;drop-orderby&quot;).value = document.getElementById(&quot;drop-orderby&quot;).value === &quot;asc&quot; ? &quot;desc&quot; : &quot;asc&quot;; this.form.requestSubmit();" title="' ~ ('오름차순' if drop_orderby == 'asc' else '내림차순') ~ '" aria-label="정렬 순서 변경"') }}
+          {{ sort_toolbar("/drops", current_order=drop_orderby, current_sort=drop_sortby) }}
         {% endcall %}
 
         {% if drop_error_message %}

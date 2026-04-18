@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Form, Request, Response, status
 from fastapi.responses import RedirectResponse
@@ -30,6 +30,7 @@ from app.bootstrap.providers.auth import (
 )
 from app.core.auth import clear_session_cookie, get_session_id_from_request, set_session_cookie
 from app.core.config import Settings
+from app.core.drop_grants import clear_drop_grant_cookies
 from app.domain.auth.errors import ApiKeyNotFound, LoginInvalid
 from app.interfaces.deps.auth import get_optional_session_auth
 from app.interfaces.web.action_support import (
@@ -37,6 +38,7 @@ from app.interfaces.web.action_support import (
     redirect_home,
     require_auth_and_csrf,
 )
+from app.interfaces.web.presenters.common import build_query_url, finalize_ui_response
 from app.interfaces.web.presenters.api_keys_page import render_api_keys_page
 from app.interfaces.web.presenters.auth_panel import render_auth_panel
 
@@ -67,7 +69,14 @@ async def ui_login(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 auth_error_message="아이디 또는 비밀번호가 올바르지 않습니다.",
             )
-        return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
+        return finalize_ui_response(
+            request,
+            RedirectResponse(
+                url=build_query_url("/", auth_error="login_invalid"),
+                status_code=status.HTTP_302_FOUND,
+            ),
+            settings,
+        )
 
     if is_hx_request(request):
         response = Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -90,7 +99,16 @@ async def ui_logout(
 ):
     session_id = get_session_id_from_request(request, settings)
     if session_id and not csrf_service.verify(session_id, csrf_token):
-        return Response(status_code=status.HTTP_403_FORBIDDEN)
+        redirect_url = build_query_url("/", auth_error="logout_csrf_invalid")
+        if is_hx_request(request):
+            response = Response(status_code=status.HTTP_204_NO_CONTENT)
+            response.headers["HX-Redirect"] = redirect_url
+            return finalize_ui_response(request, response, settings)
+        return finalize_ui_response(
+            request,
+            RedirectResponse(url=redirect_url, status_code=status.HTTP_302_FOUND),
+            settings,
+        )
 
     if session_id:
         await revoke_session_use_case.execute(session_id)
@@ -99,11 +117,13 @@ async def ui_logout(
         response = Response(status_code=status.HTTP_204_NO_CONTENT)
         response.headers["HX-Redirect"] = "/"
         clear_session_cookie(response, settings)
-        return response
+        clear_drop_grant_cookies(response, request, settings)
+        return finalize_ui_response(request, response, settings)
 
     response = redirect_home()
     clear_session_cookie(response, settings)
-    return response
+    clear_drop_grant_cookies(response, request, settings)
+    return finalize_ui_response(request, response, settings)
 
 
 async def _api_key_guard(
@@ -146,6 +166,7 @@ async def ui_create_api_key(
     list_api_keys_use_case: ListApiKeysUseCase = Depends(get_list_api_keys_use_case),
     name: str = Form(),
     expires_at: str = Form(default=""),
+    timezone_offset_minutes: int = Form(default=0),
     csrf_token: str = Form(default=""),
 ):
     guard_response = await _api_key_guard(
@@ -164,6 +185,10 @@ async def ui_create_api_key(
     if expires_at_value:
         try:
             parsed_expires_at = datetime.fromisoformat(expires_at_value)
+            local_timezone = timezone(-timedelta(minutes=timezone_offset_minutes))
+            parsed_expires_at = parsed_expires_at.replace(tzinfo=local_timezone).astimezone(
+                timezone.utc
+            )
         except ValueError:
             return await render_api_keys_page(
                 request=request,

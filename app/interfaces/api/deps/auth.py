@@ -18,7 +18,16 @@ from app.interfaces.api.errors import (
 from app.interfaces.deps.auth import (
     authenticate_with_session,
     extract_api_key,
+    session_cookie_clear_pending,
 )
+
+def _clear_stale_session_cookie_if_needed(
+    request: Request,
+    response: Response,
+    settings: Settings,
+):
+    if session_cookie_clear_pending(request):
+        clear_session_cookie(response, settings)
 
 
 class SessionOnlyAuthenticator:
@@ -34,10 +43,10 @@ class SessionOnlyAuthenticator:
     ) -> AuthIdentity:
         identity = await authenticate_with_session(
             request=request,
-            response=response,
             settings=settings,
             verify_session_use_case=verify_session_use_case,
         )
+        _clear_stale_session_cookie_if_needed(request, response, settings)
         if identity.username is not None:
             return identity
 
@@ -65,10 +74,10 @@ class SessionOrApiKeyAuthenticator:
     ) -> AuthIdentity:
         identity = await authenticate_with_session(
             request=request,
-            response=response,
             settings=settings,
             verify_session_use_case=verify_session_use_case,
         )
+        _clear_stale_session_cookie_if_needed(request, response, settings)
         if identity.username is not None:
             return identity
 

@@ -1,5 +1,5 @@
-import io
 from datetime import datetime, timezone
+import io
 from types import SimpleNamespace
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -17,6 +17,22 @@ from app.bootstrap.providers.drop import (
 from app.domain.drop.errors import DropNotFoundError, DropPasswordInvalidError
 from app.domain.drop.value_objects import AccessScope
 from app.interfaces.web.router import router as web_router
+
+
+def _credential_matches(expected: str | None, credential) -> bool:
+    if expected is None:
+        return credential is None or getattr(credential, 'password', None) in (None, '')
+    if credential is None:
+        return False
+    raw_password = getattr(credential, 'password', credential)
+    if raw_password == expected:
+        return True
+    return bool(getattr(credential, 'grant_token', None))
+
+
+def _is_authenticated(auth) -> bool:
+    return bool(auth and getattr(auth, 'username', None))
+
 
 class _FakeVerifySessionUseCase:
 
@@ -91,7 +107,7 @@ class _FakeDropUseCases:
             if item is None:
                 raise DropNotFoundError()
             expected = item['password']
-            if expected and expected != query.drop_password:
+            if not _is_authenticated(query.auth) and not _credential_matches(expected, query.drop_password):
                 raise DropPasswordInvalidError()
             return item['dto']
 
@@ -105,7 +121,7 @@ class _FakeDropUseCases:
             if item is None:
                 raise DropNotFoundError()
             expected = item['password']
-            if expected and expected != command.current_password and not getattr(command, 'bypass_password_check', False):
+            if not getattr(command, 'bypass_password_check', False) and not _credential_matches(expected, command.current_password):
                 raise DropPasswordInvalidError()
             dto = item['dto']
             if command.title is not UNSET:
@@ -131,7 +147,7 @@ class _FakeDropUseCases:
             if item is None:
                 raise DropNotFoundError()
             expected = item['password']
-            if expected and expected != command.current_password:
+            if not getattr(command, 'bypass_password_check', False) and not _credential_matches(expected, command.current_password):
                 raise DropPasswordInvalidError()
             self.parent.items.pop(command.slug, None)
 
@@ -141,7 +157,7 @@ class TestWebActionsSmoke:
         app = FastAPI()
         app.include_router(web_router)
         fake_use_cases = _FakeDropUseCases()
-        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
+        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, CSRF_SECRET_KEY='csrf-secret', DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
         app.dependency_overrides[get_app_settings] = lambda: fake_settings
         app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
         app.dependency_overrides[get_csrf_token_service] = lambda: _FakeCsrfService()
@@ -157,10 +173,10 @@ class TestWebActionsSmoke:
         upload = client.post('/actions/drop/upload', headers=headers, data={'csrf_token': 'csrf', 'slug': 'kweb', 'user_only': 'true'}, files={'file': ('hello.txt', io.BytesIO(b'hello'), 'text/plain')})
         assert upload.status_code == 204
         assert upload.headers.get('HX-Redirect') == '/drops/kweb'
-        update = client.post('/actions/drop/kweb/detail', headers=headers, data={'csrf_token': 'csrf', 'title': 'new-title', 'password': ''})
+        update = client.post('/actions/drop/kweb/detail', headers=headers, data={'csrf_token': 'csrf', 'title': 'new-title'})
         assert update.status_code == 200
         assert '메타데이터가 수정되었습니다.' in update.text
-        delete = client.post('/actions/drop/kweb/delete', headers=headers, data={'csrf_token': 'csrf', 'password': ''})
+        delete = client.post('/actions/drop/kweb/delete', headers=headers, data={'csrf_token': 'csrf'})
         assert delete.status_code == 204
         assert delete.headers.get('HX-Redirect') == '/drops'
         logout = client.post('/actions/auth/logout', headers=headers, data={'csrf_token': 'csrf'})
@@ -171,7 +187,7 @@ class TestWebActionsSmoke:
         app = FastAPI()
         app.include_router(web_router)
         fake_use_cases = _FakeDropUseCases()
-        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
+        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, CSRF_SECRET_KEY='csrf-secret', DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
         app.dependency_overrides[get_app_settings] = lambda: fake_settings
         app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
         app.dependency_overrides[get_csrf_token_service] = lambda: _FakeCsrfService()
@@ -189,9 +205,119 @@ class TestWebActionsSmoke:
             'password': 'pw',
         }
 
-        cleared = client.post('/actions/drop/locked/password', data={'csrf_token': 'csrf', 'current_password': '', 'new_password': ''})
+        cleared = client.post('/actions/drop/locked/password', data={'csrf_token': 'csrf', 'new_password': '', 'confirm_password': ''})
 
         assert cleared.status_code == 200
         assert '드롭 비밀번호가 해제되었습니다.' in cleared.text
         assert fake_use_cases.items['locked']['password'] is None
         assert fake_use_cases.items['locked']['dto'].requires_password is False
+
+    def test_manage_password_set_renders_manage_page_with_new_password(self):
+        app = FastAPI()
+        app.include_router(web_router)
+        fake_use_cases = _FakeDropUseCases()
+        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, CSRF_SECRET_KEY='csrf-secret', DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
+        app.dependency_overrides[get_app_settings] = lambda: fake_settings
+        app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
+        app.dependency_overrides[get_csrf_token_service] = lambda: _FakeCsrfService()
+        app.dependency_overrides[get_revoke_session_use_case] = lambda: _FakeRevokeSessionUseCase()
+        app.dependency_overrides[get_create_drop_use_case] = lambda: fake_use_cases.create_drop_use_case
+        app.dependency_overrides[get_delete_drop_use_case] = lambda: fake_use_cases.delete_drop_use_case
+        app.dependency_overrides[get_get_drop_meta_use_case] = lambda: fake_use_cases.get_drop_meta_use_case
+        app.dependency_overrides[get_list_drops_use_case] = lambda: fake_use_cases.list_drops_use_case
+        app.dependency_overrides[get_update_drop_use_case] = lambda: fake_use_cases.update_drop_use_case
+        client = TestClient(app)
+        client.cookies.set('session_id', 'sid')
+
+        fake_use_cases.items['fresh'] = {
+            'dto': DropDetailDTO(slug='fresh', title='fresh', description=None, file_name='fresh.txt', mime_type='text/plain', size_bytes=5, access_scope=AccessScope.PRIVATE, is_favorite=False, requires_password=False, created_at=datetime.now(timezone.utc), updated_at=None, sha256='sha'),
+            'password': None,
+        }
+
+        updated = client.post(
+            '/actions/drop/fresh/password',
+            data={
+                'csrf_token': 'csrf',
+                'new_password': 'newpw',
+                'confirm_password': 'newpw',
+            },
+        )
+
+        assert updated.status_code == 200
+        assert '드롭 비밀번호가 설정되었습니다.' in updated.text
+        assert fake_use_cases.items['fresh']['password'] == 'newpw'
+        assert fake_use_cases.items['fresh']['dto'].requires_password is True
+        assert '비밀번호 입력' not in updated.text
+        assert 'name="current_password" value=' not in updated.text
+        assert 'password=newpw' not in updated.text
+        assert 'set-cookie' in {k.lower(): v for k, v in updated.headers.items()}
+
+    def test_manage_password_change_requires_clear_before_reset(self):
+        app = FastAPI()
+        app.include_router(web_router)
+        fake_use_cases = _FakeDropUseCases()
+        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, CSRF_SECRET_KEY='csrf-secret', DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
+        app.dependency_overrides[get_app_settings] = lambda: fake_settings
+        app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
+        app.dependency_overrides[get_csrf_token_service] = lambda: _FakeCsrfService()
+        app.dependency_overrides[get_revoke_session_use_case] = lambda: _FakeRevokeSessionUseCase()
+        app.dependency_overrides[get_create_drop_use_case] = lambda: fake_use_cases.create_drop_use_case
+        app.dependency_overrides[get_delete_drop_use_case] = lambda: fake_use_cases.delete_drop_use_case
+        app.dependency_overrides[get_get_drop_meta_use_case] = lambda: fake_use_cases.get_drop_meta_use_case
+        app.dependency_overrides[get_list_drops_use_case] = lambda: fake_use_cases.list_drops_use_case
+        app.dependency_overrides[get_update_drop_use_case] = lambda: fake_use_cases.update_drop_use_case
+        client = TestClient(app)
+        client.cookies.set('session_id', 'sid')
+
+        fake_use_cases.items['locked'] = {
+            'dto': DropDetailDTO(slug='locked', title='locked', description=None, file_name='locked.txt', mime_type='text/plain', size_bytes=5, access_scope=AccessScope.PRIVATE, is_favorite=False, requires_password=True, created_at=datetime.now(timezone.utc), updated_at=None, sha256='sha'),
+            'password': 'oldpw',
+        }
+
+        updated = client.post(
+            '/actions/drop/locked/password',
+            data={
+                'csrf_token': 'csrf',
+                'new_password': 'newpw',
+                'confirm_password': 'newpw',
+            },
+        )
+
+        assert updated.status_code == 200
+        assert '비밀번호를 변경하려면 먼저 해제한 뒤 다시 설정해 주세요.' in updated.text
+        assert fake_use_cases.items['locked']['password'] == 'oldpw'
+
+    def test_manage_password_set_rejects_mismatched_confirmation(self):
+        app = FastAPI()
+        app.include_router(web_router)
+        fake_use_cases = _FakeDropUseCases()
+        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, CSRF_SECRET_KEY='csrf-secret', DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
+        app.dependency_overrides[get_app_settings] = lambda: fake_settings
+        app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
+        app.dependency_overrides[get_csrf_token_service] = lambda: _FakeCsrfService()
+        app.dependency_overrides[get_revoke_session_use_case] = lambda: _FakeRevokeSessionUseCase()
+        app.dependency_overrides[get_create_drop_use_case] = lambda: fake_use_cases.create_drop_use_case
+        app.dependency_overrides[get_delete_drop_use_case] = lambda: fake_use_cases.delete_drop_use_case
+        app.dependency_overrides[get_get_drop_meta_use_case] = lambda: fake_use_cases.get_drop_meta_use_case
+        app.dependency_overrides[get_list_drops_use_case] = lambda: fake_use_cases.list_drops_use_case
+        app.dependency_overrides[get_update_drop_use_case] = lambda: fake_use_cases.update_drop_use_case
+        client = TestClient(app)
+        client.cookies.set('session_id', 'sid')
+
+        fake_use_cases.items['fresh'] = {
+            'dto': DropDetailDTO(slug='fresh', title='fresh', description=None, file_name='fresh.txt', mime_type='text/plain', size_bytes=5, access_scope=AccessScope.PRIVATE, is_favorite=False, requires_password=False, created_at=datetime.now(timezone.utc), updated_at=None, sha256='sha'),
+            'password': None,
+        }
+
+        updated = client.post(
+            '/actions/drop/fresh/password',
+            data={
+                'csrf_token': 'csrf',
+                'new_password': 'newpw',
+                'confirm_password': 'wrong',
+            },
+        )
+
+        assert updated.status_code == 200
+        assert '비밀번호 확인이 일치하지 않습니다.' in updated.text
+        assert fake_use_cases.items['fresh']['password'] is None

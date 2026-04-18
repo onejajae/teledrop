@@ -53,32 +53,56 @@ class TestDetailPanelPresenter:
 
     def setup_method(self):
         self.request = SimpleNamespace(cookies={})
-        self.settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id')
+        self.settings = SimpleNamespace(
+            SESSION_COOKIE_NAME='session_id',
+            SESSION_TTL_SECONDS=86400,
+            CSRF_SECRET_KEY='csrf-secret',
+        )
         self.auth_data = AuthIdentity(username=None)
         self.csrf_service = _FakeCsrfService()
         self.drop_use_cases = _FakeDropUseCasesPasswordProtected()
 
     async def test_first_password_prompt_does_not_show_error_message(self):
         context = await detail_panel_context(request=self.request, auth_data=self.auth_data, csrf_service=self.csrf_service, get_drop_meta_use_case=self.drop_use_cases.get_drop_meta_use_case, settings=self.settings, selected_key='locked', selected_password=None)
-        assert context['selected_requires_password']
-        assert context['detail_error_message'] is None
-        assert context['selected_drop'] is not None
+        assert context['detail'].requires_password
+        assert context['detail'].error.message is None
+        assert context['detail'].drop is not None
 
     async def test_wrong_password_shows_invalid_password_message(self):
         context = await detail_panel_context(request=self.request, auth_data=self.auth_data, csrf_service=self.csrf_service, get_drop_meta_use_case=self.drop_use_cases.get_drop_meta_use_case, settings=self.settings, selected_key='locked', selected_password='bad-password')
-        assert context['detail_error_message'] == '비밀번호가 올바르지 않습니다.'
-        assert context['selected_requires_password']
-        assert context['selected_drop'] is not None
-        assert context['detail_error_code'] == 'password_invalid'
+        assert context['detail'].error.message == '비밀번호가 올바르지 않습니다.'
+        assert context['detail'].requires_password
+        assert context['detail'].drop is not None
+        assert context['detail'].error.code == 'password_invalid'
+
+    async def test_authenticated_user_bypasses_password_prompt(self):
+        class _MetaUseCaseAuthenticated(_MetaUseCasePasswordProtected):
+            async def execute(self, query):
+                assert query.auth.username == 'tester'
+                return self.meta
+
+        context = await detail_panel_context(
+            request=self.request,
+            auth_data=AuthIdentity(username='tester'),
+            csrf_service=self.csrf_service,
+            get_drop_meta_use_case=_MetaUseCaseAuthenticated(),
+            settings=self.settings,
+            selected_key='locked',
+            selected_password=None,
+        )
+
+        assert context['detail'].access_granted is True
+        assert context['detail'].error.message is None
+        assert context['detail'].drop is not None
 
     async def test_access_denied_sets_forbidden_error_code(self):
         context = await detail_panel_context(request=self.request, auth_data=self.auth_data, csrf_service=self.csrf_service, get_drop_meta_use_case=_FakeDropUseCasesForbidden().get_drop_meta_use_case, settings=self.settings, selected_key='locked')
-        assert context['detail_error_code'] == 'forbidden'
-        assert '로그인이 필요' in context['detail_error_message']
-        assert context['selected_drop'] is None
+        assert context['detail'].error.code == 'forbidden'
+        assert '로그인이 필요' in context['detail'].error.message
+        assert context['detail'].drop is None
 
     async def test_not_found_sets_not_found_error_code(self):
         context = await detail_panel_context(request=self.request, auth_data=self.auth_data, csrf_service=self.csrf_service, get_drop_meta_use_case=_FakeDropUseCasesNotFound().get_drop_meta_use_case, settings=self.settings, selected_key='missing')
-        assert context['detail_error_code'] == 'not_found'
-        assert '존재하지 않습니다' in context['detail_error_message']
-        assert context['selected_drop'] is None
+        assert context['detail'].error.code == 'not_found'
+        assert '존재하지 않습니다' in context['detail'].error.message
+        assert context['detail'].drop is None

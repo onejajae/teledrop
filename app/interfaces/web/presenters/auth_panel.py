@@ -3,7 +3,11 @@ from fastapi import Request, status
 from app.application.auth.use_cases.csrf import CsrfTokenService
 from app.core.config import Settings
 from app.application.auth.types import AuthIdentity
-from app.interfaces.web.presenters.common import csrf_token_for_request, templates
+from app.interfaces.web.presenters.common import (
+    base_template_context,
+    finalize_ui_response,
+    templates,
+)
 
 
 def auth_panel_context(
@@ -13,12 +17,13 @@ def auth_panel_context(
     settings: Settings,
     auth_error_message: str | None = None,
 ) -> dict:
-    return {
-        "request": request,
-        "is_login": bool(auth_data.username),
-        "csrf_token": csrf_token_for_request(request, settings, csrf_service),
-        "auth_error_message": auth_error_message,
-    }
+    return base_template_context(
+        request=request,
+        auth_data=auth_data,
+        settings=settings,
+        csrf_service=csrf_service,
+        auth_error_message=auth_error_message,
+    )
 
 
 def render_auth_panel(
@@ -36,9 +41,13 @@ def render_auth_panel(
         settings=settings,
         auth_error_message=auth_error_message,
     )
-    return templates().TemplateResponse(
-        request=request,
-        name="panels/auth.html",
-        context=context,
-        status_code=status_code,
+    return finalize_ui_response(
+        request,
+        templates().TemplateResponse(
+            request=request,
+            name="panels/auth.html",
+            context=context,
+            status_code=status_code,
+        ),
+        settings,
     )

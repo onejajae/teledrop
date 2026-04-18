@@ -8,8 +8,9 @@ from app.core.config import Settings
 from app.domain.drop.errors import DropAccessDeniedError
 from app.domain.drop.value_objects import DropSortField
 from app.interfaces.web.presenters.common import (
-    as_template_drop,
+    as_drop_vm,
     base_template_context,
+    finalize_ui_response,
     drop_manage_page_url,
     normalize_sort_value,
     templates,
@@ -51,7 +52,7 @@ async def library_page_context(
                     )
                 )
             ).items
-            drops = [as_template_drop(item) for item in items]
+            drops = [as_drop_vm(item) for item in items]
         except DropAccessDeniedError:
             drops = []
 
@@ -96,11 +97,15 @@ async def render_library_page(
         drop_error_message=drop_error_message,
         drop_status_message=drop_status_message,
     )
-    return templates().TemplateResponse(
-        request=request,
-        name="pages/library.html",
-        context=context,
-        status_code=status_code,
+    return finalize_ui_response(
+        request,
+        templates().TemplateResponse(
+            request=request,
+            name="pages/library.html",
+            context=context,
+            status_code=status_code,
+        ),
+        settings,
     )
 
 

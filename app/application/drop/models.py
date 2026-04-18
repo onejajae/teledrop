@@ -4,6 +4,7 @@ from typing import BinaryIO
 
 from app.application.auth.types import AuthIdentity
 from app.application.drop.sentinel import UNSET
+from app.domain.drop.grants import DropPasswordCredential
 from app.domain.drop.value_objects import AccessScope, DropSortField
 
 
@@ -23,7 +24,7 @@ class CreateDropCommand:
 @dataclass(slots=True)
 class UpdateDropCommand:
     slug: str
-    current_password: str | None
+    current_password: DropPasswordCredential | None
     bypass_password_check: bool = False
     title: str | None | object = UNSET
     description: str | None | object = UNSET
@@ -35,7 +36,8 @@ class UpdateDropCommand:
 @dataclass(slots=True)
 class DeleteDropCommand:
     slug: str
-    current_password: str | None
+    current_password: DropPasswordCredential | None
+    bypass_password_check: bool = False
 
 
 @dataclass(slots=True)
@@ -50,14 +52,14 @@ class DropListQuery:
 @dataclass(slots=True)
 class DropMetaQuery:
     slug: str
-    drop_password: str | None
+    drop_password: DropPasswordCredential | None
     auth: AuthIdentity | None
 
 
 @dataclass(slots=True)
 class DropStreamQuery:
     slug: str
-    drop_password: str | None
+    drop_password: DropPasswordCredential | None
     auth: AuthIdentity | None
 
 

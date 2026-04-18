@@ -24,6 +24,7 @@ from app.domain.drop.errors import (
     DropAccessDeniedError,
     DropNotFoundError,
 )
+from app.domain.drop.grants import DropPasswordCredential, DropPasswordGrantService
 from app.domain.drop.policies import (
     RequestAuthContext,
     assert_drop_access_allowed,
@@ -39,8 +40,16 @@ def _assert_access(drop: DropEntity, auth: AuthIdentity | None):
     assert_drop_access_allowed(drop, auth_ctx)
 
 
-def _assert_password(drop: DropEntity, password: str | None):
-    assert_drop_password_matches(drop, password)
+def _is_authenticated(auth: AuthIdentity | None) -> bool:
+    return bool(auth and auth.username)
+
+
+def _assert_password(
+    drop: DropEntity,
+    credential: DropPasswordCredential | None,
+    grant_service: DropPasswordGrantService,
+):
+    assert_drop_password_matches(drop, credential, grant_service)
 
 
 async def _get_by_slug_or_raise(
@@ -167,13 +176,19 @@ class ListDropsUseCase:
 
 
 class GetDropMetaUseCase:
-    def __init__(self, repository: DropRepositoryPort):
+    def __init__(
+        self,
+        repository: DropRepositoryPort,
+        grant_service: DropPasswordGrantService,
+    ):
         self.repository = repository
+        self.grant_service = grant_service
 
     async def execute(self, query: DropMetaQuery) -> DropDetailDTO:
         drop = await _get_by_slug_or_raise(self.repository, query.slug)
         _assert_access(drop, query.auth)
-        _assert_password(drop, query.drop_password)
+        if not _is_authenticated(query.auth):
+            _assert_password(drop, query.drop_password, self.grant_service)
         return _to_detail_dto(drop)
 
     async def execute_for_display(self, slug: str, auth: AuthIdentity | None) -> DropDetailDTO:
@@ -183,14 +198,21 @@ class GetDropMetaUseCase:
 
 
 class GetDropStreamSourceUseCase:
-    def __init__(self, repository: DropRepositoryPort, storage: DropStoragePort):
+    def __init__(
+        self,
+        repository: DropRepositoryPort,
+        storage: DropStoragePort,
+        grant_service: DropPasswordGrantService,
+    ):
         self.repository = repository
         self.storage = storage
+        self.grant_service = grant_service
 
     async def execute(self, query: DropStreamQuery) -> tuple[DropDetailDTO, str]:
         drop = await _get_by_slug_or_raise(self.repository, query.slug)
         _assert_access(drop, query.auth)
-        _assert_password(drop, query.drop_password)
+        if not _is_authenticated(query.auth):
+            _assert_password(drop, query.drop_password, self.grant_service)
         return _to_detail_dto(drop), drop.storage_key
 
     async def iter_stream_range(self, storage_key: str, start: int, end: int):
@@ -202,14 +224,16 @@ class UpdateDropUseCase:
     def __init__(
         self,
         uow_factory: DropUnitOfWorkFactory,
+        grant_service: DropPasswordGrantService,
     ):
         self.uow_factory = uow_factory
+        self.grant_service = grant_service
 
     async def execute(self, command: UpdateDropCommand) -> DropDetailDTO:
         async with self.uow_factory() as uow:
             drop = await _get_by_slug_or_raise(uow.repository, command.slug)
             if not command.bypass_password_check:
-                _assert_password(drop, command.current_password)
+                _assert_password(drop, command.current_password, self.grant_service)
 
             update = DropUpdateInput()
             if command.title is not COMMAND_UNSET:
@@ -235,9 +259,11 @@ class DeleteDropUseCase:
         self,
         storage: DropStoragePort,
         uow_factory: DropUnitOfWorkFactory,
+        grant_service: DropPasswordGrantService,
     ):
         self.storage = storage
         self.uow_factory = uow_factory
+        self.grant_service = grant_service
 
     async def execute(self, command: DeleteDropCommand) -> None:
         source_key = ""
@@ -245,7 +271,8 @@ class DeleteDropUseCase:
         try:
             async with self.uow_factory() as uow:
                 drop = await _get_by_slug_or_raise(uow.repository, command.slug)
-                _assert_password(drop, command.current_password)
+                if not command.bypass_password_check:
+                    _assert_password(drop, command.current_password, self.grant_service)
 
                 source_key, staged_key = await self.storage.stage_delete(drop.storage_key)
                 deleted = await uow.repository.delete_by_slug(command.slug)
