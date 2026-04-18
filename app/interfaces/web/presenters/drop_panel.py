@@ -100,7 +100,7 @@ async def render_drop_panel(
         drop_error_message=drop_error_message,
         drop_status_message=drop_status_message,
     )
-    return templates(settings).TemplateResponse(
+    return templates().TemplateResponse(
         request=request,
         name="panels/drop.html",
         context=context,

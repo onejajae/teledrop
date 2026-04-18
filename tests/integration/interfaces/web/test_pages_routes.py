@@ -3,12 +3,8 @@ from types import SimpleNamespace
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.bootstrap.container import get_app_settings
-from app.interfaces.api.deps import (
-    get_csrf_token_service,
-    get_list_api_keys_use_case,
-    get_verify_session_use_case,
-)
+from app.bootstrap.container import get_app_settings, get_csrf_token_service
+from app.bootstrap.providers.auth import get_list_api_keys_use_case, get_verify_session_use_case
 from app.interfaces.web.router import router as web_router
 
 

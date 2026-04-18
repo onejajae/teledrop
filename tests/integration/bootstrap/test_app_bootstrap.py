@@ -97,14 +97,14 @@ class TestLifespanBootstrap:
             settings = _FakeSettings(share_directory=str(share_dir), sqlite_host=f'sqlite:///{db_file.as_posix()}')
             lifespan = build_lifespan(settings)
             fake_engine = MagicMock()
-            fake_container = MagicMock()
-            fake_container.db_engine = fake_engine
+            app = FastAPI()
+            app.state.infra = MagicMock(db_engine=fake_engine)
 
             async def run_lifespan():
-                async with lifespan(FastAPI()):
+                async with lifespan(app):
                     assert share_dir.is_dir()
                     assert db_file.parent.is_dir()
-            with patch('app.bootstrap.lifespan.ensure_app_container', return_value=fake_container) as ensure_mock, patch('app.bootstrap.lifespan.assert_db_schema_current') as validate_schema_mock:
+            with patch('app.bootstrap.lifespan.ensure_app_infra') as ensure_mock, patch('app.bootstrap.lifespan.assert_db_schema_current') as validate_schema_mock:
                 asyncio.run(run_lifespan())
             ensure_mock.assert_called_once()
             assert ensure_mock.call_args.kwargs['settings'] is settings

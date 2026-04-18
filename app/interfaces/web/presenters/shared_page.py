@@ -4,18 +4,12 @@ from app.application.auth.types import AuthIdentity
 from app.application.auth.use_cases.csrf import CsrfTokenService
 from app.application.drop.use_cases import GetDropMetaUseCase
 from app.core.config import Settings
-from app.interfaces.web.presenters.common import drop_manage_page_url, templates
+from app.interfaces.web.presenters.common import (
+    drop_access_status_badge,
+    drop_manage_page_url,
+    templates,
+)
 from app.interfaces.web.presenters.detail_panel import detail_panel_context
-
-
-def _status_from_selected_drop(selected_drop) -> str | None:
-    if selected_drop is None:
-        return None
-    if selected_drop.access_scope == "private":
-        return "비공개"
-    if selected_drop.requires_password:
-        return "비밀번호 보호"
-    return "공유 중"
 
 
 async def shared_page_context(
@@ -37,6 +31,7 @@ async def shared_page_context(
         selected_password=password,
     )
     selected_drop = context.get("selected_drop")
+    status_label, status_tone, status_appearance = drop_access_status_badge(selected_drop)
     context.update(
         {
             "active_nav": None,
@@ -46,7 +41,9 @@ async def shared_page_context(
             "selected_can_copy_link": bool(
                 selected_drop and selected_drop.access_scope == "public"
             ),
-            "selected_status_label": _status_from_selected_drop(selected_drop),
+            "selected_status_label": status_label,
+            "selected_status_tone": status_tone,
+            "selected_status_appearance": status_appearance,
             "show_shared_admin_bar": bool(auth_data.username and selected_drop),
             "locked_form_action": context.get("selected_page_preview_url"),
             "locked_form_use_hx": False,
@@ -75,7 +72,7 @@ async def render_shared_page(
         slug=slug,
         password=password,
     )
-    return templates(settings).TemplateResponse(
+    return templates().TemplateResponse(
         request=request,
         name="pages/shared_drop.html",
         context=context,

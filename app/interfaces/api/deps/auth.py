@@ -1,40 +1,23 @@
-from typing import Annotated
-
 from fastapi import Depends, Request, Response
 
 from app.application.auth.models import VerifyApiKeyQuery
 from app.application.auth.types import AuthIdentity
-from app.application.auth.use_cases import (
-    VerifyApiKeyUseCase,
-    VerifySessionUseCase,
+from app.application.auth.use_cases import VerifyApiKeyUseCase, VerifySessionUseCase
+from app.bootstrap.container import get_app_settings
+from app.bootstrap.providers.auth import (
+    get_verify_api_key_use_case,
+    get_verify_session_use_case,
 )
-from app.bootstrap.container import SettingsDep
 from app.core.auth import clear_session_cookie
+from app.core.config import Settings
 from app.domain.auth.errors import ApiKeyInvalid
 from app.interfaces.api.errors import (
     api_auth_unauthorized_exception,
     response_set_cookie_header,
 )
 from app.interfaces.deps.auth import (
-    CreateApiKeyUseCaseDep,
-    DeleteApiKeyUseCaseDep,
-    ListApiKeysUseCaseDep,
-    OptionalApiAuthDep as SharedOptionalApiAuthDep,
-    OptionalSessionAuthDep as SharedOptionalSessionAuthDep,
-    PasswordLoginUseCaseDep,
-    RevokeApiKeyUseCaseDep,
-    RevokeSessionUseCaseDep,
-    VerifyApiKeyUseCaseDep,
     authenticate_with_session,
     extract_api_key,
-    get_create_api_key_use_case,
-    get_delete_api_key_use_case,
-    get_list_api_keys_use_case,
-    get_password_login_use_case,
-    get_revoke_api_key_use_case,
-    get_revoke_session_use_case,
-    get_verify_api_key_use_case,
-    get_verify_session_use_case,
 )
 
 
@@ -46,7 +29,7 @@ class SessionOnlyAuthenticator:
         self,
         request: Request,
         response: Response,
-        settings: SettingsDep,
+        settings: Settings = Depends(get_app_settings),
         verify_session_use_case: VerifySessionUseCase = Depends(get_verify_session_use_case),
     ) -> AuthIdentity:
         identity = await authenticate_with_session(
@@ -76,7 +59,7 @@ class SessionOrApiKeyAuthenticator:
         self,
         request: Request,
         response: Response,
-        settings: SettingsDep,
+        settings: Settings = Depends(get_app_settings),
         verify_session_use_case: VerifySessionUseCase = Depends(get_verify_session_use_case),
         verify_api_key_use_case: VerifyApiKeyUseCase = Depends(get_verify_api_key_use_case),
     ) -> AuthIdentity:
@@ -109,39 +92,20 @@ class SessionOrApiKeyAuthenticator:
         return AuthIdentity(username=None)
 
 
-OptionalSessionAuthDep = SharedOptionalSessionAuthDep
-OptionalApiAuthDep = SharedOptionalApiAuthDep
-RequiredSessionAuthDep = Annotated[
-    AuthIdentity,
-    Depends(SessionOnlyAuthenticator(auto_error=True)),
-]
-RequiredApiAuthDep = Annotated[
-    AuthIdentity,
-    Depends(SessionOrApiKeyAuthenticator(auto_error=True)),
-]
+async def get_required_session_auth(
+    auth_data: AuthIdentity = Depends(SessionOnlyAuthenticator(auto_error=True)),
+) -> AuthIdentity:
+    return auth_data
+
+
+async def get_required_api_auth(
+    auth_data: AuthIdentity = Depends(SessionOrApiKeyAuthenticator(auto_error=True)),
+) -> AuthIdentity:
+    return auth_data
 
 __all__ = [
-    "CreateApiKeyUseCaseDep",
-    "DeleteApiKeyUseCaseDep",
-    "ListApiKeysUseCaseDep",
-    "OptionalApiAuthDep",
-    "OptionalSessionAuthDep",
-    "PasswordLoginUseCaseDep",
-    "RequiredApiAuthDep",
-    "RequiredSessionAuthDep",
-    "RevokeApiKeyUseCaseDep",
-    "RevokeSessionUseCaseDep",
     "SessionOnlyAuthenticator",
     "SessionOrApiKeyAuthenticator",
-    "VerifyApiKeyUseCaseDep",
-    "authenticate_with_session",
-    "extract_api_key",
-    "get_create_api_key_use_case",
-    "get_delete_api_key_use_case",
-    "get_list_api_keys_use_case",
-    "get_password_login_use_case",
-    "get_revoke_api_key_use_case",
-    "get_revoke_session_use_case",
-    "get_verify_api_key_use_case",
-    "get_verify_session_use_case",
+    "get_required_api_auth",
+    "get_required_session_auth",
 ]

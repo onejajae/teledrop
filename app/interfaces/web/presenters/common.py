@@ -20,10 +20,7 @@ def configure_templates(templates: Jinja2Templates) -> Jinja2Templates:
     return templates
 
 
-def templates(settings: Settings) -> Jinja2Templates:
-    # Keep the settings parameter for call-site compatibility while template
-    # ownership is normalized under app/interfaces/web.
-    _ = settings
+def templates() -> Jinja2Templates:
     return configure_templates(Jinja2Templates(directory=str(template_dir())))
 
 
@@ -108,6 +105,14 @@ def drop_manage_page_url(slug: str, password: str | None = None) -> str:
         encoded_password = quote(password, safe="")
         return f"/drops/{encoded_slug}?password={encoded_password}"
     return f"/drops/{encoded_slug}"
+
+
+def drop_access_status_badge(selected_drop) -> tuple[str | None, str | None, str | None]:
+    if selected_drop is None:
+        return None, None, None
+    if selected_drop.access_scope == "private":
+        return "비공개", "warning", "soft"
+    return "공유 중", "success", "soft"
 
 
 def _humanize_size_jedec(size_bytes: int | None) -> str | None:

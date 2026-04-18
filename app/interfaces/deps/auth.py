@@ -1,77 +1,23 @@
-from typing import Annotated
-
-from fastapi import Depends, HTTPException, Request, Response, status
+from fastapi import Depends, Request, Response
 
 from app.application.auth.models import VerifyApiKeyQuery, VerifySessionQuery
 from app.application.auth.types import AuthIdentity
-from app.application.auth.use_cases import (
-    CreateApiKeyUseCase,
-    DeleteApiKeyUseCase,
-    ListApiKeysUseCase,
-    PasswordLoginUseCase,
-    RevokeApiKeyUseCase,
-    RevokeSessionUseCase,
-    VerifyApiKeyUseCase,
-    VerifySessionUseCase,
+from app.application.auth.use_cases import VerifyApiKeyUseCase, VerifySessionUseCase
+from app.bootstrap.container import get_app_settings
+from app.bootstrap.providers.auth import (
+    get_verify_api_key_use_case,
+    get_verify_session_use_case,
 )
-from app.bootstrap.container import AppContainerDep, SettingsDep
 from app.core.auth import clear_session_cookie, get_session_id_from_request
+from app.core.config import Settings
 from app.domain.auth.errors import ApiKeyInvalid, SessionExpired, SessionInvalid
-
-
-def get_verify_session_use_case(
-    container: AppContainerDep,
-) -> VerifySessionUseCase:
-    return container.verify_session_use_case
-
-
-def get_verify_api_key_use_case(
-    container: AppContainerDep,
-) -> VerifyApiKeyUseCase:
-    return container.verify_api_key_use_case
-
-
-def get_revoke_session_use_case(
-    container: AppContainerDep,
-) -> RevokeSessionUseCase:
-    return container.revoke_session_use_case
-
-
-def get_password_login_use_case(
-    container: AppContainerDep,
-) -> PasswordLoginUseCase:
-    return container.password_login_use_case
-
-
-def get_create_api_key_use_case(
-    container: AppContainerDep,
-) -> CreateApiKeyUseCase:
-    return container.create_api_key_use_case
-
-
-def get_list_api_keys_use_case(
-    container: AppContainerDep,
-) -> ListApiKeysUseCase:
-    return container.list_api_keys_use_case
-
-
-def get_revoke_api_key_use_case(
-    container: AppContainerDep,
-) -> RevokeApiKeyUseCase:
-    return container.revoke_api_key_use_case
-
-
-def get_delete_api_key_use_case(
-    container: AppContainerDep,
-) -> DeleteApiKeyUseCase:
-    return container.delete_api_key_use_case
 
 
 async def authenticate_with_session(
     *,
     request: Request,
     response: Response,
-    settings: SettingsDep,
+    settings: Settings = Depends(get_app_settings),
     verify_session_use_case: VerifySessionUseCase,
 ) -> AuthIdentity:
     session_id = get_session_id_from_request(request, settings)
@@ -98,7 +44,7 @@ def extract_api_key(request: Request) -> str | None:
 async def get_optional_session_auth(
     request: Request,
     response: Response,
-    settings: SettingsDep,
+    settings: Settings = Depends(get_app_settings),
     verify_session_use_case: VerifySessionUseCase = Depends(get_verify_session_use_case),
 ) -> AuthIdentity:
     return await authenticate_with_session(
@@ -112,7 +58,7 @@ async def get_optional_session_auth(
 async def get_optional_api_auth(
     request: Request,
     response: Response,
-    settings: SettingsDep,
+    settings: Settings = Depends(get_app_settings),
     verify_session_use_case: VerifySessionUseCase = Depends(get_verify_session_use_case),
     verify_api_key_use_case: VerifyApiKeyUseCase = Depends(get_verify_api_key_use_case),
 ) -> AuthIdentity:
@@ -136,53 +82,9 @@ async def get_optional_api_auth(
     return AuthIdentity(username=None)
 
 
-OptionalSessionAuthDep = Annotated[AuthIdentity, Depends(get_optional_session_auth)]
-OptionalApiAuthDep = Annotated[AuthIdentity, Depends(get_optional_api_auth)]
-
-
-async def get_required_session_auth(
-    auth_data: OptionalSessionAuthDep,
-) -> AuthIdentity:
-    if auth_data.username is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
-    return auth_data
-
-
-RequiredSessionAuthDep = Annotated[AuthIdentity, Depends(get_required_session_auth)]
-
-PasswordLoginUseCaseDep = Annotated[PasswordLoginUseCase, Depends(get_password_login_use_case)]
-RevokeSessionUseCaseDep = Annotated[RevokeSessionUseCase, Depends(get_revoke_session_use_case)]
-CreateApiKeyUseCaseDep = Annotated[CreateApiKeyUseCase, Depends(get_create_api_key_use_case)]
-ListApiKeysUseCaseDep = Annotated[ListApiKeysUseCase, Depends(get_list_api_keys_use_case)]
-RevokeApiKeyUseCaseDep = Annotated[RevokeApiKeyUseCase, Depends(get_revoke_api_key_use_case)]
-DeleteApiKeyUseCaseDep = Annotated[DeleteApiKeyUseCase, Depends(get_delete_api_key_use_case)]
-VerifyApiKeyUseCaseDep = Annotated[VerifyApiKeyUseCase, Depends(get_verify_api_key_use_case)]
-VerifySessionUseCaseDep = Annotated[VerifySessionUseCase, Depends(get_verify_session_use_case)]
-
-
 __all__ = [
-    "CreateApiKeyUseCaseDep",
-    "DeleteApiKeyUseCaseDep",
-    "ListApiKeysUseCaseDep",
-    "OptionalApiAuthDep",
-    "RequiredSessionAuthDep",
-    "OptionalSessionAuthDep",
-    "PasswordLoginUseCaseDep",
-    "RevokeApiKeyUseCaseDep",
-    "RevokeSessionUseCaseDep",
-    "VerifyApiKeyUseCaseDep",
-    "VerifySessionUseCaseDep",
     "authenticate_with_session",
     "extract_api_key",
-    "get_create_api_key_use_case",
-    "get_delete_api_key_use_case",
-    "get_list_api_keys_use_case",
     "get_optional_api_auth",
     "get_optional_session_auth",
-    "get_password_login_use_case",
-    "get_required_session_auth",
-    "get_revoke_api_key_use_case",
-    "get_revoke_session_use_case",
-    "get_verify_api_key_use_case",
-    "get_verify_session_use_case",
 ]

@@ -61,7 +61,7 @@ async def render_library_page(
         drop_error_message=drop_error_message,
         drop_status_message=drop_status_message,
     )
-    return templates(settings).TemplateResponse(
+    return templates().TemplateResponse(
         request=request,
         name="pages/library.html",
         context=context,

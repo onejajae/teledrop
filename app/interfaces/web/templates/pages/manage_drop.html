@@ -11,6 +11,9 @@
       {% if selected_drop %}
       {% call page_section() %}
         <div class="flex flex-wrap items-center gap-4">
+          {% if selected_status_label %}
+          {{ badge(selected_status_label, tone=selected_status_tone, appearance=selected_status_appearance, classes="mr-auto") }}
+          {% endif %}
           {% if selected_requires_password %}
           <form method="post" action="/actions/drop/{{ selected_key }}/password"
             class="w-full sm:ml-auto sm:w-auto"
@@ -21,9 +24,6 @@
             {{ button("비밀번호 해제", kind="outline", size="sm", type="submit", classes="w-full rounded-xl sm:w-auto") }}
           </form>
           {% else %}
-          {% if selected_status_label %}
-          {{ badge(selected_status_label, appearance="ghost", classes="mr-auto") }}
-          {% endif %}
           {% set owner_action_group_chromed = false %}
           {% set owner_action_group_classes = "" if selected_status_label else "ml-auto" %}
           {% include "panels/drop_detail/_owner_actions.html" %}

@@ -1,13 +1,14 @@
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
 
-from app.bootstrap.container import SettingsDep
-from app.interfaces.deps.auth import (
-    ListApiKeysUseCaseDep,
-    OptionalSessionAuthDep,
-)
-from app.interfaces.deps.common import CsrfTokenServiceDep
-from app.interfaces.deps.drop import GetDropMetaUseCaseDep, ListDropsUseCaseDep
+from app.application.auth.types import AuthIdentity
+from app.application.auth.use_cases import CsrfTokenService, ListApiKeysUseCase
+from app.application.drop.use_cases import GetDropMetaUseCase, ListDropsUseCase
+from app.bootstrap.container import get_app_settings, get_csrf_token_service
+from app.bootstrap.providers.auth import get_list_api_keys_use_case
+from app.bootstrap.providers.drop import get_get_drop_meta_use_case, get_list_drops_use_case
+from app.core.config import Settings
+from app.interfaces.deps.auth import get_optional_session_auth
 from app.interfaces.web.presenters.api_keys_page import render_api_keys_page
 from app.interfaces.web.presenters.auth_panel import render_auth_panel
 from app.interfaces.web.presenters.component_catalog import render_component_catalog_page
@@ -27,9 +28,9 @@ router = APIRouter()
 @router.get("/", response_class=HTMLResponse)
 async def ui(
     request: Request,
-    settings: SettingsDep,
-    auth_data: OptionalSessionAuthDep,
-    csrf_service: CsrfTokenServiceDep,
+    settings: Settings = Depends(get_app_settings),
+    auth_data: AuthIdentity = Depends(get_optional_session_auth),
+    csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
 ):
     return render_home_page(
         request=request,
@@ -42,10 +43,10 @@ async def ui(
 @router.get("/drops", response_class=HTMLResponse)
 async def ui_library(
     request: Request,
-    settings: SettingsDep,
-    auth_data: OptionalSessionAuthDep,
-    csrf_service: CsrfTokenServiceDep,
-    list_drops_use_case: ListDropsUseCaseDep,
+    settings: Settings = Depends(get_app_settings),
+    auth_data: AuthIdentity = Depends(get_optional_session_auth),
+    csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
+    list_drops_use_case: ListDropsUseCase = Depends(get_list_drops_use_case),
     sortby: str | None = Query(default="created_at"),
     orderby: str | None = Query(default="desc"),
 ):
@@ -67,10 +68,10 @@ async def ui_library(
 async def ui_manage_drop(
     slug: str,
     request: Request,
-    settings: SettingsDep,
-    auth_data: OptionalSessionAuthDep,
-    csrf_service: CsrfTokenServiceDep,
-    get_drop_meta_use_case: GetDropMetaUseCaseDep,
+    settings: Settings = Depends(get_app_settings),
+    auth_data: AuthIdentity = Depends(get_optional_session_auth),
+    csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
+    get_drop_meta_use_case: GetDropMetaUseCase = Depends(get_get_drop_meta_use_case),
     password: str | None = Query(default=None),
 ):
     if not auth_data.username:
@@ -90,9 +91,9 @@ async def ui_manage_drop(
 @router.get("/auth-panel", response_class=HTMLResponse)
 async def ui_auth_panel(
     request: Request,
-    settings: SettingsDep,
-    auth_data: OptionalSessionAuthDep,
-    csrf_service: CsrfTokenServiceDep,
+    settings: Settings = Depends(get_app_settings),
+    auth_data: AuthIdentity = Depends(get_optional_session_auth),
+    csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
 ):
     return render_auth_panel(
         request=request,
@@ -105,10 +106,10 @@ async def ui_auth_panel(
 @router.get("/drop-panel", response_class=HTMLResponse)
 async def ui_drop_panel(
     request: Request,
-    settings: SettingsDep,
-    auth_data: OptionalSessionAuthDep,
-    csrf_service: CsrfTokenServiceDep,
-    list_drops_use_case: ListDropsUseCaseDep,
+    settings: Settings = Depends(get_app_settings),
+    auth_data: AuthIdentity = Depends(get_optional_session_auth),
+    csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
+    list_drops_use_case: ListDropsUseCase = Depends(get_list_drops_use_case),
     slug: str | None = Query(default=None),
     sortby: str | None = Query(default="created_at"),
     orderby: str | None = Query(default="desc"),
@@ -128,9 +129,9 @@ async def ui_drop_panel(
 @router.get("/upload-panel", response_class=HTMLResponse)
 async def ui_upload_panel(
     request: Request,
-    settings: SettingsDep,
-    auth_data: OptionalSessionAuthDep,
-    csrf_service: CsrfTokenServiceDep,
+    settings: Settings = Depends(get_app_settings),
+    auth_data: AuthIdentity = Depends(get_optional_session_auth),
+    csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
     slug: str | None = Query(default=None),
 ):
     return render_upload_panel(
@@ -145,10 +146,10 @@ async def ui_upload_panel(
 @router.get("/drop-detail", response_class=HTMLResponse)
 async def ui_drop_detail(
     request: Request,
-    settings: SettingsDep,
-    auth_data: OptionalSessionAuthDep,
-    csrf_service: CsrfTokenServiceDep,
-    get_drop_meta_use_case: GetDropMetaUseCaseDep,
+    settings: Settings = Depends(get_app_settings),
+    auth_data: AuthIdentity = Depends(get_optional_session_auth),
+    csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
+    get_drop_meta_use_case: GetDropMetaUseCase = Depends(get_get_drop_meta_use_case),
     slug: str | None = Query(default=None),
     password: str | None = Query(default=None),
 ):
@@ -166,10 +167,10 @@ async def ui_drop_detail(
 @router.get("/settings/api-keys", response_class=HTMLResponse)
 async def ui_api_keys(
     request: Request,
-    settings: SettingsDep,
-    auth_data: OptionalSessionAuthDep,
-    csrf_service: CsrfTokenServiceDep,
-    list_api_keys_use_case: ListApiKeysUseCaseDep,
+    settings: Settings = Depends(get_app_settings),
+    auth_data: AuthIdentity = Depends(get_optional_session_auth),
+    csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
+    list_api_keys_use_case: ListApiKeysUseCase = Depends(get_list_api_keys_use_case),
 ):
     if not auth_data.username:
         return unauthorized_ui_response(request)
@@ -186,9 +187,9 @@ async def ui_api_keys(
 @router.get("/dev/components", response_class=HTMLResponse)
 async def ui_component_catalog(
     request: Request,
-    settings: SettingsDep,
-    auth_data: OptionalSessionAuthDep,
-    csrf_service: CsrfTokenServiceDep,
+    settings: Settings = Depends(get_app_settings),
+    auth_data: AuthIdentity = Depends(get_optional_session_auth),
+    csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
 ):
     return render_component_catalog_page(
         request=request,
@@ -202,10 +203,10 @@ async def ui_component_catalog(
 async def ui_preview(
     request: Request,
     slug: str,
-    settings: SettingsDep,
-    auth_data: OptionalSessionAuthDep,
-    csrf_service: CsrfTokenServiceDep,
-    get_drop_meta_use_case: GetDropMetaUseCaseDep,
+    settings: Settings = Depends(get_app_settings),
+    auth_data: AuthIdentity = Depends(get_optional_session_auth),
+    csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
+    get_drop_meta_use_case: GetDropMetaUseCase = Depends(get_get_drop_meta_use_case),
     password: str | None = Query(default=None),
 ):
     return await render_shared_page(

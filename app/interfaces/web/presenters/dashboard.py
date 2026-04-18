@@ -88,7 +88,7 @@ async def render_dashboard_page(
         sortby=sortby,
         orderby=orderby,
     )
-    return templates(settings).TemplateResponse(
+    return templates().TemplateResponse(
         request=request,
         name="pages/dashboard.html",
         context=context,

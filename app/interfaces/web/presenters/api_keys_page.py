@@ -73,7 +73,7 @@ async def render_api_keys_page(
         created_api_key=created_api_key,
     )
 
-    return templates(settings).TemplateResponse(
+    return templates().TemplateResponse(
         request=request,
         name="pages/api_keys.html",
         context=context,

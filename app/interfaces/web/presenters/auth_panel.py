@@ -37,7 +37,7 @@ def render_auth_panel(
         settings=settings,
         auth_error_message=auth_error_message,
     )
-    return templates(settings).TemplateResponse(
+    return templates().TemplateResponse(
         request=request,
         name="panels/auth.html",
         context=context,

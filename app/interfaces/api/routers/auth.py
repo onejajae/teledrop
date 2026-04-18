@@ -1,16 +1,19 @@
-from fastapi import APIRouter, Form, Request, Response
+from fastapi import APIRouter, Depends, Form, Request, Response
 
 from app.application.auth.models import PasswordLoginCommand
-from app.bootstrap.container import SettingsDep
-from app.core.auth import clear_session_cookie, get_session_id_from_request, set_session_cookie
-from app.domain.auth.errors import LoginInvalid
-from app.interfaces.api.errors import login_invalid_exception
-from app.interfaces.api.deps import (
-    OptionalSessionAuthDep,
-    PasswordLoginUseCaseDep,
-    RequiredApiAuthDep,
-    RevokeSessionUseCaseDep,
+from app.application.auth.types import AuthIdentity
+from app.application.auth.use_cases import PasswordLoginUseCase, RevokeSessionUseCase
+from app.bootstrap.container import get_app_settings
+from app.bootstrap.providers.auth import (
+    get_password_login_use_case,
+    get_revoke_session_use_case,
 )
+from app.core.auth import clear_session_cookie, get_session_id_from_request, set_session_cookie
+from app.core.config import Settings
+from app.domain.auth.errors import LoginInvalid
+from app.interfaces.api.deps.auth import get_required_api_auth
+from app.interfaces.api.errors import login_invalid_exception
+from app.interfaces.deps.auth import get_optional_session_auth
 
 
 router = APIRouter(tags=["Auth"])
@@ -19,8 +22,8 @@ router = APIRouter(tags=["Auth"])
 @router.post("/login")
 async def login(
     response: Response,
-    settings: SettingsDep,
-    password_login_use_case: PasswordLoginUseCaseDep,
+    settings: Settings = Depends(get_app_settings),
+    password_login_use_case: PasswordLoginUseCase = Depends(get_password_login_use_case),
     username: str = Form(),
     password: str = Form(),
 ):
@@ -38,7 +41,7 @@ async def login(
 
 @router.get("/me")
 async def get_user_info(
-    auth_data: RequiredApiAuthDep,
+    auth_data: AuthIdentity = Depends(get_required_api_auth),
 ):
     return auth_data.username
 
@@ -47,9 +50,9 @@ async def get_user_info(
 async def logout(
     request: Request,
     response: Response,
-    settings: SettingsDep,
-    _auth_data: OptionalSessionAuthDep,
-    revoke_session_use_case: RevokeSessionUseCaseDep,
+    settings: Settings = Depends(get_app_settings),
+    _auth_data: AuthIdentity = Depends(get_optional_session_auth),
+    revoke_session_use_case: RevokeSessionUseCase = Depends(get_revoke_session_use_case),
 ):
     session_id = get_session_id_from_request(request, settings)
     if session_id:
@@ -61,9 +64,9 @@ async def logout(
 async def logout_post(
     request: Request,
     response: Response,
-    settings: SettingsDep,
-    _auth_data: OptionalSessionAuthDep,
-    revoke_session_use_case: RevokeSessionUseCaseDep,
+    settings: Settings = Depends(get_app_settings),
+    _auth_data: AuthIdentity = Depends(get_optional_session_auth),
+    revoke_session_use_case: RevokeSessionUseCase = Depends(get_revoke_session_use_case),
 ):
     session_id = get_session_id_from_request(request, settings)
     if session_id:

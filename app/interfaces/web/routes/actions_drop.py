@@ -1,6 +1,6 @@
 from collections.abc import Awaitable, Callable
 
-from fastapi import APIRouter, File, Form, Request, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Request, Response, UploadFile, status
 from fastapi.responses import RedirectResponse
 
 from app.application.auth.types import AuthIdentity
@@ -10,7 +10,19 @@ from app.application.drop.models import (
     DeleteDropCommand,
     UpdateDropCommand,
 )
-from app.bootstrap.container import AppContainer, AppContainerDep, SettingsDep
+from app.application.drop.use_cases import (
+    CreateDropUseCase,
+    DeleteDropUseCase,
+    GetDropMetaUseCase,
+    UpdateDropUseCase,
+)
+from app.bootstrap.container import get_app_settings, get_csrf_token_service
+from app.bootstrap.providers.drop import (
+    get_create_drop_use_case,
+    get_delete_drop_use_case,
+    get_get_drop_meta_use_case,
+    get_update_drop_use_case,
+)
 from app.core.config import Settings
 from app.domain.drop.errors import (
     DropNotFoundError,
@@ -19,8 +31,7 @@ from app.domain.drop.errors import (
 )
 from app.domain.drop.policies import normalize_drop_password
 from app.domain.drop.value_objects import AccessScope
-from app.interfaces.deps.auth import OptionalSessionAuthDep
-from app.interfaces.deps.common import CsrfTokenServiceDep
+from app.interfaces.deps.auth import get_optional_session_auth
 from app.interfaces.web.action_support import (
     is_hx_request,
     require_auth_and_csrf,
@@ -74,7 +85,7 @@ async def _guard_manage_mutation(
     slug: str,
     auth_data: AuthIdentity,
     csrf_service: CsrfTokenService,
-    drop_use_cases: AppContainer,
+    get_drop_meta_use_case: GetDropMetaUseCase,
     settings: Settings,
     csrf_token: str,
     password: str | None,
@@ -86,7 +97,7 @@ async def _guard_manage_mutation(
             request=request,
             auth_data=auth_data,
             csrf_service=csrf_service,
-            get_drop_meta_use_case=drop_use_cases.get_drop_meta_use_case,
+            get_drop_meta_use_case=get_drop_meta_use_case,
             settings=settings,
             slug=slug,
             password=normalized_password,
@@ -111,7 +122,7 @@ async def _render_manage_exception(
     password: str | None,
     auth_data: AuthIdentity,
     csrf_service: CsrfTokenService,
-    drop_use_cases: AppContainer,
+    get_drop_meta_use_case: GetDropMetaUseCase,
     settings: Settings,
     exc: Exception,
 ) -> Response:
@@ -128,7 +139,7 @@ async def _render_manage_exception(
         request=request,
         auth_data=auth_data,
         csrf_service=csrf_service,
-        get_drop_meta_use_case=drop_use_cases.get_drop_meta_use_case,
+        get_drop_meta_use_case=get_drop_meta_use_case,
         settings=settings,
         slug=slug,
         password=normalize_drop_password(password),
@@ -146,7 +157,7 @@ async def _handle_drop_mutation(
     password: str | None,
     auth_data: AuthIdentity,
     csrf_service: CsrfTokenService,
-    drop_use_cases: AppContainer,
+    get_drop_meta_use_case: GetDropMetaUseCase,
     settings: Settings,
     mutation: Callable[[], Awaitable[object]],
     success_redirect_url: str | None = None,
@@ -161,7 +172,7 @@ async def _handle_drop_mutation(
         slug=slug,
         auth_data=auth_data,
         csrf_service=csrf_service,
-        drop_use_cases=drop_use_cases,
+        get_drop_meta_use_case=get_drop_meta_use_case,
         settings=settings,
         csrf_token=csrf_token,
         password=normalized_password,
@@ -178,7 +189,7 @@ async def _handle_drop_mutation(
             password=normalized_password,
             auth_data=auth_data,
             csrf_service=csrf_service,
-            drop_use_cases=drop_use_cases,
+            get_drop_meta_use_case=get_drop_meta_use_case,
             settings=settings,
             exc=exc,
         )
@@ -190,7 +201,7 @@ async def _handle_drop_mutation(
         request=request,
         auth_data=auth_data,
         csrf_service=csrf_service,
-        get_drop_meta_use_case=drop_use_cases.get_drop_meta_use_case,
+        get_drop_meta_use_case=get_drop_meta_use_case,
         settings=settings,
         slug=slug,
         password=normalized_password,
@@ -202,10 +213,10 @@ async def _handle_drop_mutation(
 async def ui_open_drop_detail(
     slug: str,
     request: Request,
-    settings: SettingsDep,
-    auth_data: OptionalSessionAuthDep,
-    csrf_service: CsrfTokenServiceDep,
-    drop_use_cases: AppContainerDep,
+    settings: Settings = Depends(get_app_settings),
+    auth_data: AuthIdentity = Depends(get_optional_session_auth),
+    csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
+    get_drop_meta_use_case: GetDropMetaUseCase = Depends(get_get_drop_meta_use_case),
     password: str | None = Form(default=None),
     csrf_token: str = Form(default=""),
 ):
@@ -216,7 +227,7 @@ async def ui_open_drop_detail(
             request=request,
             auth_data=auth_data,
             csrf_service=csrf_service,
-            get_drop_meta_use_case=drop_use_cases.get_drop_meta_use_case,
+            get_drop_meta_use_case=get_drop_meta_use_case,
             settings=settings,
             status_code=status.HTTP_403_FORBIDDEN,
             selected_key=slug,
@@ -239,7 +250,7 @@ async def ui_open_drop_detail(
         request=request,
         auth_data=auth_data,
         csrf_service=csrf_service,
-        get_drop_meta_use_case=drop_use_cases.get_drop_meta_use_case,
+        get_drop_meta_use_case=get_drop_meta_use_case,
         settings=settings,
         selected_key=slug,
         selected_password=normalized_password,
@@ -249,10 +260,10 @@ async def ui_open_drop_detail(
 @router.post("/upload")
 async def ui_upload(
     request: Request,
-    settings: SettingsDep,
-    auth_data: OptionalSessionAuthDep,
-    csrf_service: CsrfTokenServiceDep,
-    drop_use_cases: AppContainerDep,
+    settings: Settings = Depends(get_app_settings),
+    auth_data: AuthIdentity = Depends(get_optional_session_auth),
+    csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
+    create_drop_use_case: CreateDropUseCase = Depends(get_create_drop_use_case),
     file: UploadFile = File(),
     slug: str | None = Form(default=None),
     title: str | None = Form(default=None),
@@ -281,7 +292,7 @@ async def ui_upload(
     access_scope = AccessScope.PRIVATE if user_only else AccessScope.PUBLIC
 
     try:
-        created = await drop_use_cases.create_drop_use_case.execute(
+        created = await create_drop_use_case.execute(
             CreateDropCommand(
                 file_stream=file.file,
                 file_name=file.filename,
@@ -311,10 +322,11 @@ async def ui_upload(
 async def ui_update_drop_detail(
     slug: str,
     request: Request,
-    settings: SettingsDep,
-    auth_data: OptionalSessionAuthDep,
-    csrf_service: CsrfTokenServiceDep,
-    drop_use_cases: AppContainerDep,
+    settings: Settings = Depends(get_app_settings),
+    auth_data: AuthIdentity = Depends(get_optional_session_auth),
+    csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
+    get_drop_meta_use_case: GetDropMetaUseCase = Depends(get_get_drop_meta_use_case),
+    update_drop_use_case: UpdateDropUseCase = Depends(get_update_drop_use_case),
     title: str | None = Form(default=None),
     description: str | None = Form(default=None),
     password: str | None = Form(default=None),
@@ -328,9 +340,9 @@ async def ui_update_drop_detail(
         password=password,
         auth_data=auth_data,
         csrf_service=csrf_service,
-        drop_use_cases=drop_use_cases,
+        get_drop_meta_use_case=get_drop_meta_use_case,
         settings=settings,
-        mutation=lambda: drop_use_cases.update_drop_use_case.execute(
+        mutation=lambda: update_drop_use_case.execute(
             UpdateDropCommand(
                 slug=slug,
                 current_password=normalize_drop_password(password),
@@ -345,10 +357,11 @@ async def ui_update_drop_detail(
 async def ui_update_drop_favorite(
     slug: str,
     request: Request,
-    settings: SettingsDep,
-    auth_data: OptionalSessionAuthDep,
-    csrf_service: CsrfTokenServiceDep,
-    drop_use_cases: AppContainerDep,
+    settings: Settings = Depends(get_app_settings),
+    auth_data: AuthIdentity = Depends(get_optional_session_auth),
+    csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
+    get_drop_meta_use_case: GetDropMetaUseCase = Depends(get_get_drop_meta_use_case),
+    update_drop_use_case: UpdateDropUseCase = Depends(get_update_drop_use_case),
     favorite: bool = Form(),
     password: str | None = Form(default=None),
     csrf_token: str = Form(default=""),
@@ -361,9 +374,9 @@ async def ui_update_drop_favorite(
         password=password,
         auth_data=auth_data,
         csrf_service=csrf_service,
-        drop_use_cases=drop_use_cases,
+        get_drop_meta_use_case=get_drop_meta_use_case,
         settings=settings,
-        mutation=lambda: drop_use_cases.update_drop_use_case.execute(
+        mutation=lambda: update_drop_use_case.execute(
             UpdateDropCommand(
                 slug=slug,
                 current_password=normalize_drop_password(password),
@@ -377,10 +390,11 @@ async def ui_update_drop_favorite(
 async def ui_update_drop_access(
     slug: str,
     request: Request,
-    settings: SettingsDep,
-    auth_data: OptionalSessionAuthDep,
-    csrf_service: CsrfTokenServiceDep,
-    drop_use_cases: AppContainerDep,
+    settings: Settings = Depends(get_app_settings),
+    auth_data: AuthIdentity = Depends(get_optional_session_auth),
+    csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
+    get_drop_meta_use_case: GetDropMetaUseCase = Depends(get_get_drop_meta_use_case),
+    update_drop_use_case: UpdateDropUseCase = Depends(get_update_drop_use_case),
     user_only: bool = Form(),
     password: str | None = Form(default=None),
     csrf_token: str = Form(default=""),
@@ -394,9 +408,9 @@ async def ui_update_drop_access(
         password=password,
         auth_data=auth_data,
         csrf_service=csrf_service,
-        drop_use_cases=drop_use_cases,
+        get_drop_meta_use_case=get_drop_meta_use_case,
         settings=settings,
-        mutation=lambda: drop_use_cases.update_drop_use_case.execute(
+        mutation=lambda: update_drop_use_case.execute(
             UpdateDropCommand(
                 slug=slug,
                 current_password=normalize_drop_password(password),
@@ -410,10 +424,11 @@ async def ui_update_drop_access(
 async def ui_update_drop_password(
     slug: str,
     request: Request,
-    settings: SettingsDep,
-    auth_data: OptionalSessionAuthDep,
-    csrf_service: CsrfTokenServiceDep,
-    drop_use_cases: AppContainerDep,
+    settings: Settings = Depends(get_app_settings),
+    auth_data: AuthIdentity = Depends(get_optional_session_auth),
+    csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
+    get_drop_meta_use_case: GetDropMetaUseCase = Depends(get_get_drop_meta_use_case),
+    update_drop_use_case: UpdateDropUseCase = Depends(get_update_drop_use_case),
     new_password: str | None = Form(default=None),
     current_password: str | None = Form(default=None),
     csrf_token: str = Form(default=""),
@@ -437,9 +452,9 @@ async def ui_update_drop_password(
         password=current_password,
         auth_data=auth_data,
         csrf_service=csrf_service,
-        drop_use_cases=drop_use_cases,
+        get_drop_meta_use_case=get_drop_meta_use_case,
         settings=settings,
-        mutation=lambda: drop_use_cases.update_drop_use_case.execute(
+        mutation=lambda: update_drop_use_case.execute(
             UpdateDropCommand(
                 slug=slug,
                 current_password=normalized_current_password,
@@ -455,10 +470,11 @@ async def ui_update_drop_password(
 async def ui_delete_drop(
     slug: str,
     request: Request,
-    settings: SettingsDep,
-    auth_data: OptionalSessionAuthDep,
-    csrf_service: CsrfTokenServiceDep,
-    drop_use_cases: AppContainerDep,
+    settings: Settings = Depends(get_app_settings),
+    auth_data: AuthIdentity = Depends(get_optional_session_auth),
+    csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
+    get_drop_meta_use_case: GetDropMetaUseCase = Depends(get_get_drop_meta_use_case),
+    delete_drop_use_case: DeleteDropUseCase = Depends(get_delete_drop_use_case),
     password: str | None = Form(default=None),
     csrf_token: str = Form(default=""),
 ):
@@ -470,10 +486,10 @@ async def ui_delete_drop(
         password=password,
         auth_data=auth_data,
         csrf_service=csrf_service,
-        drop_use_cases=drop_use_cases,
+        get_drop_meta_use_case=get_drop_meta_use_case,
         settings=settings,
         success_redirect_url="/drops",
-        mutation=lambda: drop_use_cases.delete_drop_use_case.execute(
+        mutation=lambda: delete_drop_use_case.execute(
             DeleteDropCommand(
                 slug=slug,
                 current_password=normalize_drop_password(password),

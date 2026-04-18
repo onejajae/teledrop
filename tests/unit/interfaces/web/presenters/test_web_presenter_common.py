@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
-from app.interfaces.web.presenters.common import as_template_drop
+from app.interfaces.web.presenters.common import as_template_drop, drop_access_status_badge
 
 class TestWebPresenterCommon:
 
@@ -23,3 +23,11 @@ class TestWebPresenterCommon:
         assert result.created_at_label is None
         assert result.updated_at_label is None
         assert result.created_at_relative is None
+
+    def test_drop_access_status_badge_for_private_drop(self):
+        item = SimpleNamespace(access_scope='private')
+        assert drop_access_status_badge(item) == ('비공개', 'warning', 'soft')
+
+    def test_drop_access_status_badge_for_public_drop(self):
+        item = SimpleNamespace(access_scope='public')
+        assert drop_access_status_badge(item) == ('공유 중', 'success', 'soft')

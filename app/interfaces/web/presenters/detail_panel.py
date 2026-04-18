@@ -128,7 +128,7 @@ async def render_detail_panel(
         detail_error_message=detail_error_message,
         detail_status_message=detail_status_message,
     )
-    return templates(settings).TemplateResponse(
+    return templates().TemplateResponse(
         request=request,
         name="panels/drop_detail.html",
         context=context,

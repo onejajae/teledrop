@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Form, Request, Response, status
+from fastapi import APIRouter, Depends, Form, Request, Response, status
 from fastapi.responses import RedirectResponse
 
 from app.application.auth.models import (
@@ -10,23 +10,32 @@ from app.application.auth.models import (
     RevokeApiKeyCommand,
 )
 from app.application.auth.types import AuthIdentity
-from app.bootstrap.container import SettingsDep
+from app.application.auth.use_cases import (
+    CsrfTokenService,
+    CreateApiKeyUseCase,
+    DeleteApiKeyUseCase,
+    ListApiKeysUseCase,
+    PasswordLoginUseCase,
+    RevokeApiKeyUseCase,
+    RevokeSessionUseCase,
+)
+from app.bootstrap.container import get_app_settings, get_csrf_token_service
+from app.bootstrap.providers.auth import (
+    get_create_api_key_use_case,
+    get_delete_api_key_use_case,
+    get_list_api_keys_use_case,
+    get_password_login_use_case,
+    get_revoke_api_key_use_case,
+    get_revoke_session_use_case,
+)
 from app.core.auth import clear_session_cookie, get_session_id_from_request, set_session_cookie
+from app.core.config import Settings
 from app.domain.auth.errors import ApiKeyNotFound, LoginInvalid
+from app.interfaces.deps.auth import get_optional_session_auth
 from app.interfaces.web.action_support import (
     is_hx_request,
     redirect_home,
     require_auth_and_csrf,
-)
-from app.interfaces.web.deps import (
-    CreateApiKeyUseCaseDep,
-    CsrfTokenServiceDep,
-    DeleteApiKeyUseCaseDep,
-    ListApiKeysUseCaseDep,
-    OptionalSessionAuthDep,
-    PasswordLoginUseCaseDep,
-    RevokeApiKeyUseCaseDep,
-    RevokeSessionUseCaseDep,
 )
 from app.interfaces.web.presenters.api_keys_page import render_api_keys_page
 from app.interfaces.web.presenters.auth_panel import render_auth_panel
@@ -38,9 +47,9 @@ router = APIRouter(prefix="/actions/auth")
 @router.post("/login")
 async def ui_login(
     request: Request,
-    settings: SettingsDep,
-    password_login_use_case: PasswordLoginUseCaseDep,
-    csrf_service: CsrfTokenServiceDep,
+    settings: Settings = Depends(get_app_settings),
+    password_login_use_case: PasswordLoginUseCase = Depends(get_password_login_use_case),
+    csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
     username: str = Form(),
     password: str = Form(),
 ):
@@ -73,10 +82,10 @@ async def ui_login(
 @router.post("/logout")
 async def ui_logout(
     request: Request,
-    settings: SettingsDep,
-    _auth_data: OptionalSessionAuthDep,
-    csrf_service: CsrfTokenServiceDep,
-    revoke_session_use_case: RevokeSessionUseCaseDep,
+    settings: Settings = Depends(get_app_settings),
+    _auth_data: AuthIdentity = Depends(get_optional_session_auth),
+    csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
+    revoke_session_use_case: RevokeSessionUseCase = Depends(get_revoke_session_use_case),
     csrf_token: str = Form(default=""),
 ):
     session_id = get_session_id_from_request(request, settings)
@@ -101,10 +110,10 @@ async def _api_key_guard(
     *,
     request: Request,
     auth_data: AuthIdentity,
-    csrf_service: CsrfTokenServiceDep,
-    settings: SettingsDep,
+    csrf_service: CsrfTokenService,
+    settings: Settings,
     csrf_token: str,
-    list_api_keys_use_case: ListApiKeysUseCaseDep,
+    list_api_keys_use_case: ListApiKeysUseCase,
 ):
     async def on_csrf_failure() -> Response:
         return await render_api_keys_page(
@@ -130,11 +139,11 @@ async def _api_key_guard(
 @router.post("/api-keys/create")
 async def ui_create_api_key(
     request: Request,
-    settings: SettingsDep,
-    auth_data: OptionalSessionAuthDep,
-    csrf_service: CsrfTokenServiceDep,
-    create_api_key_use_case: CreateApiKeyUseCaseDep,
-    list_api_keys_use_case: ListApiKeysUseCaseDep,
+    settings: Settings = Depends(get_app_settings),
+    auth_data: AuthIdentity = Depends(get_optional_session_auth),
+    csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
+    create_api_key_use_case: CreateApiKeyUseCase = Depends(get_create_api_key_use_case),
+    list_api_keys_use_case: ListApiKeysUseCase = Depends(get_list_api_keys_use_case),
     name: str = Form(),
     expires_at: str = Form(default=""),
     csrf_token: str = Form(default=""),
@@ -200,11 +209,11 @@ async def ui_create_api_key(
 async def ui_revoke_api_key(
     public_id: str,
     request: Request,
-    settings: SettingsDep,
-    auth_data: OptionalSessionAuthDep,
-    csrf_service: CsrfTokenServiceDep,
-    list_api_keys_use_case: ListApiKeysUseCaseDep,
-    revoke_api_key_use_case: RevokeApiKeyUseCaseDep,
+    settings: Settings = Depends(get_app_settings),
+    auth_data: AuthIdentity = Depends(get_optional_session_auth),
+    csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
+    list_api_keys_use_case: ListApiKeysUseCase = Depends(get_list_api_keys_use_case),
+    revoke_api_key_use_case: RevokeApiKeyUseCase = Depends(get_revoke_api_key_use_case),
     csrf_token: str = Form(default=""),
 ):
     guard_response = await _api_key_guard(
@@ -245,11 +254,11 @@ async def ui_revoke_api_key(
 async def ui_delete_api_key(
     public_id: str,
     request: Request,
-    settings: SettingsDep,
-    auth_data: OptionalSessionAuthDep,
-    csrf_service: CsrfTokenServiceDep,
-    list_api_keys_use_case: ListApiKeysUseCaseDep,
-    delete_api_key_use_case: DeleteApiKeyUseCaseDep,
+    settings: Settings = Depends(get_app_settings),
+    auth_data: AuthIdentity = Depends(get_optional_session_auth),
+    csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
+    list_api_keys_use_case: ListApiKeysUseCase = Depends(get_list_api_keys_use_case),
+    delete_api_key_use_case: DeleteApiKeyUseCase = Depends(get_delete_api_key_use_case),
     csrf_token: str = Form(default=""),
 ):
     guard_response = await _api_key_guard(

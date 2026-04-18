@@ -124,7 +124,7 @@ def render_component_catalog_page(
         csrf_service=csrf_service,
         settings=settings,
     )
-    return templates(settings).TemplateResponse(
+    return templates().TemplateResponse(
         request=request,
         name="pages/components.html",
         context=context,

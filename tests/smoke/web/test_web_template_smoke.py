@@ -108,6 +108,8 @@ def _full_page_cases():
                 detail_error_message=None,
                 detail_status_message=None,
                 selected_status_label='비공개',
+                selected_status_tone='warning',
+                selected_status_appearance='soft',
                 selected_status_description='로그인된 관리자만 접근할 수 있습니다.',
                 selected_can_copy_link=False,
             ),
@@ -276,7 +278,7 @@ class TestWebTemplateSmoke:
 
     def test_manage_page_renders_compact_management_panel(self):
         selected_drop = SimpleNamespace(slug='img1', title='이미지', description='desc', file_name='img.png', mime_type='image/png', size_human='123 B', size_bytes=123, access_scope='private', is_favorite=False, requires_password=False, created_at='2026-02-22T00:00:00Z', updated_at=None)
-        html = _render('pages/manage_drop.html', is_login=True, active_nav='drops', csrf_token='csrf', selected_key='img1', selected_password=None, selected_drop=selected_drop, selected_requires_password=False, selected_download_url='/api/drop/img1', selected_preview_url='/api/drop/img1?disposition=inline', selected_page_preview_url='/img1', detail_error_message=None, detail_status_message=None, selected_status_label='비공개', selected_status_description='로그인된 관리자만 접근할 수 있습니다.', selected_can_copy_link=False)
+        html = _render('pages/manage_drop.html', is_login=True, active_nav='drops', csrf_token='csrf', selected_key='img1', selected_password=None, selected_drop=selected_drop, selected_requires_password=False, selected_download_url='/api/drop/img1', selected_preview_url='/api/drop/img1?disposition=inline', selected_page_preview_url='/img1', detail_error_message=None, detail_status_message=None, selected_status_label='비공개', selected_status_tone='warning', selected_status_appearance='soft', selected_status_description='로그인된 관리자만 접근할 수 있습니다.', selected_can_copy_link=False)
         assert '목록으로' not in html
         assert '로그인된 관리자만 접근할 수 있습니다.' not in html
         assert '공유 시작' not in html
@@ -292,18 +294,19 @@ class TestWebTemplateSmoke:
         assert 'aria-label="즐겨찾기"' in html
         assert 'aria-label="전체 공개"' in html
         assert 'flex w-full items-center gap-3' not in html
-        assert 'badge badge-ghost mr-auto' in html
+        assert 'badge badge-warning badge-soft mr-auto' in html
         assert 'flex flex-wrap items-center justify-end gap-2' in html
         assert 'join-item' not in html
         assert 'rounded-xl' in html
 
     def test_manage_page_renders_password_clear_button_only_for_passworded_drop(self):
         selected_drop = SimpleNamespace(slug='locked1', title='잠긴 파일', description=None, file_name='locked.png', mime_type='image/png', size_human='123 B', size_bytes=123, access_scope='private', is_favorite=False, requires_password=True, created_at='2026-02-22T00:00:00Z', updated_at=None)
-        html = _render('pages/manage_drop.html', is_login=True, active_nav='drops', csrf_token='csrf', selected_key='locked1', selected_password='secret', selected_drop=selected_drop, selected_requires_password=True, selected_download_url='/api/drop/locked1?drop_password=secret', selected_preview_url='/api/drop/locked1?disposition=inline&drop_password=secret', selected_page_preview_url='/locked1?password=secret', detail_error_message=None, detail_status_message=None, selected_status_label='비밀번호 보호', selected_status_description='외부 공유는 꺼져 있으며 비밀번호가 설정되어 있습니다.', selected_can_copy_link=False)
+        html = _render('pages/manage_drop.html', is_login=True, active_nav='drops', csrf_token='csrf', selected_key='locked1', selected_password='secret', selected_drop=selected_drop, selected_requires_password=True, selected_download_url='/api/drop/locked1?drop_password=secret', selected_preview_url='/api/drop/locked1?disposition=inline&drop_password=secret', selected_page_preview_url='/locked1?password=secret', detail_error_message=None, detail_status_message=None, selected_status_label='비공개', selected_status_tone='warning', selected_status_appearance='soft', selected_status_description='외부 공유는 꺼져 있으며 비밀번호가 설정되어 있습니다.', selected_can_copy_link=False)
         assert '목록으로' not in html
         assert '외부 공유는 꺼져 있으며 비밀번호가 설정되어 있습니다.' not in html
         assert '현재 비밀번호를 입력하면 관리와 미리보기를 계속할 수 있습니다.' not in html
         assert '비밀번호 해제' in html
+        assert 'badge badge-warning badge-soft mr-auto' in html
         assert 'action="/actions/drop/locked1/password"' in html
         assert 'name="new_password" value=""' in html
         assert '정말 비밀번호를 해제하시겠습니까?' in html
@@ -315,11 +318,21 @@ class TestWebTemplateSmoke:
         assert '관리 패널' not in html
         assert '상세 관리 액션' not in html
 
+    def test_manage_page_keeps_shared_badge_for_password_protected_public_drop(self):
+        selected_drop = SimpleNamespace(slug='shared1', title='공유 파일', description=None, file_name='shared.png', mime_type='image/png', size_human='123 B', size_bytes=123, access_scope='public', is_favorite=False, requires_password=True, created_at='2026-02-22T00:00:00Z', updated_at=None)
+        html = _render('pages/manage_drop.html', is_login=True, active_nav='drops', csrf_token='csrf', selected_key='shared1', selected_password='secret', selected_drop=selected_drop, selected_requires_password=True, selected_download_url='/api/drop/shared1?drop_password=secret', selected_preview_url='/api/drop/shared1?disposition=inline&drop_password=secret', selected_page_preview_url='/shared1?password=secret', detail_error_message=None, detail_status_message=None, selected_status_label='공유 중', selected_status_tone='success', selected_status_appearance='soft', selected_status_description='공유 링크는 활성화되어 있고, 비밀번호를 아는 사용자만 열람할 수 있습니다.', selected_can_copy_link=True)
+        assert '공유 중' in html
+        assert 'badge badge-success badge-soft mr-auto' in html
+        assert '비밀번호 해제' in html
+        assert 'action="/actions/drop/shared1/password"' in html
+        assert 'aria-label="메타데이터 수정"' not in html
+
     def test_shared_page_renders_admin_bar_without_full_owner_actions(self):
         selected_drop = SimpleNamespace(slug='img1', title='이미지', description='desc', file_name='img.png', mime_type='image/png', size_human='123 B', size_bytes=123, access_scope='public', is_favorite=False, requires_password=False, created_at='2026-02-22T00:00:00Z', updated_at=None)
-        html = _render('pages/shared_drop.html', is_login=True, csrf_token='csrf', selected_key='img1', selected_password=None, selected_drop=selected_drop, selected_requires_password=False, selected_download_url='/api/drop/img1', selected_preview_url='/api/drop/img1?disposition=inline', selected_page_preview_url='/img1', detail_error_message=None, detail_status_message=None, selected_status_label='공유 중', show_shared_admin_bar=True, selected_manage_page_url='/drops/img1', show_owner_actions=False)
+        html = _render('pages/shared_drop.html', is_login=True, csrf_token='csrf', selected_key='img1', selected_password=None, selected_drop=selected_drop, selected_requires_password=False, selected_download_url='/api/drop/img1', selected_preview_url='/api/drop/img1?disposition=inline', selected_page_preview_url='/img1', detail_error_message=None, detail_status_message=None, selected_status_label='공유 중', selected_status_tone='success', selected_status_appearance='soft', show_shared_admin_bar=True, selected_manage_page_url='/drops/img1', show_owner_actions=False)
         assert '관리자 보기' in html
         assert '관리하기' in html
+        assert 'badge badge-success badge-soft' in html
         assert '상세 관리 액션' not in html
 
     def test_components_page_renders_catalog_sections(self):

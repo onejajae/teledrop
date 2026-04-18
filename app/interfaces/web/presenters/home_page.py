@@ -46,7 +46,7 @@ def render_home_page(
         csrf_service=csrf_service,
         settings=settings,
     )
-    return templates(settings).TemplateResponse(
+    return templates().TemplateResponse(
         request=request,
         name="pages/home.html",
         context=context,

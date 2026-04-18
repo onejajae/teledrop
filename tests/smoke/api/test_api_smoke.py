@@ -3,13 +3,11 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+
 from app.application.drop.models import DropDetailDTO, DropListDTO, DropListItemDTO, UNSET
 from app.bootstrap.container import get_app_settings
-from app.domain.auth.errors import ApiKeyInvalid
-from app.domain.drop.errors import DropAccessDeniedError, DropNotFoundError, DropPasswordInvalidError
-from app.domain.drop.value_objects import AccessScope
-from app.interfaces.api.deps import get_verify_api_key_use_case, get_verify_session_use_case
-from app.interfaces.deps.drop import (
+from app.bootstrap.providers.auth import get_verify_api_key_use_case, get_verify_session_use_case
+from app.bootstrap.providers.drop import (
     get_check_slug_availability_use_case,
     get_create_drop_use_case,
     get_delete_drop_use_case,
@@ -18,6 +16,9 @@ from app.interfaces.deps.drop import (
     get_list_drops_use_case,
     get_update_drop_use_case,
 )
+from app.domain.auth.errors import ApiKeyInvalid
+from app.domain.drop.errors import DropAccessDeniedError, DropNotFoundError, DropPasswordInvalidError
+from app.domain.drop.value_objects import AccessScope
 from app.interfaces.api.router import api_router
 
 class _FakeVerifySessionUseCase:

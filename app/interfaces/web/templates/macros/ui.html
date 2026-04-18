@@ -92,8 +92,29 @@
   {% endcall %}
 {%- endmacro %}
 
+{% macro _badge_tone_class(tone) -%}
+  {%- if tone == "primary" -%}badge-primary
+  {%- elif tone == "secondary" -%}badge-secondary
+  {%- elif tone == "accent" -%}badge-accent
+  {%- elif tone == "neutral" -%}badge-neutral
+  {%- elif tone == "info" -%}badge-info
+  {%- elif tone == "success" -%}badge-success
+  {%- elif tone == "warning" -%}badge-warning
+  {%- elif tone == "error" -%}badge-error
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro _badge_appearance_class(appearance) -%}
+  {%- if appearance == "outline" -%}badge-outline
+  {%- elif appearance == "soft" -%}badge-soft
+  {%- elif appearance == "ghost" -%}badge-ghost
+  {%- endif -%}
+{%- endmacro %}
+
 {% macro badge(label, tone=None, appearance=None, classes="") -%}
-<span class="badge{{ ' badge-' ~ tone if tone }}{{ ' badge-' ~ appearance if appearance }}{{ ' ' ~ classes if classes }}">{{ label }}</span>
+{% set tone_class = _badge_tone_class(tone) | trim %}
+{% set appearance_class = _badge_appearance_class(appearance) | trim %}
+<span class="badge{{ ' ' ~ tone_class if tone_class }}{{ ' ' ~ appearance_class if appearance_class }}{{ ' ' ~ classes if classes }}">{{ label }}</span>
 {%- endmacro %}
 
 {% macro field(label, for_id=None, hint=None, classes="", label_classes="") -%}

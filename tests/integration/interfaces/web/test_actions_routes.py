@@ -6,18 +6,24 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.application.drop.models import DropDetailDTO, DropListDTO
-from app.bootstrap.container import get_app_container, get_app_settings
-from app.domain.auth.errors import ApiKeyNotFound
-from app.domain.drop.value_objects import AccessScope
-from app.interfaces.api.deps import (
+from app.bootstrap.container import get_app_settings, get_csrf_token_service
+from app.bootstrap.providers.auth import (
     get_create_api_key_use_case,
-    get_csrf_token_service,
     get_delete_api_key_use_case,
     get_list_api_keys_use_case,
     get_revoke_api_key_use_case,
     get_revoke_session_use_case,
     get_verify_session_use_case,
 )
+from app.bootstrap.providers.drop import (
+    get_create_drop_use_case,
+    get_delete_drop_use_case,
+    get_get_drop_meta_use_case,
+    get_list_drops_use_case,
+    get_update_drop_use_case,
+)
+from app.domain.auth.errors import ApiKeyNotFound
+from app.domain.drop.value_objects import AccessScope
 from app.interfaces.web.router import router as web_router
 
 
@@ -186,11 +192,15 @@ def _client(
         MAX_PAGE_SIZE=200,
     )
 
-    app.dependency_overrides[get_app_container] = lambda: drop_use_cases
     app.dependency_overrides[get_app_settings] = lambda: fake_settings
     app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
     app.dependency_overrides[get_csrf_token_service] = lambda: csrf_service
     app.dependency_overrides[get_revoke_session_use_case] = lambda: revoke_use_case
+    app.dependency_overrides[get_create_drop_use_case] = lambda: drop_use_cases.create_drop_use_case
+    app.dependency_overrides[get_delete_drop_use_case] = lambda: drop_use_cases.delete_drop_use_case
+    app.dependency_overrides[get_get_drop_meta_use_case] = lambda: drop_use_cases.get_drop_meta_use_case
+    app.dependency_overrides[get_list_drops_use_case] = lambda: drop_use_cases.list_drops_use_case
+    app.dependency_overrides[get_update_drop_use_case] = lambda: drop_use_cases.update_drop_use_case
     app.dependency_overrides[get_create_api_key_use_case] = (
         lambda: api_key_use_cases.create_api_key_use_case
     )

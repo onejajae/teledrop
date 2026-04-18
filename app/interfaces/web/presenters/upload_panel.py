@@ -46,7 +46,7 @@ def render_upload_panel(
         upload_error_message=upload_error_message,
         upload_status_message=upload_status_message,
     )
-    return templates(settings).TemplateResponse(
+    return templates().TemplateResponse(
         request=request,
         name="panels/upload.html",
         context=context,
