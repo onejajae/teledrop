@@ -35,7 +35,6 @@ async def shared_page_context(
     context.update(
         {
             "active_nav": None,
-            "auth_username": auth_data.username,
             "detail_mode": "shared",
             "selected_manage_page_url": drop_manage_page_url(slug, password),
             "selected_can_copy_link": bool(
@@ -46,8 +45,6 @@ async def shared_page_context(
             "selected_status_appearance": status_appearance,
             "show_shared_admin_bar": bool(auth_data.username and selected_drop),
             "locked_form_action": context.get("selected_page_preview_url"),
-            "locked_form_use_hx": False,
-            "locked_form_include_slug": False,
         }
     )
     return context

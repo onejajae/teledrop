@@ -16,7 +16,6 @@ def auth_panel_context(
     return {
         "request": request,
         "is_login": bool(auth_data.username),
-        "auth_username": auth_data.username,
         "csrf_token": csrf_token_for_request(request, settings, csrf_service),
         "auth_error_message": auth_error_message,
     }

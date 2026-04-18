@@ -60,11 +60,6 @@ def _full_page_cases():
             True,
         ),
         (
-            'pages/dashboard.html',
-            dict(is_login=False, csrf_token=None, auth_error_message=None, selected_key=None),
-            True,
-        ),
-        (
             'pages/api_keys.html',
             dict(
                 is_login=True,
@@ -110,7 +105,6 @@ def _full_page_cases():
                 selected_status_label='비공개',
                 selected_status_tone='warning',
                 selected_status_appearance='soft',
-                selected_status_description='로그인된 관리자만 접근할 수 있습니다.',
                 selected_can_copy_link=False,
             ),
             True,
@@ -130,7 +124,6 @@ def _full_page_cases():
                 detail_error_message=None,
                 detail_status_message=None,
                 show_shared_admin_bar=False,
-                show_owner_actions=False,
             ),
             True,
         ),
@@ -146,7 +139,6 @@ def _full_page_cases():
                 ],
                 catalog_public_drop=_catalog_drop('launch', '런치 패키지', 'launch-kit.pdf', 'application/pdf', 'public', True, True, '2일 전'),
                 catalog_private_drop=_catalog_drop('teaser', '티저 컷', 'teaser-shot.png', 'image/png', 'private', False, False, '5시간 전'),
-                catalog_audio_drop=_catalog_drop('voice', '보이스 메모', 'voice-note.m4a', 'audio/mp4', 'private', False, True, '6일 전'),
                 catalog_api_key=SimpleNamespace(name='shortcuts', public_id='tdp_01', is_active=True, created_by_username='tester', expires_at='2026-04-01', last_used_at='2026-03-08'),
                 catalog_created_api_key=SimpleNamespace(key='td_live_demo_sample_secret_key'),
             ),
@@ -163,7 +155,7 @@ class TestWebTemplateSmoke:
         assert 'id="drop-panel"' not in html
 
     def test_home_page_renders_logged_in_upload_only(self):
-        html = _render('pages/home.html', is_login=True, csrf_token='csrf', upload_error_message=None, upload_status_message=None)
+        html = _render('pages/home.html', is_login=True, csrf_token='csrf', upload_error_message=None)
         assert '업로드 후 관리로 이동' in html
         assert '업로드했던 파일을 다시 열어 공유 상태를 관리합니다.' not in html
         assert '업로드한 파일이 없습니다.' not in html
@@ -178,7 +170,7 @@ class TestWebTemplateSmoke:
     def test_upload_panel_renders_logged_out_and_simplified_form(self):
         logged_out = _render('panels/upload.html', is_login=False)
         assert '로그인 후 사용할 수 있습니다' in logged_out
-        form_html = _render('panels/upload.html', is_login=True, csrf_token='csrf', selected_key=None, upload_error_message=None, upload_status_message=None)
+        form_html = _render('panels/upload.html', is_login=True, csrf_token='csrf', upload_error_message=None)
         assert 'private 상태로 생성' in form_html
         assert 'name="user_only" value="true"' in form_html
         assert '업로드 후 관리로 이동' in form_html
@@ -187,34 +179,6 @@ class TestWebTemplateSmoke:
         assert 'Private upload workspace' not in form_html
         assert '공유 링크 주소' not in form_html
         assert 'name="slug"' not in form_html
-
-    def test_drop_panel_renders_empty_state_without_macro_error(self):
-        html = _render('panels/drop.html', drop_error_message=None, drop_status_message=None, drops=[], drop_preview_urls={}, drop_sortby='created_at', drop_orderby='desc')
-        assert '업로드한 파일이 없습니다.' in html
-        assert 'action="/drop-panel"' in html
-        assert 'name="orderby" id="drop-orderby" value="desc"' in html
-
-    def test_drop_panel_renders_pdf_item_metadata_row(self):
-        item = SimpleNamespace(slug='doc1', title='문서', file_name='guide.pdf', mime_type='application/pdf', size_human='1.50 KB', size_bytes=1536, access_scope='public', is_favorite=True, requires_password=True, created_at_relative='5분 전')
-        html = _render('panels/drop.html', drop_error_message=None, drop_status_message=None, drops=[item], drop_preview_urls={'doc1': '/doc1'}, drop_sortby='created_at', drop_orderby='desc')
-        assert '업로드했던 파일을 다시 열어 공유 상태를 관리합니다.' not in html
-        assert 'guide.pdf' in html
-        assert '1.50 KB' in html
-        assert '전체 공개' in html
-        assert '5분 전' in html
-        assert '비밀번호 보호' in html
-        assert 'aria-label="새로고침"' in html
-        assert 'aria-label="정렬 순서 변경"' in html
-        assert 'action="/drop-panel"' in html
-        assert 'hx-get="/drop-panel"' in html
-        assert 'name="orderby" id="drop-orderby" value="desc"' in html
-        assert 'name="sortby"' in html
-        assert 'card overflow-hidden rounded-[1.35rem] border border-base-300/70 bg-base-100/85 shadow-sm card-sm transition-all duration-200' in html
-        assert 'href="/doc1"' in html
-        assert 'hx-get="/drop-detail?slug=doc1"' in html
-        assert 'onclick="htmx.ajax(\'GET\', \'/drop-detail\'' not in html
-        assert 'card-title text-sm leading-5 sm:text-base' in html
-        assert 'aria-label="다운로드"' not in html
 
     def test_detail_panel_renders_unselected_password_prompt_wrong_password_and_selected_states(self):
         unselected = _render('panels/drop_detail.html', selected_key=None)
@@ -278,7 +242,7 @@ class TestWebTemplateSmoke:
 
     def test_manage_page_renders_compact_management_panel(self):
         selected_drop = SimpleNamespace(slug='img1', title='이미지', description='desc', file_name='img.png', mime_type='image/png', size_human='123 B', size_bytes=123, access_scope='private', is_favorite=False, requires_password=False, created_at='2026-02-22T00:00:00Z', updated_at=None)
-        html = _render('pages/manage_drop.html', is_login=True, active_nav='drops', csrf_token='csrf', selected_key='img1', selected_password=None, selected_drop=selected_drop, selected_requires_password=False, selected_download_url='/api/drop/img1', selected_preview_url='/api/drop/img1?disposition=inline', selected_page_preview_url='/img1', detail_error_message=None, detail_status_message=None, selected_status_label='비공개', selected_status_tone='warning', selected_status_appearance='soft', selected_status_description='로그인된 관리자만 접근할 수 있습니다.', selected_can_copy_link=False)
+        html = _render('pages/manage_drop.html', is_login=True, active_nav='drops', csrf_token='csrf', selected_key='img1', selected_password=None, selected_drop=selected_drop, selected_requires_password=False, selected_download_url='/api/drop/img1', selected_preview_url='/api/drop/img1?disposition=inline', selected_page_preview_url='/img1', detail_error_message=None, detail_status_message=None, selected_status_label='비공개', selected_status_tone='warning', selected_status_appearance='soft', selected_can_copy_link=False)
         assert '목록으로' not in html
         assert '로그인된 관리자만 접근할 수 있습니다.' not in html
         assert '공유 시작' not in html
@@ -301,7 +265,7 @@ class TestWebTemplateSmoke:
 
     def test_manage_page_renders_password_clear_button_only_for_passworded_drop(self):
         selected_drop = SimpleNamespace(slug='locked1', title='잠긴 파일', description=None, file_name='locked.png', mime_type='image/png', size_human='123 B', size_bytes=123, access_scope='private', is_favorite=False, requires_password=True, created_at='2026-02-22T00:00:00Z', updated_at=None)
-        html = _render('pages/manage_drop.html', is_login=True, active_nav='drops', csrf_token='csrf', selected_key='locked1', selected_password='secret', selected_drop=selected_drop, selected_requires_password=True, selected_download_url='/api/drop/locked1?drop_password=secret', selected_preview_url='/api/drop/locked1?disposition=inline&drop_password=secret', selected_page_preview_url='/locked1?password=secret', detail_error_message=None, detail_status_message=None, selected_status_label='비공개', selected_status_tone='warning', selected_status_appearance='soft', selected_status_description='외부 공유는 꺼져 있으며 비밀번호가 설정되어 있습니다.', selected_can_copy_link=False)
+        html = _render('pages/manage_drop.html', is_login=True, active_nav='drops', csrf_token='csrf', selected_key='locked1', selected_password='secret', selected_drop=selected_drop, selected_requires_password=True, selected_download_url='/api/drop/locked1?drop_password=secret', selected_preview_url='/api/drop/locked1?disposition=inline&drop_password=secret', selected_page_preview_url='/locked1?password=secret', detail_error_message=None, detail_status_message=None, selected_status_label='비공개', selected_status_tone='warning', selected_status_appearance='soft', selected_can_copy_link=False)
         assert '목록으로' not in html
         assert '외부 공유는 꺼져 있으며 비밀번호가 설정되어 있습니다.' not in html
         assert '현재 비밀번호를 입력하면 관리와 미리보기를 계속할 수 있습니다.' not in html
@@ -320,7 +284,7 @@ class TestWebTemplateSmoke:
 
     def test_manage_page_keeps_shared_badge_for_password_protected_public_drop(self):
         selected_drop = SimpleNamespace(slug='shared1', title='공유 파일', description=None, file_name='shared.png', mime_type='image/png', size_human='123 B', size_bytes=123, access_scope='public', is_favorite=False, requires_password=True, created_at='2026-02-22T00:00:00Z', updated_at=None)
-        html = _render('pages/manage_drop.html', is_login=True, active_nav='drops', csrf_token='csrf', selected_key='shared1', selected_password='secret', selected_drop=selected_drop, selected_requires_password=True, selected_download_url='/api/drop/shared1?drop_password=secret', selected_preview_url='/api/drop/shared1?disposition=inline&drop_password=secret', selected_page_preview_url='/shared1?password=secret', detail_error_message=None, detail_status_message=None, selected_status_label='공유 중', selected_status_tone='success', selected_status_appearance='soft', selected_status_description='공유 링크는 활성화되어 있고, 비밀번호를 아는 사용자만 열람할 수 있습니다.', selected_can_copy_link=True)
+        html = _render('pages/manage_drop.html', is_login=True, active_nav='drops', csrf_token='csrf', selected_key='shared1', selected_password='secret', selected_drop=selected_drop, selected_requires_password=True, selected_download_url='/api/drop/shared1?drop_password=secret', selected_preview_url='/api/drop/shared1?disposition=inline&drop_password=secret', selected_page_preview_url='/shared1?password=secret', detail_error_message=None, detail_status_message=None, selected_status_label='공유 중', selected_status_tone='success', selected_status_appearance='soft', selected_can_copy_link=True)
         assert '공유 중' in html
         assert 'badge badge-success badge-soft mr-auto' in html
         assert '비밀번호 해제' in html
@@ -329,7 +293,7 @@ class TestWebTemplateSmoke:
 
     def test_shared_page_renders_admin_bar_without_full_owner_actions(self):
         selected_drop = SimpleNamespace(slug='img1', title='이미지', description='desc', file_name='img.png', mime_type='image/png', size_human='123 B', size_bytes=123, access_scope='public', is_favorite=False, requires_password=False, created_at='2026-02-22T00:00:00Z', updated_at=None)
-        html = _render('pages/shared_drop.html', is_login=True, csrf_token='csrf', selected_key='img1', selected_password=None, selected_drop=selected_drop, selected_requires_password=False, selected_download_url='/api/drop/img1', selected_preview_url='/api/drop/img1?disposition=inline', selected_page_preview_url='/img1', detail_error_message=None, detail_status_message=None, selected_status_label='공유 중', selected_status_tone='success', selected_status_appearance='soft', show_shared_admin_bar=True, selected_manage_page_url='/drops/img1', show_owner_actions=False)
+        html = _render('pages/shared_drop.html', is_login=True, csrf_token='csrf', selected_key='img1', selected_password=None, selected_drop=selected_drop, selected_requires_password=False, selected_download_url='/api/drop/img1', selected_preview_url='/api/drop/img1?disposition=inline', selected_page_preview_url='/img1', detail_error_message=None, detail_status_message=None, selected_status_label='공유 중', selected_status_tone='success', selected_status_appearance='soft', show_shared_admin_bar=True, selected_manage_page_url='/drops/img1')
         assert '관리자 보기' in html
         assert '관리하기' in html
         assert 'badge badge-success badge-soft' in html
@@ -347,7 +311,6 @@ class TestWebTemplateSmoke:
             ],
             catalog_public_drop=_catalog_drop('launch', '런치 패키지', 'launch-kit.pdf', 'application/pdf', 'public', True, True, '2일 전'),
             catalog_private_drop=_catalog_drop('teaser', '티저 컷', 'teaser-shot.png', 'image/png', 'private', False, False, '5시간 전'),
-            catalog_audio_drop=_catalog_drop('voice', '보이스 메모', 'voice-note.m4a', 'audio/mp4', 'private', False, True, '6일 전'),
             catalog_api_key=SimpleNamespace(name='shortcuts', public_id='tdp_01', is_active=True, created_by_username='tester', expires_at='2026-04-01', last_used_at='2026-03-08'),
             catalog_created_api_key=SimpleNamespace(key='td_live_demo_sample_secret_key'),
         )
@@ -408,17 +371,6 @@ class TestWebUiContract:
         assert 'rounded-[2rem]' not in header
         assert 'Private file relay' not in header
 
-    def test_dashboard_js_uses_semantic_selected_class(self):
-        source = (static_files_dir() / 'js' / 'dashboard.js').read_text(encoding='utf-8')
-        assert 'selectedCardClasses' in source
-        assert 'border-primary' in source
-        assert 'ring-primary/20' in source
-        assert 'is-selected' not in source
-        assert 'event.target.closest("[data-select-key]")' in source
-        assert 'open-dialog' not in source
-        assert 'reservedPaths' not in source
-        assert 'setDocumentTheme' not in source
-
     def test_theme_js_handles_theme_toggle_and_meta_color(self):
         source = (static_files_dir() / 'js' / 'theme.js').read_text(encoding='utf-8')
         assert 'setDocumentTheme' in source
@@ -450,6 +402,8 @@ class TestWebUiContract:
         assert 'action !== "open-dialog" && action !== "close-dialog"' in source
         assert 'dialog.showModal' in source
         assert 'dialog.close' in source
+        assert '__teledropRefreshPanels' not in source
+        assert '/upload-panel' not in source
 
     def test_detail_templates_use_data_td_contracts_without_inline_hx_on(self):
         drop_detail_root = template_dir() / 'panels'
@@ -463,7 +417,7 @@ class TestWebUiContract:
         combined = '\n'.join([source, *partials, *macros])
         assert 'hx-on::after-request' not in combined
         assert 'data-td-action' in combined
-        assert 'data-td-success' in combined
+        assert 'data-td-success' not in combined
 
     def test_css_removes_most_custom_component_overrides(self):
         input_source = (static_files_dir() / 'css' / 'input.css').read_text(encoding='utf-8')

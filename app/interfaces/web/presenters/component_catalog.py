@@ -85,18 +85,6 @@ def component_catalog_context(
             created_at_label="2026-03-07 (토) 20:14:00",
             created_at_relative="5시간 전",
         ),
-        catalog_audio_drop=_sample_drop(
-            slug="voice-note",
-            title="보이스 메모",
-            file_name="voice-note.m4a",
-            mime_type="audio/mp4",
-            access_scope="private",
-            is_favorite=False,
-            requires_password=True,
-            description=None,
-            created_at_label="2026-03-02 (월) 11:20:00",
-            created_at_relative="6일 전",
-        ),
         catalog_api_key=SimpleNamespace(
             name="shortcuts",
             public_id="tdp_01HZY8M4T2B6C9",

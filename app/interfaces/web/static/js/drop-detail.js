@@ -82,44 +82,6 @@
 
   document.addEventListener("DOMContentLoaded", initDetailPasswordForm);
   document.body.addEventListener("htmx:afterSwap", initDetailPasswordForm);
-  document.body.addEventListener("htmx:afterRequest", (event) => {
-    const form = event.target?.closest?.("form[data-td-success]");
-    if (!form || !event.detail?.successful) {
-      return;
-    }
-
-    const closeDialogId = form.dataset.tdCloseDialogId;
-    if (closeDialogId) {
-      const dialog = document.getElementById(closeDialogId);
-      if (dialog && typeof dialog.close === "function") {
-        dialog.close();
-      }
-    }
-
-    const successAction = form.dataset.tdSuccess;
-    if (successAction === "refresh-panels") {
-      if (typeof window.__teledropRefreshPanels === "function") {
-        window.__teledropRefreshPanels();
-      }
-      return;
-    }
-
-    if (successAction === "refresh-panels-reset-password") {
-      if (typeof window.__teledropRefreshPanels === "function") {
-        window.__teledropRefreshPanels({ password: "" });
-      }
-      return;
-    }
-
-    if (successAction === "show-upload-panel-and-refresh-list") {
-      if (document.querySelector("#main-panel")) {
-        htmx.ajax("GET", "/upload-panel", { target: "#main-panel", swap: "innerHTML" });
-      }
-      if (typeof window.__teledropRefreshDropPanel === "function") {
-        window.__teledropRefreshDropPanel();
-      }
-    }
-  });
   document.addEventListener("click", (event) => {
     const tdActionTrigger = event.target.closest("[data-td-action]");
     if (tdActionTrigger && toggleDialog(tdActionTrigger)) {

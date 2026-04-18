@@ -193,8 +193,8 @@
 {% endcall %}
 {%- endmacro %}
 
-{% macro locked_prompt(selected_key, detail_error_message=None, detail_mode="panel", is_login=false, locked_form_action=None, locked_form_use_hx=true, locked_form_target=None, locked_form_swap="innerHTML", locked_form_include_slug=true) -%}
-{% set locked_form_action = locked_form_action or "/drop-detail" %}
+{% macro locked_prompt(selected_key, detail_error_message=None, detail_mode="panel", is_login=false, locked_form_action=None, locked_form_use_hx=false, locked_form_target=None, locked_form_swap="innerHTML", locked_form_include_slug=false) -%}
+{% set locked_form_action = locked_form_action or "#" %}
 {% set locked_form_target = locked_form_target or "#main-panel" %}
 {% if locked_form_use_hx %}
   {% set form_attrs = 'hx-get="' ~ locked_form_action ~ '" hx-target="' ~ locked_form_target ~ '" hx-swap="' ~ locked_form_swap ~ '"' %}
@@ -231,13 +231,12 @@
 </div>
 {%- endmacro %}
 
-{% macro owner_action_group(selected_drop, selected_key, csrf_token=None, selected_password=None, detail_mode="panel", interactive=true, wrapper_classes="", chromed=true) -%}
-{% set use_hx_forms = detail_mode != "manage" %}
+{% macro owner_action_group(selected_drop, selected_key, csrf_token=None, selected_password=None, interactive=true, wrapper_classes="", chromed=true) -%}
 {% set button_classes = "btn btn-ghost btn-sm btn-square rounded-xl text-base-content/70" %}
 {% set danger_button_classes = "btn btn-error btn-sm btn-square rounded-xl" %}
 <div class="flex flex-wrap items-center justify-end gap-2{% if chromed %} rounded-[1rem] border border-base-300/70 bg-base-100/80 p-1 shadow-sm{% endif %}{% if wrapper_classes %} {{ wrapper_classes }}{% endif %}" aria-label="상세 관리 액션">
   {% if interactive %}
-  <form method="post" action="/actions/drop/{{ selected_key }}/favorite" class="flex" {% if use_hx_forms %}hx-post="/actions/drop/{{ selected_key }}/favorite" hx-swap="none" data-td-success="refresh-panels"{% endif %}>
+  <form method="post" action="/actions/drop/{{ selected_key }}/favorite" class="flex">
     <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
     <input type="hidden" name="password" value="{{ selected_password or '' }}" />
     <input type="hidden" name="favorite" value="{{ 'false' if selected_drop.is_favorite else 'true' }}" />
@@ -246,7 +245,7 @@
     </button>
   </form>
 
-  <form method="post" action="/actions/drop/{{ selected_key }}/access" class="flex" {% if use_hx_forms %}hx-post="/actions/drop/{{ selected_key }}/access" hx-swap="none" data-td-success="refresh-panels"{% endif %}>
+  <form method="post" action="/actions/drop/{{ selected_key }}/access" class="flex">
     <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
     <input type="hidden" name="password" value="{{ selected_password or '' }}" />
     <input type="hidden" name="user_only" value="{{ 'false' if selected_drop.access_scope == 'private' else 'true' }}" />
@@ -280,7 +279,7 @@
   </button>
 
   {% if interactive %}
-  <form method="post" action="/actions/drop/{{ selected_key }}/delete" class="flex" {% if use_hx_forms %}hx-post="/actions/drop/{{ selected_key }}/delete" hx-confirm="정말 삭제하시겠습니까?" hx-swap="none" data-td-success="show-upload-panel-and-refresh-list"{% else %}onsubmit="return confirm('정말 삭제하시겠습니까?')"{% endif %}>
+  <form method="post" action="/actions/drop/{{ selected_key }}/delete" class="flex" onsubmit="return confirm('정말 삭제하시겠습니까?')">
     <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
     <input type="hidden" name="password" value="{{ selected_password or '' }}" />
     <button type="submit" class="{{ danger_button_classes }}" aria-label="삭제" title="삭제">

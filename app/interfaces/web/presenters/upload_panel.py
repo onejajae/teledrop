@@ -12,18 +12,14 @@ def upload_panel_context(
     auth_data: AuthIdentity,
     csrf_service: CsrfTokenService,
     settings: Settings,
-    selected_key: str | None = None,
     upload_error_message: str | None = None,
-    upload_status_message: str | None = None,
 ) -> dict:
     return base_template_context(
         request=request,
         auth_data=auth_data,
         settings=settings,
         csrf_service=csrf_service,
-        selected_key=selected_key,
         upload_error_message=upload_error_message,
-        upload_status_message=upload_status_message,
     )
 
 
@@ -33,18 +29,14 @@ def render_upload_panel(
     csrf_service: CsrfTokenService,
     settings: Settings,
     status_code: int = status.HTTP_200_OK,
-    selected_key: str | None = None,
     upload_error_message: str | None = None,
-    upload_status_message: str | None = None,
 ):
     context = upload_panel_context(
         request=request,
         auth_data=auth_data,
         csrf_service=csrf_service,
         settings=settings,
-        selected_key=selected_key,
         upload_error_message=upload_error_message,
-        upload_status_message=upload_status_message,
     )
     return templates().TemplateResponse(
         request=request,

@@ -37,7 +37,6 @@ from app.interfaces.web.action_support import (
     require_auth_and_csrf,
 )
 from app.interfaces.web.presenters.common import drop_manage_page_url
-from app.interfaces.web.presenters.detail_panel import render_detail_panel
 from app.interfaces.web.presenters.manage_page import render_manage_page
 from app.interfaces.web.presenters.upload_panel import render_upload_panel
 
@@ -206,54 +205,6 @@ async def _handle_drop_mutation(
         slug=slug,
         password=normalized_password,
         detail_status_message=status_message,
-    )
-
-
-@router.post("/{slug}/open")
-async def ui_open_drop_detail(
-    slug: str,
-    request: Request,
-    settings: Settings = Depends(get_app_settings),
-    auth_data: AuthIdentity = Depends(get_optional_session_auth),
-    csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
-    get_drop_meta_use_case: GetDropMetaUseCase = Depends(get_get_drop_meta_use_case),
-    password: str | None = Form(default=None),
-    csrf_token: str = Form(default=""),
-):
-    normalized_password = normalize_drop_password(password)
-
-    async def on_csrf_failure() -> Response:
-        return await render_detail_panel(
-            request=request,
-            auth_data=auth_data,
-            csrf_service=csrf_service,
-            get_drop_meta_use_case=get_drop_meta_use_case,
-            settings=settings,
-            status_code=status.HTTP_403_FORBIDDEN,
-            selected_key=slug,
-            selected_password=normalized_password,
-            detail_error_message="유효하지 않은 CSRF 토큰입니다.",
-        )
-
-    guard_response = await require_auth_and_csrf(
-        request=request,
-        auth_data=auth_data,
-        csrf_service=csrf_service,
-        settings=settings,
-        csrf_token=csrf_token,
-        on_csrf_failure=on_csrf_failure,
-    )
-    if guard_response is not None:
-        return guard_response
-
-    return await render_detail_panel(
-        request=request,
-        auth_data=auth_data,
-        csrf_service=csrf_service,
-        get_drop_meta_use_case=get_drop_meta_use_case,
-        settings=settings,
-        selected_key=slug,
-        selected_password=normalized_password,
     )
 
 

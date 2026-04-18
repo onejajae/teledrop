@@ -1,4 +1,4 @@
-from fastapi import Request, status
+from fastapi import Request
 
 from app.application.auth.types import AuthIdentity
 from app.application.auth.use_cases.csrf import CsrfTokenService
@@ -16,7 +16,6 @@ from app.interfaces.web.presenters.common import (
     base_template_context,
     drop_file_urls,
     drop_preview_page_url,
-    templates,
 )
 
 
@@ -102,35 +101,4 @@ async def detail_panel_context(
         detail_error_message=detail_error_message,
         detail_error_code=detail_error_code,
         detail_status_message=detail_status_message,
-    )
-
-
-async def render_detail_panel(
-    request: Request,
-    auth_data: AuthIdentity,
-    csrf_service: CsrfTokenService,
-    get_drop_meta_use_case: GetDropMetaUseCase,
-    settings: Settings,
-    status_code: int = status.HTTP_200_OK,
-    selected_key: str | None = None,
-    selected_password: str | None = None,
-    detail_error_message: str | None = None,
-    detail_status_message: str | None = None,
-):
-    context = await detail_panel_context(
-        request=request,
-        auth_data=auth_data,
-        csrf_service=csrf_service,
-        get_drop_meta_use_case=get_drop_meta_use_case,
-        settings=settings,
-        selected_key=selected_key,
-        selected_password=selected_password,
-        detail_error_message=detail_error_message,
-        detail_status_message=detail_status_message,
-    )
-    return templates().TemplateResponse(
-        request=request,
-        name="panels/drop_detail.html",
-        context=context,
-        status_code=status_code,
     )

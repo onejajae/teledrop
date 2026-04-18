@@ -24,7 +24,6 @@ class TestComponentCatalogPresenter:
         assert context["is_login"] is False
         assert context["catalog_public_drop"].file_name == "launch-kit.pdf"
         assert context["catalog_private_drop"].access_scope == "private"
-        assert context["catalog_audio_drop"].requires_password is True
         assert context["catalog_api_key"].public_id.startswith("tdp_")
         assert context["catalog_created_api_key"].key.startswith("td_live_")
 
@@ -41,7 +40,6 @@ class TestComponentCatalogPresenter:
         )
 
         assert context["is_login"] is True
-        assert context["auth_username"] == "tester"
         assert [option.value for option in context["catalog_sort_options"]] == [
             "created_at",
             "title",

@@ -63,7 +63,6 @@ def base_template_context(
     context: dict[str, object] = {
         "request": request,
         "is_login": bool(auth_data.username),
-        "auth_username": auth_data.username,
         "csrf_token": csrf_token_for_request(request, settings, csrf_service),
     }
     context.update(extra)

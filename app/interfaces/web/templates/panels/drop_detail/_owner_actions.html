@@ -1,4 +1,4 @@
 {% from "macros/components.html" import owner_action_group %}
 {% if selected_drop and is_login %}
-{{ owner_action_group(selected_drop, selected_key, csrf_token=csrf_token, selected_password=selected_password, detail_mode=detail_mode, wrapper_classes=owner_action_group_classes if owner_action_group_classes is defined else "", chromed=owner_action_group_chromed if owner_action_group_chromed is defined else true) }}
+{{ owner_action_group(selected_drop, selected_key, csrf_token=csrf_token, selected_password=selected_password, wrapper_classes=owner_action_group_classes if owner_action_group_classes is defined else "", chromed=owner_action_group_chromed if owner_action_group_chromed is defined else true) }}
 {% endif %}

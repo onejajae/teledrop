@@ -15,7 +15,6 @@ class TestUploadPanelPresenter:
         request = _Request()
         auth_data = SimpleNamespace(username='tester')
         settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id')
-        context = upload_panel_context(request=request, auth_data=auth_data, csrf_service=_FakeCsrfService(), settings=settings, selected_key='k1', upload_status_message='ok')
-        assert 'selected_key' in context
+        context = upload_panel_context(request=request, auth_data=auth_data, csrf_service=_FakeCsrfService(), settings=settings)
         assert 'drops' not in context
         assert 'drop_preview_urls' not in context
