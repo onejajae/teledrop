@@ -10,6 +10,7 @@ from app.infrastructure.db.repositories.session_repository import (
     SQLModelSessionMutationRepository,
     SQLModelSessionReadRepository,
 )
+from app.infrastructure.db.repositories.user_repository import SQLModelUserReadRepository
 
 __all__ = [
     "SQLModelApiKeyMutationRepository",
@@ -18,4 +19,5 @@ __all__ = [
     "SQLModelDropReadRepository",
     "SQLModelSessionMutationRepository",
     "SQLModelSessionReadRepository",
+    "SQLModelUserReadRepository",
 ]

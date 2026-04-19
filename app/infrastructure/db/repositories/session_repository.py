@@ -26,7 +26,7 @@ def _get_auth_session_by_sid(session: Session, sid: str) -> AuthSession | None:
 def _to_record(row: AuthSession) -> AuthSessionRecord:
     return AuthSessionRecord(
         sid=row.sid,
-        username=row.username,
+        user_id=row.user_id,
         created_at=row.created_at,
         expires_at=row.expires_at,
         revoked_at=row.revoked_at,
@@ -68,7 +68,7 @@ class SQLModelSessionMutationRepository(
         session = self._require_session()
         row = AuthSession(
             sid=auth_session.sid,
-            username=auth_session.username,
+            user_id=auth_session.user_id,
             created_at=auth_session.created_at,
             expires_at=auth_session.expires_at,
         )

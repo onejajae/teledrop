@@ -45,6 +45,11 @@ async def manage_page_context(
     )
     detail = context["detail"]
     selected_drop = detail.drop
+    is_owner = bool(
+        selected_drop
+        and auth_data.user_id
+        and selected_drop.owner_user_id == auth_data.user_id
+    )
     status_label, status_tone, status_appearance = drop_access_status_badge(selected_drop)
     context["detail"] = replace(
         detail,
@@ -62,7 +67,7 @@ async def manage_page_context(
         actions=replace(
             detail.actions,
             can_copy_link=bool(selected_drop and selected_drop.access_scope == "public"),
-            show_owner_actions=bool(selected_drop and detail.access_granted),
+            show_owner_actions=bool(is_owner and detail.access_granted),
         ),
         forms=replace(
             detail.forms,
@@ -100,13 +105,16 @@ async def render_manage_page(
         detail_error_message=detail_error_message,
         detail_status_message=detail_status_message,
     )
+    effective_status_code = status_code
+    if status_code == status.HTTP_200_OK and context["detail"].error.code == "not_found":
+        effective_status_code = status.HTTP_404_NOT_FOUND
     response = finalize_ui_response(
         request,
         templates().TemplateResponse(
             request=request,
             name="pages/manage_drop.html",
             context=context,
-            status_code=status_code,
+            status_code=effective_status_code,
         ),
         settings,
     )

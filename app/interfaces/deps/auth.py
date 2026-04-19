@@ -26,15 +26,15 @@ async def authenticate_with_session(
 ) -> AuthIdentity:
     session_id = get_session_id_from_request(request, settings)
     if not session_id:
-        return AuthIdentity(username=None)
+        return AuthIdentity(user_id=None, username=None)
 
     try:
-        username = await verify_session_use_case.execute(VerifySessionQuery(sid=session_id))
+        identity = await verify_session_use_case.execute(VerifySessionQuery(sid=session_id))
     except (SessionExpired, SessionInvalid):
         mark_session_cookie_for_clear(request)
-        return AuthIdentity(username=None)
+        return AuthIdentity(user_id=None, username=None)
 
-    return AuthIdentity(username=username)
+    return identity
 
 
 def extract_api_key(request: Request) -> str | None:
@@ -68,18 +68,17 @@ async def get_optional_api_auth(
         settings=settings,
         verify_session_use_case=verify_session_use_case,
     )
-    if identity.username is not None:
+    if identity.is_authenticated:
         return identity
 
     api_key = extract_api_key(request)
     if api_key:
         try:
-            username = await verify_api_key_use_case.execute(VerifyApiKeyQuery(api_key=api_key))
-            return AuthIdentity(username=username)
+            return await verify_api_key_use_case.execute(VerifyApiKeyQuery(api_key=api_key))
         except ApiKeyInvalid:
             pass
 
-    return AuthIdentity(username=None)
+    return AuthIdentity(user_id=None, username=None)
 
 
 __all__ = [

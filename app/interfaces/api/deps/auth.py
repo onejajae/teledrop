@@ -47,7 +47,7 @@ class SessionOnlyAuthenticator:
             verify_session_use_case=verify_session_use_case,
         )
         _clear_stale_session_cookie_if_needed(request, response, settings)
-        if identity.username is not None:
+        if identity.is_authenticated:
             return identity
 
         if self.auto_error:
@@ -78,16 +78,15 @@ class SessionOrApiKeyAuthenticator:
             verify_session_use_case=verify_session_use_case,
         )
         _clear_stale_session_cookie_if_needed(request, response, settings)
-        if identity.username is not None:
+        if identity.is_authenticated:
             return identity
 
         api_key = extract_api_key(request)
         if api_key:
             try:
-                username = await verify_api_key_use_case.execute(
+                return await verify_api_key_use_case.execute(
                     VerifyApiKeyQuery(api_key=api_key)
                 )
-                return AuthIdentity(username=username)
             except ApiKeyInvalid:
                 pass
 
@@ -98,7 +97,7 @@ class SessionOrApiKeyAuthenticator:
                 set_cookie=response_set_cookie_header(response),
             )
 
-        return AuthIdentity(username=None)
+        return AuthIdentity(user_id=None, username=None)
 
 
 async def get_required_session_auth(

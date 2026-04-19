@@ -2,9 +2,10 @@ import io
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 
+from app.application.auth.types import AuthIdentity
 from app.application.drop.models import DropDetailDTO, DropListDTO
 from app.bootstrap.container import get_app_settings, get_csrf_token_service
 from app.bootstrap.providers.auth import (
@@ -25,18 +26,19 @@ from app.bootstrap.providers.drop import (
 )
 from app.domain.auth.errors import ApiKeyNotFound
 from app.domain.auth.errors import LoginInvalid
-from app.domain.drop.errors import DropNotFoundError
+from app.domain.drop.errors import DropAccessDeniedError, DropNotFoundError
 from app.domain.drop.value_objects import AccessScope
+from app.interfaces.deps.auth import get_optional_session_auth
 from app.interfaces.web.router import router as web_router
 
 
 class _FakeVerifySessionUseCase:
-    async def execute(self, _query) -> str:
-        return "tester"
+    async def execute(self, _query) -> AuthIdentity:
+        return AuthIdentity(user_id="user-1", username="tester")
 
 
 class _FakeInvalidVerifySessionUseCase:
-    async def execute(self, _query) -> str:
+    async def execute(self, _query) -> AuthIdentity:
         from app.domain.auth.errors import SessionInvalid
 
         raise SessionInvalid()
@@ -69,7 +71,10 @@ class _FakeDeleteApiKeyUseCase:
 
     async def execute(self, command):
         for idx, item in enumerate(self.parent.items):
-            if item.public_id == command.public_id:
+            if (
+                item.public_id == command.public_id
+                and item.owner_user_id == getattr(command, "owner_user_id", item.owner_user_id)
+            ):
                 self.parent.items.pop(idx)
                 return None
         raise ApiKeyNotFound()
@@ -92,7 +97,7 @@ class _FakeApiKeyUseCases:
             item = SimpleNamespace(
                 public_id="p1",
                 name=command.name,
-                created_by_username=command.created_by_username,
+                owner_user_id=command.owner_user_id,
                 created_at=now,
                 expires_at=command.expires_at,
                 last_used_at=None,
@@ -106,8 +111,12 @@ class _FakeApiKeyUseCases:
         def __init__(self, parent: "_FakeApiKeyUseCases"):
             self.parent = parent
 
-        async def execute(self):
-            return list(self.parent.items)
+        async def execute(self, query=None):
+            if query is None:
+                return list(self.parent.items)
+            return [
+                item for item in self.parent.items if item.owner_user_id == query.owner_user_id
+            ]
 
     class _RevokeApiKeyUseCase:
         def __init__(self, parent: "_FakeApiKeyUseCases"):
@@ -115,7 +124,10 @@ class _FakeApiKeyUseCases:
 
         async def execute(self, command):
             for item in self.parent.items:
-                if item.public_id == command.public_id:
+                if (
+                    item.public_id == command.public_id
+                    and item.owner_user_id == getattr(command, "owner_user_id", item.owner_user_id)
+                ):
                     item.revoked_at = datetime.now(timezone.utc)
                     return item
             raise ApiKeyNotFound()
@@ -125,9 +137,24 @@ class _FakePasswordLoginUseCase:
         raise LoginInvalid()
 
 
+def _auth_identity() -> AuthIdentity:
+    return AuthIdentity(user_id="user-1", username="tester")
+
+
+def _anonymous_identity() -> AuthIdentity:
+    return AuthIdentity(user_id=None, username=None)
+
+
+async def _fake_optional_session_auth(request: Request) -> AuthIdentity:
+    if request.cookies.get("session_id"):
+        return _auth_identity()
+    return _anonymous_identity()
+
+
 def _detail_dto(slug: str) -> DropDetailDTO:
     now = datetime.now(timezone.utc)
     return DropDetailDTO(
+        owner_user_id="user-1",
         slug=slug,
         title="title",
         description=None,
@@ -210,6 +237,7 @@ def _client(
 
     app.dependency_overrides[get_app_settings] = lambda: fake_settings
     app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
+    app.dependency_overrides[get_optional_session_auth] = _fake_optional_session_auth
     app.dependency_overrides[get_csrf_token_service] = lambda: csrf_service
     app.dependency_overrides[get_revoke_session_use_case] = lambda: revoke_use_case
     app.dependency_overrides[get_create_drop_use_case] = lambda: drop_use_cases.create_drop_use_case
@@ -316,8 +344,9 @@ class TestWebActionRoutesIntegration:
         assert response.headers["location"] == "/drops/upload-1"
         assert len(drop_use_cases.create_calls) == 1
         assert drop_use_cases.create_calls[0].access_scope == AccessScope.PRIVATE
+        assert drop_use_cases.create_calls[0].owner_user_id == "user-1"
 
-    def test_password_clear_without_current_password_sets_bypass_flag(self):
+    def test_password_clear_uses_authenticated_owner_identity(self):
         drop_use_cases = _FakeDropUseCases()
         csrf_service = _FakeCsrfService(verify_result=True)
         client = _client(
@@ -343,9 +372,9 @@ class TestWebActionRoutesIntegration:
         assert drop_use_cases.update_calls[0].slug == "k1"
         assert drop_use_cases.update_calls[0].current_password is None
         assert drop_use_cases.update_calls[0].new_password is None
-        assert drop_use_cases.update_calls[0].bypass_password_check is True
+        assert drop_use_cases.update_calls[0].auth.user_id == "user-1"
 
-    def test_detail_update_sets_bypass_flag_for_logged_in_admin(self):
+    def test_detail_update_uses_authenticated_owner_identity(self):
         drop_use_cases = _FakeDropUseCases()
         client = _client(
             drop_use_cases=drop_use_cases,
@@ -362,9 +391,9 @@ class TestWebActionRoutesIntegration:
 
         assert response.status_code == 200
         assert len(drop_use_cases.update_calls) == 1
-        assert drop_use_cases.update_calls[0].bypass_password_check is True
+        assert drop_use_cases.update_calls[0].auth.user_id == "user-1"
 
-    def test_delete_sets_bypass_flag_for_logged_in_admin(self):
+    def test_delete_uses_authenticated_owner_identity(self):
         class _CapturingDeleteDropUseCase:
             def __init__(self):
                 self.command = None
@@ -390,6 +419,7 @@ class TestWebActionRoutesIntegration:
         app.dependency_overrides[get_verify_session_use_case] = (
             lambda: _FakeVerifySessionUseCase()
         )
+        app.dependency_overrides[get_optional_session_auth] = _fake_optional_session_auth
         app.dependency_overrides[get_csrf_token_service] = (
             lambda: _FakeCsrfService(verify_result=True)
         )
@@ -435,7 +465,7 @@ class TestWebActionRoutesIntegration:
         assert response.headers["location"] == "/drops"
         assert delete_drop_use_case.command is not None
         assert delete_drop_use_case.command.current_password is None
-        assert delete_drop_use_case.command.bypass_password_check is True
+        assert delete_drop_use_case.command.auth.user_id == "user-1"
 
     def test_logout_csrf_failure_redirects_without_revoke_call(self):
         revoke_use_case = _FakeRevokeSessionUseCase()
@@ -538,6 +568,18 @@ class TestWebActionRoutesIntegration:
 
     def test_api_key_create_revoke_delete_flow(self):
         api_key_use_cases = _FakeApiKeyUseCases()
+        api_key_use_cases.items.append(
+            SimpleNamespace(
+                public_id="foreign",
+                name="other",
+                owner_user_id="user-2",
+                created_at=datetime.now(timezone.utc),
+                expires_at=None,
+                last_used_at=None,
+                revoked_at=None,
+                key="tdpk_foreign_secret",
+            )
+        )
         client = _client(
             drop_use_cases=_FakeDropUseCases(),
             api_key_use_cases=api_key_use_cases,
@@ -552,7 +594,10 @@ class TestWebActionRoutesIntegration:
         )
         assert created.status_code == 200
         assert "tdpk_p1_secret" in created.text
-        assert len(api_key_use_cases.items) == 1
+        assert "foreign" not in created.text
+        assert "tester" not in created.text
+        assert len(api_key_use_cases.items) == 2
+        assert api_key_use_cases.items[-1].owner_user_id == "user-1"
 
         revoked = client.post(
             "/actions/auth/api-keys/p1/revoke",
@@ -560,7 +605,10 @@ class TestWebActionRoutesIntegration:
         )
         assert revoked.status_code == 200
         assert "폐기되었습니다" in revoked.text
-        assert api_key_use_cases.items[0].revoked_at is not None
+        assert any(
+            item.public_id == "p1" and item.revoked_at is not None
+            for item in api_key_use_cases.items
+        )
 
         deleted = client.post(
             "/actions/auth/api-keys/p1/delete",
@@ -568,7 +616,37 @@ class TestWebActionRoutesIntegration:
         )
         assert deleted.status_code == 200
         assert "삭제되었습니다" in deleted.text
-        assert api_key_use_cases.items == []
+        assert [item.public_id for item in api_key_use_cases.items] == ["foreign"]
+
+    def test_api_key_actions_mask_non_owned_key_as_404(self):
+        api_key_use_cases = _FakeApiKeyUseCases()
+        api_key_use_cases.items.append(
+            SimpleNamespace(
+                public_id="foreign",
+                name="other",
+                owner_user_id="user-2",
+                created_at=datetime.now(timezone.utc),
+                expires_at=None,
+                last_used_at=None,
+                revoked_at=None,
+                key="tdpk_foreign_secret",
+            )
+        )
+        client = _client(
+            drop_use_cases=_FakeDropUseCases(),
+            api_key_use_cases=api_key_use_cases,
+            csrf_service=_FakeCsrfService(verify_result=True),
+            revoke_use_case=_FakeRevokeSessionUseCase(),
+        )
+        client.cookies.set("session_id", "sid")
+
+        response = client.post(
+            "/actions/auth/api-keys/foreign/revoke",
+            data={"csrf_token": "csrf"},
+        )
+
+        assert response.status_code == 404
+        assert "존재하지 않는 API key 입니다." in response.text
 
     def test_api_key_create_normalizes_local_expiration_to_utc(self):
         api_key_use_cases = _FakeApiKeyUseCases()
@@ -639,6 +717,30 @@ class TestWebActionRoutesIntegration:
         assert response.status_code == 404
         assert "파일이 존재하지 않습니다." in response.text
 
+    def test_shared_page_masks_private_non_owner_as_404(self):
+        class _DeniedGetDropMetaUseCase:
+            async def execute_for_display(self, slug, auth=None):
+                _ = (slug, auth)
+                raise DropAccessDeniedError()
+
+            async def execute(self, _query):
+                raise AssertionError("Unexpected execute call")
+
+        drop_use_cases = _FakeDropUseCases()
+        drop_use_cases.get_drop_meta_use_case = _DeniedGetDropMetaUseCase()
+        client = _client(
+            drop_use_cases=drop_use_cases,
+            api_key_use_cases=_FakeApiKeyUseCases(),
+            csrf_service=_FakeCsrfService(verify_result=True),
+            revoke_use_case=_FakeRevokeSessionUseCase(),
+        )
+        client.cookies.set("session_id", "sid")
+
+        response = client.get("/secret")
+
+        assert response.status_code == 404
+        assert "파일이 존재하지 않습니다." in response.text
+
     def test_stale_session_cookie_is_cleared_on_home_response(self):
         app = FastAPI()
         app.include_router(web_router)
@@ -689,6 +791,12 @@ class TestWebActionRoutesIntegration:
         app.dependency_overrides[get_delete_api_key_use_case] = (
             lambda: _FakeApiKeyUseCases().delete_api_key_use_case
         )
+        async def _stale_optional_session_auth(request: Request) -> AuthIdentity:
+            if request.cookies.get("session_id"):
+                request.state.clear_session_cookie_pending = True
+            return _anonymous_identity()
+
+        app.dependency_overrides[get_optional_session_auth] = _stale_optional_session_auth
         app.dependency_overrides[get_password_login_use_case] = lambda: _FakePasswordLoginUseCase()
         client = TestClient(app)
         client.cookies.set("session_id", "stale-sid")

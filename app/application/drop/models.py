@@ -10,6 +10,7 @@ from app.domain.drop.value_objects import AccessScope, DropSortField
 
 @dataclass(slots=True)
 class CreateDropCommand:
+    owner_user_id: str
     file_stream: BinaryIO
     file_name: str
     mime_type: str
@@ -24,8 +25,8 @@ class CreateDropCommand:
 @dataclass(slots=True)
 class UpdateDropCommand:
     slug: str
+    auth: AuthIdentity
     current_password: DropPasswordCredential | None
-    bypass_password_check: bool = False
     title: str | None | object = UNSET
     description: str | None | object = UNSET
     access_scope: AccessScope | object = UNSET
@@ -36,8 +37,8 @@ class UpdateDropCommand:
 @dataclass(slots=True)
 class DeleteDropCommand:
     slug: str
+    auth: AuthIdentity
     current_password: DropPasswordCredential | None
-    bypass_password_check: bool = False
 
 
 @dataclass(slots=True)
@@ -65,6 +66,7 @@ class DropStreamQuery:
 
 @dataclass(slots=True)
 class DropListItemDTO:
+    owner_user_id: str
     slug: str
     title: str | None
     description: str | None

@@ -76,11 +76,11 @@ async def detail_panel_context(
         try:
             drop_meta = await get_drop_meta_use_case.execute_for_display(
                 slug=selected_key,
-                auth=AuthIdentity(username=auth_data.username),
+                auth=auth_data,
             )
         except DropAccessDeniedError:
-            detail_error_message = detail_error_message or "이 파일을 보려면 로그인이 필요합니다."
-            detail_error_code = detail_error_code or "forbidden"
+            detail_error_message = detail_error_message or "파일이 존재하지 않습니다."
+            detail_error_code = detail_error_code or "not_found"
         except DropNotFoundError:
             detail_error_message = detail_error_message or "파일이 존재하지 않습니다."
             detail_error_code = detail_error_code or "not_found"
@@ -91,7 +91,7 @@ async def detail_panel_context(
                     DropMetaQuery(
                         slug=selected_key,
                         drop_password=effective_credential,
-                        auth=AuthIdentity(username=auth_data.username),
+                        auth=auth_data,
                     )
                 )
             except DropPasswordInvalidError:
@@ -107,8 +107,8 @@ async def detail_panel_context(
                 invalid_grant = has_grant_token and not has_raw_password
                 selected_drop = as_drop_vm(drop_meta)
             except DropAccessDeniedError:
-                detail_error_message = detail_error_message or "파일을 불러올 수 없습니다."
-                detail_error_code = detail_error_code or "forbidden"
+                detail_error_message = detail_error_message or "파일이 존재하지 않습니다."
+                detail_error_code = detail_error_code or "not_found"
             except DropNotFoundError:
                 detail_error_message = detail_error_message or "파일을 불러올 수 없습니다."
                 detail_error_code = detail_error_code or "not_found"

@@ -85,10 +85,10 @@
               </div>
             </div>
 
-            <div class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+            <div class="mt-4 grid gap-3 text-sm sm:grid-cols-3">
               <div class="space-y-1">
-                <p class="text-xs font-semibold opacity-60">생성자</p>
-                <p>{{ item.created_by_username }}</p>
+                <p class="text-xs font-semibold opacity-60">생성</p>
+                <p>{{ item.created_at or '-' }}</p>
               </div>
               <div class="space-y-1">
                 <p class="text-xs font-semibold opacity-60">만료</p>

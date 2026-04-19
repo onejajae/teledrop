@@ -27,7 +27,9 @@ from app.domain.drop.errors import (
 from app.domain.drop.grants import DropPasswordCredential, DropPasswordGrantService
 from app.domain.drop.policies import (
     RequestAuthContext,
+    assert_drop_owner,
     assert_drop_access_allowed,
+    is_drop_owner,
     assert_drop_password_matches,
     normalize_drop_password,
 )
@@ -36,12 +38,27 @@ from app.core.utils import normalize_pagination
 
 
 def _assert_access(drop: DropEntity, auth: AuthIdentity | None):
-    auth_ctx = RequestAuthContext(username=auth.username if auth else None)
+    auth_ctx = RequestAuthContext(
+        user_id=auth.user_id if auth else None,
+        username=auth.username if auth else None,
+    )
     assert_drop_access_allowed(drop, auth_ctx)
 
 
-def _is_authenticated(auth: AuthIdentity | None) -> bool:
-    return bool(auth and auth.username)
+def _is_owner(drop: DropEntity, auth: AuthIdentity | None) -> bool:
+    auth_ctx = RequestAuthContext(
+        user_id=auth.user_id if auth else None,
+        username=auth.username if auth else None,
+    )
+    return is_drop_owner(drop, auth_ctx)
+
+
+def _assert_owner(drop: DropEntity, auth: AuthIdentity | None):
+    auth_ctx = RequestAuthContext(
+        user_id=auth.user_id if auth else None,
+        username=auth.username if auth else None,
+    )
+    assert_drop_owner(drop, auth_ctx)
 
 
 def _assert_password(
@@ -64,6 +81,7 @@ async def _get_by_slug_or_raise(
 
 def _to_list_dto(drop: DropEntity) -> DropListItemDTO:
     return DropListItemDTO(
+        owner_user_id=drop.owner_user_id,
         slug=drop.slug,
         title=drop.title,
         description=drop.description,
@@ -81,6 +99,7 @@ def _to_list_dto(drop: DropEntity) -> DropListItemDTO:
 def _to_detail_dto(drop: DropEntity) -> DropDetailDTO:
     list_dto = _to_list_dto(drop)
     return DropDetailDTO(
+        owner_user_id=list_dto.owner_user_id,
         slug=list_dto.slug,
         title=list_dto.title,
         description=list_dto.description,
@@ -120,6 +139,7 @@ class CreateDropUseCase:
         async with self.uow_factory() as uow:
             created = await uow.repository.create(
                 DropCreateInput(
+                    owner_user_id=command.owner_user_id,
                     slug=slug,
                     access_scope=access_scope,
                     is_favorite=False,
@@ -149,7 +169,7 @@ class ListDropsUseCase:
         self.max_page_size = max_page_size
 
     async def execute(self, query: DropListQuery) -> DropListDTO:
-        if query.auth.username is None:
+        if query.auth.user_id is None:
             raise DropAccessDeniedError()
 
         page, page_size = normalize_pagination(
@@ -159,8 +179,9 @@ class ListDropsUseCase:
             max_page_size=self.max_page_size,
         )
 
-        total = await self.repository.count()
+        total = await self.repository.count(owner_user_id=query.auth.user_id)
         items = await self.repository.list(
+            owner_user_id=query.auth.user_id,
             limit=page_size,
             offset=(page - 1) * page_size,
             sort=query.sort,
@@ -187,7 +208,7 @@ class GetDropMetaUseCase:
     async def execute(self, query: DropMetaQuery) -> DropDetailDTO:
         drop = await _get_by_slug_or_raise(self.repository, query.slug)
         _assert_access(drop, query.auth)
-        if not _is_authenticated(query.auth):
+        if not _is_owner(drop, query.auth):
             _assert_password(drop, query.drop_password, self.grant_service)
         return _to_detail_dto(drop)
 
@@ -211,7 +232,7 @@ class GetDropStreamSourceUseCase:
     async def execute(self, query: DropStreamQuery) -> tuple[DropDetailDTO, str]:
         drop = await _get_by_slug_or_raise(self.repository, query.slug)
         _assert_access(drop, query.auth)
-        if not _is_authenticated(query.auth):
+        if not _is_owner(drop, query.auth):
             _assert_password(drop, query.drop_password, self.grant_service)
         return _to_detail_dto(drop), drop.storage_key
 
@@ -232,8 +253,7 @@ class UpdateDropUseCase:
     async def execute(self, command: UpdateDropCommand) -> DropDetailDTO:
         async with self.uow_factory() as uow:
             drop = await _get_by_slug_or_raise(uow.repository, command.slug)
-            if not command.bypass_password_check:
-                _assert_password(drop, command.current_password, self.grant_service)
+            _assert_owner(drop, command.auth)
 
             update = DropUpdateInput()
             if command.title is not COMMAND_UNSET:
@@ -247,7 +267,11 @@ class UpdateDropUseCase:
             if command.new_password is not COMMAND_UNSET:
                 update.drop_password = normalize_drop_password(command.new_password)
 
-            updated = await uow.repository.update_by_slug(command.slug, update)
+            updated = await uow.repository.update_by_slug(
+                command.slug,
+                owner_user_id=command.auth.user_id or "",
+                data=update,
+            )
             if updated is None:
                 raise DropNotFoundError()
             await uow.commit()
@@ -271,11 +295,13 @@ class DeleteDropUseCase:
         try:
             async with self.uow_factory() as uow:
                 drop = await _get_by_slug_or_raise(uow.repository, command.slug)
-                if not command.bypass_password_check:
-                    _assert_password(drop, command.current_password, self.grant_service)
+                _assert_owner(drop, command.auth)
 
                 source_key, staged_key = await self.storage.stage_delete(drop.storage_key)
-                deleted = await uow.repository.delete_by_slug(command.slug)
+                deleted = await uow.repository.delete_by_slug(
+                    command.slug,
+                    owner_user_id=command.auth.user_id or "",
+                )
                 if not deleted:
                     raise DropNotFoundError()
                 await uow.commit()

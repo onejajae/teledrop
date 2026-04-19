@@ -21,26 +21,37 @@ class _Repo:
 
     async def create(self, data: DropCreateInput) -> DropEntity:
         now = datetime.now(timezone.utc)
-        entity = DropEntity(id=data.slug, slug=data.slug, access_scope=AccessScope.PRIVATE, is_favorite=False, drop_password=None, file_name='f', mime_type='application/octet-stream', size_bytes=0, sha256='sha', storage_key='s', title=None, description=None, created_at=now, updated_at=None)
+        entity = DropEntity(id=data.slug, owner_user_id=data.owner_user_id, slug=data.slug, access_scope=AccessScope.PRIVATE, is_favorite=False, drop_password=None, file_name='f', mime_type='application/octet-stream', size_bytes=0, sha256='sha', storage_key='s', title=None, description=None, created_at=now, updated_at=None)
         self.items[data.slug] = entity
         return entity
 
-    async def list(self, *, limit: int, offset: int, sort: DropSortField, order: str):
-        _ = (limit, offset, sort, order)
+    async def list(self, *, owner_user_id: str, limit: int, offset: int, sort: DropSortField, order: str):
+        _ = (owner_user_id, limit, offset, sort, order)
         return []
 
-    async def count(self) -> int:
+    async def count(self, *, owner_user_id: str) -> int:
+        _ = owner_user_id
         return len(self.items)
 
     async def get_by_slug(self, slug: str) -> DropEntity | None:
         return self.items.get(slug)
 
-    async def update_by_slug(self, slug: str, data: DropUpdateInput) -> DropEntity | None:
-        _ = (slug, data)
+    async def get_owned_by_slug(self, slug: str, *, owner_user_id: str) -> DropEntity | None:
+        item = self.items.get(slug)
+        if item is None or item.owner_user_id != owner_user_id:
+            return None
+        return item
+
+    async def update_by_slug(self, slug: str, *, owner_user_id: str, data: DropUpdateInput) -> DropEntity | None:
+        _ = (slug, owner_user_id, data)
         return None
 
-    async def delete_by_slug(self, slug: str) -> bool:
-        return self.items.pop(slug, None) is not None
+    async def delete_by_slug(self, slug: str, *, owner_user_id: str) -> bool:
+        item = self.items.get(slug)
+        if item is None or item.owner_user_id != owner_user_id:
+            return False
+        self.items.pop(slug, None)
+        return True
 
 class _CandidateGenerator(DropSlugCandidateGeneratorPort):
 
@@ -74,14 +85,14 @@ class TestDropSlugService:
 
     async def test_manual_slug_duplicate_raises(self):
         repo = _Repo()
-        repo.items['dup'] = DropEntity(id='1', slug='dup', access_scope=AccessScope.PRIVATE, is_favorite=False, drop_password=None, file_name='f', mime_type='text/plain', size_bytes=1, sha256='sha', storage_key='s', title=None, description=None, created_at=datetime.now(timezone.utc), updated_at=None)
+        repo.items['dup'] = DropEntity(id='1', owner_user_id='user-1', slug='dup', access_scope=AccessScope.PRIVATE, is_favorite=False, drop_password=None, file_name='f', mime_type='text/plain', size_bytes=1, sha256='sha', storage_key='s', title=None, description=None, created_at=datetime.now(timezone.utc), updated_at=None)
         service = DropSlugService(repository=repo, candidate_generator=_CandidateGenerator(['x']))
         with pytest.raises(DropSlugUnavailableError):
             await service.resolve('dup')
 
     async def test_auto_slug_retries_and_succeeds(self):
         repo = _Repo()
-        repo.items['taken'] = DropEntity(id='1', slug='taken', access_scope=AccessScope.PRIVATE, is_favorite=False, drop_password=None, file_name='f', mime_type='text/plain', size_bytes=1, sha256='sha', storage_key='s', title=None, description=None, created_at=datetime.now(timezone.utc), updated_at=None)
+        repo.items['taken'] = DropEntity(id='1', owner_user_id='user-1', slug='taken', access_scope=AccessScope.PRIVATE, is_favorite=False, drop_password=None, file_name='f', mime_type='text/plain', size_bytes=1, sha256='sha', storage_key='s', title=None, description=None, created_at=datetime.now(timezone.utc), updated_at=None)
         generator = _CandidateGenerator(['taken', 'free-slug'])
         service = DropSlugService(repository=repo, candidate_generator=generator, max_attempts=3)
         resolved = await service.resolve(None)
@@ -90,7 +101,7 @@ class TestDropSlugService:
 
     async def test_auto_slug_falls_back_to_uuid_after_max_attempts(self):
         repo = _Repo()
-        repo.items['taken'] = DropEntity(id='1', slug='taken', access_scope=AccessScope.PRIVATE, is_favorite=False, drop_password=None, file_name='f', mime_type='text/plain', size_bytes=1, sha256='sha', storage_key='s', title=None, description=None, created_at=datetime.now(timezone.utc), updated_at=None)
+        repo.items['taken'] = DropEntity(id='1', owner_user_id='user-1', slug='taken', access_scope=AccessScope.PRIVATE, is_favorite=False, drop_password=None, file_name='f', mime_type='text/plain', size_bytes=1, sha256='sha', storage_key='s', title=None, description=None, created_at=datetime.now(timezone.utc), updated_at=None)
         generator = _CandidateGenerator(['taken', 'taken', 'taken'])
         service = DropSlugService(repository=repo, candidate_generator=generator, max_attempts=3)
         resolved = await service.resolve(None)
@@ -99,7 +110,7 @@ class TestDropSlugService:
 
     async def test_is_available_rejects_blank_reserved_and_existing(self):
         repo = _Repo()
-        repo.items['used'] = DropEntity(id='1', slug='used', access_scope=AccessScope.PRIVATE, is_favorite=False, drop_password=None, file_name='f', mime_type='text/plain', size_bytes=1, sha256='sha', storage_key='s', title=None, description=None, created_at=datetime.now(timezone.utc), updated_at=None)
+        repo.items['used'] = DropEntity(id='1', owner_user_id='user-1', slug='used', access_scope=AccessScope.PRIVATE, is_favorite=False, drop_password=None, file_name='f', mime_type='text/plain', size_bytes=1, sha256='sha', storage_key='s', title=None, description=None, created_at=datetime.now(timezone.utc), updated_at=None)
         service = DropSlugService(repository=repo, candidate_generator=_CandidateGenerator(['x']))
         assert not await service.is_available('')
         assert not await service.is_available('api')

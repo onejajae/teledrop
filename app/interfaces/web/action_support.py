@@ -26,7 +26,7 @@ async def require_auth_and_csrf(
     csrf_token: str,
     on_csrf_failure: Callable[[], Awaitable[Response]],
 ) -> Response | None:
-    if not auth_data.username:
+    if not auth_data.is_authenticated:
         return unauthorized_ui_response(request, settings)
 
     if not csrf_is_valid(request, settings, csrf_service, csrf_token):

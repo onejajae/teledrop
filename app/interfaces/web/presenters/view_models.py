@@ -15,6 +15,7 @@ class SortOptionVM:
 
 @dataclass(slots=True, frozen=True)
 class DropVM:
+    owner_user_id: str
     slug: str
     title: str | None
     description: str | None
@@ -89,7 +90,6 @@ class DetailVM:
 class ApiKeyVM:
     public_id: str
     name: str
-    created_by_username: str
     created_at: DisplayDate
     expires_at: DisplayDate
     last_used_at: DisplayDate

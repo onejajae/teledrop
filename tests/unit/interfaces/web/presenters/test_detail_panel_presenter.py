@@ -97,8 +97,8 @@ class TestDetailPanelPresenter:
 
     async def test_access_denied_sets_forbidden_error_code(self):
         context = await detail_panel_context(request=self.request, auth_data=self.auth_data, csrf_service=self.csrf_service, get_drop_meta_use_case=_FakeDropUseCasesForbidden().get_drop_meta_use_case, settings=self.settings, selected_key='locked')
-        assert context['detail'].error.code == 'forbidden'
-        assert '로그인이 필요' in context['detail'].error.message
+        assert context['detail'].error.code == 'not_found'
+        assert '파일이 존재하지 않습니다.' == context['detail'].error.message
         assert context['detail'].drop is None
 
     async def test_not_found_sets_not_found_error_code(self):

@@ -69,7 +69,7 @@ def map_drop_read_exception(exc: Exception) -> HTTPException:
 
 
 def map_drop_mutation_exception(exc: Exception) -> HTTPException:
-    if isinstance(exc, DropNotFoundError):
+    if isinstance(exc, (DropNotFoundError, DropAccessDeniedError)):
         return HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     if isinstance(exc, DropPasswordInvalidError):
         return HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)

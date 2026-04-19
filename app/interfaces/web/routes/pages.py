@@ -48,7 +48,7 @@ async def ui_library(
     sortby: str | None = Query(default="created_at"),
     orderby: str | None = Query(default="desc"),
 ):
-    if not auth_data.username:
+    if not auth_data.is_authenticated:
         return unauthorized_ui_response(request, settings)
 
     return await render_library_page(
@@ -71,7 +71,7 @@ async def ui_manage_drop(
     csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
     get_drop_meta_use_case: GetDropMetaUseCase = Depends(get_get_drop_meta_use_case),
 ):
-    if not auth_data.username:
+    if not auth_data.is_authenticated:
         return unauthorized_ui_response(request, settings)
 
     return await render_manage_page(
@@ -92,7 +92,7 @@ async def ui_api_keys(
     csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
     list_api_keys_use_case: ListApiKeysUseCase = Depends(get_list_api_keys_use_case),
 ):
-    if not auth_data.username:
+    if not auth_data.is_authenticated:
         return unauthorized_ui_response(request, settings)
 
     return await render_api_keys_page(

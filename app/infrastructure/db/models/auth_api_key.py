@@ -10,7 +10,7 @@ class AuthApiKey(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     public_id: str = Field(index=True, unique=True)
     name: str
-    created_by_username: str = Field(index=True)
+    owner_user_id: str = Field(foreign_key="users.id", index=True)
     key_hash: str
 
     created_at: datetime

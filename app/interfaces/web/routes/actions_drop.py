@@ -208,7 +208,7 @@ async def _render_manage_exception(
     settings: Settings,
     exc: Exception,
 ) -> Response:
-    if isinstance(exc, DropNotFoundError):
+    if isinstance(exc, (DropNotFoundError, DropAccessDeniedError)):
         status_code = status.HTTP_404_NOT_FOUND
         error_message = "파일이 존재하지 않습니다."
     elif isinstance(exc, DropPasswordInvalidError):
@@ -247,6 +247,7 @@ async def _handle_drop_mutation(
     clear_grant_on_success: bool = False,
     expected_exceptions: tuple[type[Exception], ...] = (
         DropNotFoundError,
+        DropAccessDeniedError,
         DropPasswordInvalidError,
     ),
 ) -> Response:
@@ -329,6 +330,7 @@ async def ui_upload(
     try:
         created = await create_drop_use_case.execute(
             CreateDropCommand(
+                owner_user_id=auth_data.user_id or "",
                 file_stream=file.file,
                 file_name=file.filename,
                 mime_type=file.content_type,
@@ -371,7 +373,7 @@ async def ui_unlock_drop(
     unlock_token: str = Form(default=""),
 ):
     normalized_target_view = "manage" if target_view == "manage" else "shared"
-    if normalized_target_view == "manage" and not auth_data.username:
+    if normalized_target_view == "manage" and not auth_data.is_authenticated:
         return unauthorized_ui_response(request, settings)
 
     if not verify_drop_unlock_token(
@@ -395,22 +397,21 @@ async def ui_unlock_drop(
 
     normalized_password = normalize_drop_password(password)
     credential = build_drop_password_credential(password=normalized_password)
-    auth = AuthIdentity(username=auth_data.username)
 
     try:
         await get_drop_meta_use_case.execute(
             DropMetaQuery(
                 slug=slug,
                 drop_password=credential,
-                auth=auth,
+                auth=auth_data,
             )
         )
     except DropNotFoundError:
         status_code = status.HTTP_404_NOT_FOUND
         error_message = "파일이 존재하지 않습니다."
     except DropAccessDeniedError:
-        status_code = status.HTTP_403_FORBIDDEN
-        error_message = "이 파일을 보려면 로그인이 필요합니다."
+        status_code = status.HTTP_404_NOT_FOUND
+        error_message = "파일이 존재하지 않습니다."
     except DropPasswordInvalidError:
         status_code = status.HTTP_401_UNAUTHORIZED
         error_message = "비밀번호가 올바르지 않습니다."
@@ -469,8 +470,8 @@ async def ui_update_drop_detail(
         mutation=lambda: update_drop_use_case.execute(
             UpdateDropCommand(
                 slug=slug,
+                auth=auth_data,
                 current_password=None,
-                bypass_password_check=bool(auth_data.username),
                 title=title,
                 description=description,
             )
@@ -502,8 +503,8 @@ async def ui_update_drop_favorite(
         mutation=lambda: update_drop_use_case.execute(
             UpdateDropCommand(
                 slug=slug,
+                auth=auth_data,
                 current_password=None,
-                bypass_password_check=bool(auth_data.username),
                 is_favorite=favorite,
             )
         ),
@@ -535,8 +536,8 @@ async def ui_update_drop_access(
         mutation=lambda: update_drop_use_case.execute(
             UpdateDropCommand(
                 slug=slug,
+                auth=auth_data,
                 current_password=None,
-                bypass_password_check=bool(auth_data.username),
                 access_scope=access_scope,
             )
         ),
@@ -599,12 +600,12 @@ async def ui_update_drop_password(
         await update_drop_use_case.execute(
             UpdateDropCommand(
                 slug=slug,
+                auth=auth_data,
                 current_password=None,
-                bypass_password_check=bool(auth_data.username),
                 new_password=normalized_new_password,
             )
         )
-    except (DropNotFoundError, DropPasswordInvalidError) as exc:
+    except (DropAccessDeniedError, DropNotFoundError, DropPasswordInvalidError) as exc:
         return await _render_manage_exception(
             request=request,
             slug=slug,
@@ -668,8 +669,8 @@ async def ui_delete_drop(
         mutation=lambda: delete_drop_use_case.execute(
             DeleteDropCommand(
                 slug=slug,
+                auth=auth_data,
                 current_password=None,
-                bypass_password_check=bool(auth_data.username),
             )
         ),
     )

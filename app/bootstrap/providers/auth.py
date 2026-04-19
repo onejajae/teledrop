@@ -4,8 +4,10 @@ from sqlmodel import Session
 from fastapi import Depends
 
 from app.application.auth.ports import (
+    AuthApiKeyRepositoryPort,
     AuthApiKeyUnitOfWorkFactory,
     AuthSessionUnitOfWorkFactory,
+    UserReadRepositoryPort,
 )
 from app.application.auth.use_cases import (
     CreateApiKeyUseCase,
@@ -20,9 +22,18 @@ from app.application.auth.use_cases import (
 )
 from app.bootstrap.container import get_app_settings, get_db_session_factory
 from app.core.config import Settings
-from app.infrastructure.db.repositories import SQLModelApiKeyReadRepository
+from app.infrastructure.db.repositories import (
+    SQLModelApiKeyReadRepository,
+    SQLModelUserReadRepository,
+)
 from app.infrastructure.db.uow_api_key import SQLModelApiKeyUnitOfWork
 from app.infrastructure.db.uow_auth import SQLModelAuthSessionUnitOfWork
+
+
+def get_user_read_repository(
+    db_session_factory: sessionmaker[Session] = Depends(get_db_session_factory),
+) -> UserReadRepositoryPort:
+    return SQLModelUserReadRepository(db_session_factory)
 
 
 def get_auth_session_uow_factory(
@@ -33,7 +44,7 @@ def get_auth_session_uow_factory(
 
 def get_auth_api_key_read_repository(
     db_session_factory: sessionmaker[Session] = Depends(get_db_session_factory),
-) -> SQLModelApiKeyReadRepository:
+) -> AuthApiKeyRepositoryPort:
     return SQLModelApiKeyReadRepository(db_session_factory)
 
 
@@ -55,8 +66,12 @@ def get_create_session_use_case(
 
 def get_verify_session_use_case(
     session_uow_factory: AuthSessionUnitOfWorkFactory = Depends(get_auth_session_uow_factory),
+    user_repository: UserReadRepositoryPort = Depends(get_user_read_repository),
 ) -> VerifySessionUseCase:
-    return VerifySessionUseCase(uow_factory=session_uow_factory)
+    return VerifySessionUseCase(
+        uow_factory=session_uow_factory,
+        user_repository=user_repository,
+    )
 
 
 def get_revoke_session_use_case(
@@ -66,12 +81,11 @@ def get_revoke_session_use_case(
 
 
 def get_password_login_use_case(
-    settings: Settings = Depends(get_app_settings),
+    user_repository: UserReadRepositoryPort = Depends(get_user_read_repository),
     create_session_use_case: CreateSessionUseCase = Depends(get_create_session_use_case),
 ) -> PasswordLoginUseCase:
     return PasswordLoginUseCase(
-        web_username=settings.WEB_USERNAME,
-        web_password_hash=settings.WEB_PASSWORD,
+        user_repository=user_repository,
         create_session_use_case=create_session_use_case,
     )
 
@@ -83,9 +97,7 @@ def get_create_api_key_use_case(
 
 
 def get_list_api_keys_use_case(
-    api_key_read_repository: SQLModelApiKeyReadRepository = Depends(
-        get_auth_api_key_read_repository
-    ),
+    api_key_read_repository: AuthApiKeyRepositoryPort = Depends(get_auth_api_key_read_repository),
 ) -> ListApiKeysUseCase:
     return ListApiKeysUseCase(repository=api_key_read_repository)
 
@@ -104,8 +116,12 @@ def get_delete_api_key_use_case(
 
 def get_verify_api_key_use_case(
     api_key_uow_factory: AuthApiKeyUnitOfWorkFactory = Depends(get_auth_api_key_uow_factory),
+    user_repository: UserReadRepositoryPort = Depends(get_user_read_repository),
 ) -> VerifyApiKeyUseCase:
-    return VerifyApiKeyUseCase(uow_factory=api_key_uow_factory)
+    return VerifyApiKeyUseCase(
+        uow_factory=api_key_uow_factory,
+        user_repository=user_repository,
+    )
 
 
 __all__ = [
@@ -119,6 +135,7 @@ __all__ = [
     "get_password_login_use_case",
     "get_revoke_api_key_use_case",
     "get_revoke_session_use_case",
+    "get_user_read_repository",
     "get_verify_api_key_use_case",
     "get_verify_session_use_case",
 ]

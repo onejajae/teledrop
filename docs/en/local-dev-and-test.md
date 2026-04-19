@@ -17,10 +17,14 @@ You can use the provided script to set up the environment, apply Alembic migrati
 For HTTP local development, set these values in `.env`:
 
 ```dotenv
+WEB_USERNAME=admin
+WEB_PASSWORD=$argon2id$...
 SESSION_COOKIE_SECURE=false
 API_DOCS_ENABLED=true
 CORS_ALLOW_ALL=true
 ```
+
+`WEB_USERNAME` and `WEB_PASSWORD` are only used when bootstrapping the first user into an empty database.
 
 ## Manual Steps
 1. **Set up Python Environment**:

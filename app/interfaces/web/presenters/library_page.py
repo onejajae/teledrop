@@ -38,7 +38,7 @@ async def library_page_context(
 ) -> dict:
     drops = []
 
-    if auth_data.username:
+    if auth_data.is_authenticated:
         sort = SORT_MAP.get(normalize_sort_value(sortby), DropSortField.CREATED_AT)
         try:
             items = (
@@ -48,7 +48,7 @@ async def library_page_context(
                         page_size=200,
                         sort=sort,
                         order=orderby or "desc",
-                        auth=AuthIdentity(username=auth_data.username),
+                        auth=auth_data,
                     )
                 )
             ).items

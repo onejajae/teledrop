@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from app.application.auth.models import (
     CreateApiKeyCommand,
     DeleteApiKeyCommand,
+    ListApiKeysQuery,
     PasswordLoginCommand,
     RevokeApiKeyCommand,
     VerifyApiKeyQuery,
@@ -18,8 +19,8 @@ from app.application.auth.ports import (
     AuthApiKeyRecord,
     AuthSessionCreateInput,
     AuthSessionRecord,
+    UserRecord,
 )
-from app.application.auth.use_cases.csrf import CsrfTokenService
 from app.application.auth.use_cases.api_key import (
     API_KEY_PREFIX,
     CreateApiKeyUseCase,
@@ -29,10 +30,29 @@ from app.application.auth.use_cases.api_key import (
     VerifyApiKeyUseCase,
     parse_api_key_token,
 )
+from app.application.auth.use_cases.csrf import CsrfTokenService
 from app.application.auth.use_cases.password_login import PasswordLoginUseCase
 from app.application.auth.use_cases.session import CreateSessionUseCase, VerifySessionUseCase
 from app.core.config import Settings
-from app.domain.auth.errors import ApiKeyInvalid, LoginInvalid, SessionExpired
+from app.domain.auth.errors import ApiKeyInvalid, LoginInvalid, SessionExpired, SessionInvalid
+
+
+class _InMemoryUserRepository:
+    def __init__(self, users: list[UserRecord] | None = None):
+        self._by_id = {}
+        self._by_username = {}
+        for user in users or []:
+            self.add(user)
+
+    def add(self, user: UserRecord) -> None:
+        self._by_id[user.id] = user
+        self._by_username[user.username] = user
+
+    async def get_by_id(self, user_id: str) -> UserRecord | None:
+        return self._by_id.get(user_id)
+
+    async def get_by_username(self, username: str) -> UserRecord | None:
+        return self._by_username.get(username)
 
 
 class _InMemorySessionRepository:
@@ -43,7 +63,7 @@ class _InMemorySessionRepository:
     async def create(self, data: AuthSessionCreateInput) -> AuthSessionRecord:
         record = AuthSessionRecord(
             sid=data.sid,
-            username=data.username,
+            user_id=data.user_id,
             created_at=data.created_at,
             expires_at=data.expires_at,
             revoked_at=None,
@@ -94,7 +114,7 @@ class _InMemoryApiKeyRepository:
         record = AuthApiKeyRecord(
             public_id=data.public_id,
             name=data.name,
-            created_by_username=data.created_by_username,
+            owner_user_id=data.owner_user_id,
             key_hash=data.key_hash,
             created_at=data.created_at,
             expires_at=data.expires_at,
@@ -104,8 +124,8 @@ class _InMemoryApiKeyRepository:
         self.records[data.public_id] = record
         return record
 
-    async def list_all(self) -> list[AuthApiKeyRecord]:
-        return list(self.records.values())
+    async def list_for_owner(self, owner_user_id: str) -> list[AuthApiKeyRecord]:
+        return [record for record in self.records.values() if record.owner_user_id == owner_user_id]
 
     async def get_by_public_id(self, public_id: str) -> AuthApiKeyRecord | None:
         return self.records.get(public_id)
@@ -125,16 +145,21 @@ class _InMemoryApiKeyRepository:
     async def revoke_by_public_id(
         self,
         public_id: str,
+        owner_user_id: str,
         revoked_at: datetime,
     ) -> AuthApiKeyRecord | None:
         record = self.records.get(public_id)
-        if record is None:
+        if record is None or record.owner_user_id != owner_user_id:
             return None
         record.revoked_at = revoked_at
         return record
 
-    async def delete_by_public_id(self, public_id: str) -> bool:
-        return self.records.pop(public_id, None) is not None
+    async def delete_by_public_id(self, public_id: str, owner_user_id: str) -> bool:
+        record = self.records.get(public_id)
+        if record is None or record.owner_user_id != owner_user_id:
+            return False
+        self.records.pop(public_id, None)
+        return True
 
 
 class _TrackingApiKeyUow:
@@ -168,7 +193,7 @@ class _TransactionalApiKeyRepository:
         record = AuthApiKeyRecord(
             public_id=data.public_id,
             name=data.name,
-            created_by_username=data.created_by_username,
+            owner_user_id=data.owner_user_id,
             key_hash=data.key_hash,
             created_at=data.created_at,
             expires_at=data.expires_at,
@@ -259,17 +284,35 @@ def _settings(**overrides) -> Settings:
     return Settings(_env_file=None, **base)
 
 
+def _user(
+    *,
+    user_id: str = "user-1",
+    username: str = "admin",
+    password: str = "password",
+    disabled_at: datetime | None = None,
+) -> UserRecord:
+    now = datetime.now(timezone.utc)
+    return UserRecord(
+        id=user_id,
+        username=username,
+        password_hash=PasswordHasher().hash(password),
+        created_at=now,
+        updated_at=now,
+        disabled_at=disabled_at,
+    )
+
+
 class TestAuthUseCase:
-    async def test_password_login_creates_session(self):
-        settings = _settings()
+    async def test_password_login_creates_session_for_active_user(self):
+        user = _user()
+        user_repository = _InMemoryUserRepository([user])
         session_repo = _InMemorySessionRepository()
         create_session = CreateSessionUseCase(
-            session_ttl_seconds=settings.SESSION_TTL_SECONDS,
+            session_ttl_seconds=_settings().SESSION_TTL_SECONDS,
             uow_factory=_session_uow_factory(session_repo),
         )
         use_case = PasswordLoginUseCase(
-            web_username=settings.WEB_USERNAME,
-            web_password_hash=settings.WEB_PASSWORD,
+            user_repository=user_repository,
             create_session_use_case=create_session,
         )
 
@@ -277,43 +320,101 @@ class TestAuthUseCase:
             PasswordLoginCommand(username="admin", password="password")
         )
 
-        assert session.username == "admin"
-        assert session.sid
+        assert session.user_id == user.id
+        assert session.username == user.username
         assert session.sid in session_repo.records
 
-    async def test_password_login_invalid_raises(self):
-        settings = _settings()
+    async def test_password_login_rejects_invalid_or_disabled_user(self):
+        disabled_user = _user(
+            user_id="user-disabled",
+            username="disabled",
+            disabled_at=datetime.now(timezone.utc),
+        )
+        user_repository = _InMemoryUserRepository([disabled_user])
         session_repo = _InMemorySessionRepository()
         create_session = CreateSessionUseCase(
-            session_ttl_seconds=settings.SESSION_TTL_SECONDS,
+            session_ttl_seconds=_settings().SESSION_TTL_SECONDS,
             uow_factory=_session_uow_factory(session_repo),
         )
         use_case = PasswordLoginUseCase(
-            web_username=settings.WEB_USERNAME,
-            web_password_hash=settings.WEB_PASSWORD,
+            user_repository=user_repository,
             create_session_use_case=create_session,
         )
 
         with pytest.raises(LoginInvalid):
             await use_case.execute(PasswordLoginCommand(username="admin", password="wrong"))
 
-    async def test_verify_session_expired_uses_uow_transaction_boundary(self):
+        with pytest.raises(LoginInvalid):
+            await use_case.execute(PasswordLoginCommand(username="disabled", password="password"))
+
+    async def test_verify_session_returns_structured_identity(self):
+        user = _user(user_id="user-1", username="tester")
         repo = _InMemorySessionRepository()
         repo.records["sid-1"] = AuthSessionRecord(
             sid="sid-1",
-            username="tester",
+            user_id=user.id,
+            created_at=datetime.now(timezone.utc) - timedelta(minutes=5),
+            expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+            revoked_at=None,
+        )
+        use_case = VerifySessionUseCase(
+            uow_factory=_session_uow_factory(repo),
+            user_repository=_InMemoryUserRepository([user]),
+        )
+
+        identity = await use_case.execute(VerifySessionQuery(sid="sid-1"))
+
+        assert identity.user_id == user.id
+        assert identity.username == user.username
+        assert identity.is_authenticated
+
+    async def test_verify_session_expired_uses_uow_transaction_boundary(self):
+        user = _user(user_id="user-1", username="tester")
+        repo = _InMemorySessionRepository()
+        repo.records["sid-1"] = AuthSessionRecord(
+            sid="sid-1",
+            user_id=user.id,
             created_at=datetime.now(timezone.utc) - timedelta(hours=2),
             expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),
             revoked_at=None,
         )
         tracking_uow = _TrackingAuthUow(repo)
-        use_case = VerifySessionUseCase(uow_factory=lambda: tracking_uow)
+        use_case = VerifySessionUseCase(
+            uow_factory=lambda: tracking_uow,
+            user_repository=_InMemoryUserRepository([user]),
+        )
 
         with pytest.raises(SessionExpired):
             await use_case.execute(VerifySessionQuery(sid="sid-1"))
 
         assert tracking_uow.entered
         assert tracking_uow.exited
+        assert tracking_uow.commit_calls == 1
+        assert repo.revoked_calls == ["sid-1"]
+
+    async def test_verify_session_rejects_disabled_user_and_revokes_session(self):
+        user = _user(
+            user_id="user-1",
+            username="tester",
+            disabled_at=datetime.now(timezone.utc),
+        )
+        repo = _InMemorySessionRepository()
+        repo.records["sid-1"] = AuthSessionRecord(
+            sid="sid-1",
+            user_id=user.id,
+            created_at=datetime.now(timezone.utc) - timedelta(minutes=5),
+            expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+            revoked_at=None,
+        )
+        tracking_uow = _TrackingAuthUow(repo)
+        use_case = VerifySessionUseCase(
+            uow_factory=lambda: tracking_uow,
+            user_repository=_InMemoryUserRepository([user]),
+        )
+
+        with pytest.raises(SessionInvalid):
+            await use_case.execute(VerifySessionQuery(sid="sid-1"))
+
         assert tracking_uow.commit_calls == 1
         assert repo.revoked_calls == ["sid-1"]
 
@@ -364,61 +465,85 @@ class TestAuthUseCase:
             settings.validate_auth_configuration()
 
     async def test_create_api_key_list_and_verify_flow(self):
+        owner = _user(user_id="user-1", username="admin")
         repo = _InMemoryApiKeyRepository()
         create_use_case = CreateApiKeyUseCase(uow_factory=_api_key_uow_factory(repo))
 
         created = await create_use_case.execute(
             CreateApiKeyCommand(
                 name="shortcuts",
-                created_by_username="admin",
+                owner_user_id=owner.id,
                 expires_at=None,
             )
         )
         assert created.key.startswith(f"{API_KEY_PREFIX}_")
+        assert created.owner_user_id == owner.id
 
-        listed = await ListApiKeysUseCase(repository=repo).execute()
+        listed = await ListApiKeysUseCase(repository=repo).execute(
+            ListApiKeysQuery(owner_user_id=owner.id)
+        )
         assert len(listed) == 1
         assert listed[0].public_id == created.public_id
+        assert listed[0].owner_user_id == owner.id
 
-        verify_use_case = VerifyApiKeyUseCase(uow_factory=lambda: _TrackingApiKeyUow(repo))
-        username = await verify_use_case.execute(VerifyApiKeyQuery(api_key=created.key))
-        assert username == "admin"
+        verify_use_case = VerifyApiKeyUseCase(
+            uow_factory=lambda: _TrackingApiKeyUow(repo),
+            user_repository=_InMemoryUserRepository([owner]),
+        )
+        identity = await verify_use_case.execute(VerifyApiKeyQuery(api_key=created.key))
+        assert identity.user_id == owner.id
+        assert identity.username == owner.username
 
     async def test_verify_api_key_updates_last_used_and_commits_once(self):
+        owner = _user(user_id="user-1", username="admin")
         repo = _InMemoryApiKeyRepository()
         create_use_case = CreateApiKeyUseCase(uow_factory=_api_key_uow_factory(repo))
         created = await create_use_case.execute(
             CreateApiKeyCommand(
                 name="mobile",
-                created_by_username="admin",
+                owner_user_id=owner.id,
                 expires_at=None,
             )
         )
         tracking_uow = _TrackingApiKeyUow(repo)
-        use_case = VerifyApiKeyUseCase(uow_factory=lambda: tracking_uow)
+        use_case = VerifyApiKeyUseCase(
+            uow_factory=lambda: tracking_uow,
+            user_repository=_InMemoryUserRepository([owner]),
+        )
 
-        username = await use_case.execute(VerifyApiKeyQuery(api_key=created.key))
+        identity = await use_case.execute(VerifyApiKeyQuery(api_key=created.key))
 
-        assert username == "admin"
+        assert identity.user_id == owner.id
         assert tracking_uow.entered
         assert tracking_uow.exited
         assert tracking_uow.commit_calls == 1
         assert repo.touch_calls
 
-    async def test_verify_api_key_rejects_revoked_or_malformed(self):
+    async def test_verify_api_key_rejects_revoked_disabled_or_malformed(self):
+        disabled_owner = _user(
+            user_id="user-1",
+            username="admin",
+            disabled_at=datetime.now(timezone.utc),
+        )
         repo = _InMemoryApiKeyRepository()
         create_use_case = CreateApiKeyUseCase(uow_factory=_api_key_uow_factory(repo))
         created = await create_use_case.execute(
             CreateApiKeyCommand(
                 name="revoked",
-                created_by_username="admin",
+                owner_user_id=disabled_owner.id,
                 expires_at=None,
             )
         )
-        record = repo.records[created.public_id]
-        record.revoked_at = datetime.now(timezone.utc)
+        repo.records[created.public_id].revoked_at = datetime.now(timezone.utc)
 
-        use_case = VerifyApiKeyUseCase(uow_factory=lambda: _TrackingApiKeyUow(repo))
+        use_case = VerifyApiKeyUseCase(
+            uow_factory=lambda: _TrackingApiKeyUow(repo),
+            user_repository=_InMemoryUserRepository([disabled_owner]),
+        )
+        with pytest.raises(ApiKeyInvalid):
+            await use_case.execute(VerifyApiKeyQuery(api_key=created.key))
+
+        repo.records[created.public_id].revoked_at = None
         with pytest.raises(ApiKeyInvalid):
             await use_case.execute(VerifyApiKeyQuery(api_key=created.key))
 
@@ -426,12 +551,13 @@ class TestAuthUseCase:
             await use_case.execute(VerifyApiKeyQuery(api_key="bad-token"))
 
     async def test_revoke_and_delete_api_key_use_cases(self):
+        owner = _user(user_id="user-1", username="admin")
         repo = _InMemoryApiKeyRepository()
         create_use_case = CreateApiKeyUseCase(uow_factory=_api_key_uow_factory(repo))
         created = await create_use_case.execute(
             CreateApiKeyCommand(
                 name="to-remove",
-                created_by_username="admin",
+                owner_user_id=owner.id,
                 expires_at=None,
             )
         )
@@ -439,13 +565,13 @@ class TestAuthUseCase:
         delete_uow = _TrackingApiKeyUow(repo)
 
         revoked = await RevokeApiKeyUseCase(uow_factory=lambda: revoke_uow).execute(
-            RevokeApiKeyCommand(public_id=created.public_id)
+            RevokeApiKeyCommand(public_id=created.public_id, owner_user_id=owner.id)
         )
         assert revoked.revoked_at is not None
         assert revoke_uow.commit_calls == 1
 
         await DeleteApiKeyUseCase(uow_factory=lambda: delete_uow).execute(
-            DeleteApiKeyCommand(public_id=created.public_id)
+            DeleteApiKeyCommand(public_id=created.public_id, owner_user_id=owner.id)
         )
         assert delete_uow.commit_calls == 1
         assert created.public_id not in repo.records
@@ -457,7 +583,7 @@ class TestAuthUseCase:
         created = await create_use_case.execute(
             CreateApiKeyCommand(
                 name="retry-me",
-                created_by_username="admin",
+                owner_user_id="user-1",
                 expires_at=None,
             )
         )

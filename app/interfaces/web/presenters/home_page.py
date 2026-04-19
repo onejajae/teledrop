@@ -20,7 +20,7 @@ def home_page_context(
     settings: Settings,
     auth_error_code: str | None = None,
 ) -> dict:
-    if auth_data.username:
+    if auth_data.is_authenticated:
         panel_context = upload_panel_context(
             request=request,
             auth_data=auth_data,

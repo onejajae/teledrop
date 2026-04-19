@@ -7,7 +7,8 @@ from app.domain.drop.value_objects import AccessScope
 
 
 class RequestAuthContext:
-    def __init__(self, username: str | None):
+    def __init__(self, user_id: str | None, username: str | None = None):
+        self.user_id = user_id
         self.username = username
 
 
@@ -19,7 +20,16 @@ def normalize_drop_password(password: str | None) -> str | None:
 
 
 def assert_drop_access_allowed(drop: DropEntity, auth: RequestAuthContext | None):
-    if drop.access_scope == AccessScope.PRIVATE and (auth is None or auth.username is None):
+    if drop.access_scope == AccessScope.PRIVATE and not is_drop_owner(drop, auth):
+        raise DropAccessDeniedError()
+
+
+def is_drop_owner(drop: DropEntity, auth: RequestAuthContext | None) -> bool:
+    return auth is not None and auth.user_id is not None and auth.user_id == drop.owner_user_id
+
+
+def assert_drop_owner(drop: DropEntity, auth: RequestAuthContext | None):
+    if not is_drop_owner(drop, auth):
         raise DropAccessDeniedError()
 
 

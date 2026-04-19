@@ -8,6 +8,7 @@ class DropRecord(SQLModel, table=True):
     __tablename__ = "drops"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    owner_user_id: str = Field(foreign_key="users.id", index=True)
     slug: str = Field(index=True, unique=True)
 
     access_scope: str = Field(index=True)

@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from app.application.auth.types import AuthIdentity
 from app.application.drop.models import DropDetailDTO, DropListDTO, DropListItemDTO, UNSET
 from app.bootstrap.container import get_app_settings
 from app.bootstrap.providers.auth import get_verify_api_key_use_case, get_verify_session_use_case
@@ -35,19 +36,23 @@ def _credential_matches(expected: str | None, credential) -> bool:
 
 
 def _is_authenticated(auth) -> bool:
-    return bool(auth and getattr(auth, 'username', None))
+    return bool(auth and getattr(auth, 'user_id', None))
+
+
+def _is_owner(auth, dto) -> bool:
+    return bool(auth and getattr(auth, "user_id", None) == getattr(dto, "owner_user_id", None))
 
 
 class _FakeVerifySessionUseCase:
 
-    async def execute(self, _query) -> str:
-        return 'tester'
+    async def execute(self, _query) -> AuthIdentity:
+        return AuthIdentity(user_id="user-1", username='tester')
 
 
 class _FakeVerifyApiKeyUseCase:
-    async def execute(self, query) -> str:
+    async def execute(self, query) -> AuthIdentity:
         if query.api_key == "tdpk_public_secret":
-            return "tester"
+            return AuthIdentity(user_id="user-1", username="tester")
         raise ApiKeyInvalid()
 
 class _FakeDropUseCases:
@@ -79,7 +84,7 @@ class _FakeDropUseCases:
         async def execute(self, command):
             slug = command.slug or 'generated-key'
             data = command.file_stream.read()
-            dto = DropDetailDTO(slug=slug, title=command.title, description=command.description, file_name=command.file_name, mime_type=command.mime_type, size_bytes=command.size_bytes, access_scope=command.access_scope, is_favorite=False, requires_password=bool(command.drop_password), created_at=datetime.now(timezone.utc), updated_at=None, sha256='sha')
+            dto = DropDetailDTO(owner_user_id=command.owner_user_id, slug=slug, title=command.title, description=command.description, file_name=command.file_name, mime_type=command.mime_type, size_bytes=command.size_bytes, access_scope=command.access_scope, is_favorite=False, requires_password=bool(command.drop_password), created_at=datetime.now(timezone.utc), updated_at=None, sha256='sha')
             self.parent.items[slug] = {'dto': dto, 'password': command.drop_password}
             self.parent.payloads[slug] = data
             return dto
@@ -90,9 +95,9 @@ class _FakeDropUseCases:
             self.parent = parent
 
         async def execute(self, query):
-            if not query.auth.username:
+            if not query.auth.user_id:
                 raise DropAccessDeniedError()
-            items = [DropListItemDTO(slug=value['dto'].slug, title=value['dto'].title, description=value['dto'].description, file_name=value['dto'].file_name, mime_type=value['dto'].mime_type, size_bytes=value['dto'].size_bytes, access_scope=value['dto'].access_scope, is_favorite=value['dto'].is_favorite, requires_password=value['dto'].requires_password, created_at=value['dto'].created_at, updated_at=value['dto'].updated_at) for value in self.parent.items.values()]
+            items = [DropListItemDTO(owner_user_id=value['dto'].owner_user_id, slug=value['dto'].slug, title=value['dto'].title, description=value['dto'].description, file_name=value['dto'].file_name, mime_type=value['dto'].mime_type, size_bytes=value['dto'].size_bytes, access_scope=value['dto'].access_scope, is_favorite=value['dto'].is_favorite, requires_password=value['dto'].requires_password, created_at=value['dto'].created_at, updated_at=value['dto'].updated_at) for value in self.parent.items.values() if value['dto'].owner_user_id == query.auth.user_id]
             return DropListDTO(items=items, page=query.page, page_size=query.page_size, total=len(items))
 
     class _GetDropMetaUseCase:
@@ -105,9 +110,12 @@ class _FakeDropUseCases:
             if item is None:
                 raise DropNotFoundError()
             expected = item['password']
-            if not _is_authenticated(query.auth) and not _credential_matches(expected, query.drop_password):
+            dto = item['dto']
+            if dto.access_scope == AccessScope.PRIVATE and not _is_owner(query.auth, dto):
+                raise DropAccessDeniedError()
+            if not _is_owner(query.auth, dto) and not _credential_matches(expected, query.drop_password):
                 raise DropPasswordInvalidError()
-            return item['dto']
+            return dto
 
     class _GetDropStreamSourceUseCase:
 
@@ -131,10 +139,9 @@ class _FakeDropUseCases:
             item = self.parent.items.get(command.slug)
             if item is None:
                 raise DropNotFoundError()
-            expected = item['password']
-            if not _credential_matches(expected, command.current_password):
-                raise DropPasswordInvalidError()
             dto = item['dto']
+            if not _is_owner(command.auth, dto):
+                raise DropAccessDeniedError()
             if command.title is not UNSET:
                 dto.title = command.title
             if command.description is not UNSET:
@@ -156,9 +163,8 @@ class _FakeDropUseCases:
             item = self.parent.items.get(command.slug)
             if item is None:
                 raise DropNotFoundError()
-            expected = item['password']
-            if not _credential_matches(expected, command.current_password):
-                raise DropPasswordInvalidError()
+            if not _is_owner(command.auth, item['dto']):
+                raise DropAccessDeniedError()
             self.parent.items.pop(command.slug, None)
             self.parent.payloads.pop(command.slug, None)
 
@@ -227,7 +233,7 @@ class TestApiSmoke:
         assert response.headers.get('www-authenticate') == 'Session, ApiKey'
         assert 'session_id=' in response.headers.get('set-cookie', '')
 
-    def test_delete_requires_explicit_password_even_with_drop_grant_cookie(self):
+    def test_owner_delete_bypasses_drop_password(self):
         app = FastAPI()
         app.include_router(api_router, prefix='/api')
         fake_use_cases = _FakeDropUseCases()
@@ -250,9 +256,9 @@ class TestApiSmoke:
 
         deleted = client.delete('/api/drop/k-grant')
 
-        assert deleted.status_code == 401
+        assert deleted.status_code == 200
 
-    def test_authenticated_read_bypasses_drop_password(self):
+    def test_owner_read_bypasses_drop_password(self):
         app = FastAPI()
         app.include_router(api_router, prefix='/api')
         fake_use_cases = _FakeDropUseCases()
@@ -321,4 +327,4 @@ class TestApiSmoke:
 
         response = client.get('/api/auth/me', headers={"X-API-Key": "tdpk_public_secret"})
         assert response.status_code == 200
-        assert response.json() == 'tester'
+        assert response.json() == {"user_id": "user-1", "username": "tester"}

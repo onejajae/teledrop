@@ -1,6 +1,6 @@
 from fastapi import Request, status
 
-from app.application.auth.models import CreatedApiKeyDTO
+from app.application.auth.models import CreatedApiKeyDTO, ListApiKeysQuery
 from app.application.auth.types import AuthIdentity
 from app.application.auth.use_cases import CsrfTokenService, ListApiKeysUseCase
 from app.core.config import Settings
@@ -23,7 +23,8 @@ async def api_keys_page_context(
     error_message: str | None = None,
     created_api_key: CreatedApiKeyDTO | None = None,
 ) -> dict:
-    items = await list_api_keys_use_case.execute()
+    query = ListApiKeysQuery(owner_user_id=auth_data.user_id or "")
+    items = await list_api_keys_use_case.execute(query)
     return base_template_context(
         request=request,
         auth_data=auth_data,

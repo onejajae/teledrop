@@ -1,7 +1,7 @@
-import pytest
 import tempfile
 from pathlib import Path
 
+import pytest
 from sqlalchemy import create_engine, inspect, text
 
 from app.infrastructure.db.schema import (
@@ -16,6 +16,21 @@ def _create_engine(db_path: Path):
     return create_engine(f"sqlite:///{db_path.as_posix()}")
 
 
+def _bootstrap_user_id(engine) -> str:
+    with engine.begin() as conn:
+        row = conn.execute(
+            text(
+                """
+                SELECT id
+                FROM users
+                WHERE username = :username
+                """
+            ),
+            {"username": "admin"},
+        ).one()
+    return row.id
+
+
 def test_alembic_upgrade_head_creates_current_tables():
     with tempfile.TemporaryDirectory() as temp_dir:
         db_path = Path(temp_dir) / "init.db"
@@ -25,13 +40,14 @@ def test_alembic_upgrade_head_creates_current_tables():
         upgrade_sqlite_db(sqlite_url)
 
         table_names = set(inspect(engine).get_table_names())
+        assert "users" in table_names
         assert "drops" in table_names
         assert "auth_sessions" in table_names
         assert "auth_api_keys" in table_names
         engine.dispose()
 
 
-def test_alembic_upgrade_head_creates_slug_column_in_drops_table():
+def test_alembic_upgrade_head_creates_owner_user_id_and_slug_columns():
     with tempfile.TemporaryDirectory() as temp_dir:
         db_path = Path(temp_dir) / "schema.db"
         sqlite_url = f"sqlite:///{db_path.as_posix()}"
@@ -40,6 +56,7 @@ def test_alembic_upgrade_head_creates_slug_column_in_drops_table():
         upgrade_sqlite_db(sqlite_url)
 
         drop_columns = {column["name"] for column in inspect(engine).get_columns("drops")}
+        assert "owner_user_id" in drop_columns
         assert "slug" in drop_columns
         assert "key" not in drop_columns
         engine.dispose()
@@ -52,16 +69,17 @@ def test_alembic_upgrade_head_is_idempotent_and_keeps_existing_rows():
         engine = _create_engine(db_path)
 
         upgrade_sqlite_db(sqlite_url)
+        owner_user_id = _bootstrap_user_id(engine)
         with engine.begin() as conn:
             conn.execute(
                 text(
                     """
                     INSERT INTO drops (
-                        id, slug, access_scope, is_favorite, drop_password,
+                        id, owner_user_id, slug, access_scope, is_favorite, drop_password,
                         file_name, mime_type, size_bytes, sha256, storage_key,
                         title, description, created_at, updated_at
                     ) VALUES (
-                        :id, :slug, :access_scope, :is_favorite, :drop_password,
+                        :id, :owner_user_id, :slug, :access_scope, :is_favorite, :drop_password,
                         :file_name, :mime_type, :size_bytes, :sha256, :storage_key,
                         :title, :description, :created_at, :updated_at
                     )
@@ -69,6 +87,7 @@ def test_alembic_upgrade_head_is_idempotent_and_keeps_existing_rows():
                 ),
                 {
                     "id": "11111111-1111-1111-1111-111111111111",
+                    "owner_user_id": owner_user_id,
                     "slug": "legacy-drop",
                     "access_scope": "private",
                     "is_favorite": 0,
@@ -91,7 +110,7 @@ def test_alembic_upgrade_head_is_idempotent_and_keeps_existing_rows():
             row = conn.execute(
                 text(
                     """
-                    SELECT slug, file_name, storage_key
+                    SELECT owner_user_id, slug, file_name, storage_key
                     FROM drops
                     WHERE slug = :slug
                     """
@@ -99,6 +118,7 @@ def test_alembic_upgrade_head_is_idempotent_and_keeps_existing_rows():
                 {"slug": "legacy-drop"},
             ).one()
 
+        assert row.owner_user_id == owner_user_id
         assert row.slug == "legacy-drop"
         assert row.file_name == "legacy.txt"
         assert row.storage_key == "legacy-storage"

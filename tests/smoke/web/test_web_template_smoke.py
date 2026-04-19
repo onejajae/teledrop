@@ -41,6 +41,7 @@ def _drop_vm(
     updated_at_label: str | None = '2026-03-08 (일) 01:00:00',
 ):
     return DropVM(
+        owner_user_id='user-1',
         slug=slug,
         title=title,
         description=description,
@@ -65,7 +66,6 @@ def _api_key_vm(
     *,
     name: str,
     public_id: str,
-    created_by_username: str,
     expires_at,
     last_used_at,
     is_active: bool,
@@ -75,7 +75,6 @@ def _api_key_vm(
     return ApiKeyVM(
         name=name,
         public_id=public_id,
-        created_by_username=created_by_username,
         created_at=created_at,
         expires_at=expires_at,
         last_used_at=last_used_at,
@@ -247,7 +246,7 @@ def _full_page_cases():
                 ],
                 catalog_public_drop=_drop_vm('launch', '런치 패키지', 'launch-kit.pdf', 'application/pdf', 'public', True, True, '2일 전'),
                 catalog_private_drop=_drop_vm('teaser', '티저 컷', 'teaser-shot.png', 'image/png', 'private', False, False, '5시간 전'),
-                catalog_api_key=_api_key_vm(name='shortcuts', public_id='tdp_01', created_by_username='tester', expires_at='2026-04-01', last_used_at='2026-03-08', is_active=True),
+                catalog_api_key=_api_key_vm(name='shortcuts', public_id='tdp_01', expires_at='2026-04-01', last_used_at='2026-03-08', is_active=True),
                 catalog_created_api_key=CreatedApiKeyVM(key='td_live_demo_sample_secret_key'),
             ),
             False,
@@ -441,7 +440,7 @@ class TestWebTemplateSmoke:
             ],
             catalog_public_drop=_drop_vm('launch', '런치 패키지', 'launch-kit.pdf', 'application/pdf', 'public', True, True, '2일 전'),
             catalog_private_drop=_drop_vm('teaser', '티저 컷', 'teaser-shot.png', 'image/png', 'private', False, False, '5시간 전'),
-            catalog_api_key=_api_key_vm(name='shortcuts', public_id='tdp_01', created_by_username='tester', expires_at='2026-04-01', last_used_at='2026-03-08', is_active=True),
+            catalog_api_key=_api_key_vm(name='shortcuts', public_id='tdp_01', expires_at='2026-04-01', last_used_at='2026-03-08', is_active=True),
             catalog_created_api_key=CreatedApiKeyVM(key='td_live_demo_sample_secret_key'),
         )
         assert 'Web Components' in html
@@ -638,7 +637,6 @@ class TestWebUiContract:
                 _api_key_vm(
                     name='CLI',
                     public_id='pk_123',
-                    created_by_username='tester',
                     expires_at=None,
                     last_used_at='2026-03-08 09:00:00+00:00',
                     is_active=True,
@@ -653,7 +651,8 @@ class TestWebUiContract:
         assert 'td_secret_value' in html
         assert 'Public ID' in html
         assert 'pk_123' in html
-        assert 'tester' in html
+        assert '생성' in html
+        assert '생성자' not in html
         assert 'active' in html
         assert 'revoke' in html
         assert 'delete' in html

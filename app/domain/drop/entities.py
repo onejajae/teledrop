@@ -7,6 +7,7 @@ from app.domain.drop.value_objects import AccessScope
 @dataclass(slots=True)
 class DropEntity:
     id: str
+    owner_user_id: str
     slug: str
     access_scope: AccessScope
     is_favorite: bool

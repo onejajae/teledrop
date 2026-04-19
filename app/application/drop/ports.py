@@ -10,6 +10,7 @@ from app.domain.drop.value_objects import AccessScope, DropSortField
 
 @dataclass(slots=True)
 class DropCreateInput:
+    owner_user_id: str
     slug: str
     access_scope: AccessScope
     is_favorite: bool
@@ -36,21 +37,28 @@ class DropRepositoryPort(Protocol):
     async def list(
         self,
         *,
+        owner_user_id: str,
         limit: int,
         offset: int,
         sort: DropSortField,
         order: str,
     ) -> list[DropEntity]: ...
 
-    async def count(self) -> int: ...
+    async def count(self, *, owner_user_id: str) -> int: ...
 
     async def get_by_slug(self, slug: str) -> DropEntity | None: ...
 
+    async def get_owned_by_slug(
+        self, slug: str, *, owner_user_id: str
+    ) -> DropEntity | None: ...
+
     async def create(self, data: DropCreateInput) -> DropEntity: ...
 
-    async def update_by_slug(self, slug: str, data: DropUpdateInput) -> DropEntity | None: ...
+    async def update_by_slug(
+        self, slug: str, *, owner_user_id: str, data: DropUpdateInput
+    ) -> DropEntity | None: ...
 
-    async def delete_by_slug(self, slug: str) -> bool: ...
+    async def delete_by_slug(self, slug: str, *, owner_user_id: str) -> bool: ...
 
 
 class DropSlugCandidateGeneratorPort(Protocol):

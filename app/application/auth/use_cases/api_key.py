@@ -17,7 +17,9 @@ from app.application.auth.ports import (
     AuthApiKeyRepositoryPort,
     AuthApiKeyRecord,
     AuthApiKeyUnitOfWorkFactory,
+    UserReadRepositoryPort,
 )
+from app.application.auth.types import AuthIdentity
 from app.domain.auth.errors import ApiKeyInvalid, ApiKeyNotFound
 
 
@@ -70,7 +72,7 @@ def _to_api_key_dto(record: AuthApiKeyRecord) -> ApiKeyDTO:
     return ApiKeyDTO(
         public_id=record.public_id,
         name=record.name,
-        created_by_username=record.created_by_username,
+        owner_user_id=record.owner_user_id,
         created_at=record.created_at,
         expires_at=record.expires_at,
         last_used_at=record.last_used_at,
@@ -106,7 +108,7 @@ class CreateApiKeyUseCase:
                         AuthApiKeyCreateInput(
                             public_id=public_id,
                             name=name,
-                            created_by_username=command.created_by_username,
+                            owner_user_id=command.owner_user_id,
                             key_hash=key_hash,
                             created_at=now,
                             expires_at=expires_at,
@@ -120,7 +122,7 @@ class CreateApiKeyUseCase:
             return CreatedApiKeyDTO(
                 public_id=created.public_id,
                 name=created.name,
-                created_by_username=created.created_by_username,
+                owner_user_id=created.owner_user_id,
                 created_at=created.created_at,
                 expires_at=created.expires_at,
                 last_used_at=created.last_used_at,
@@ -135,8 +137,8 @@ class ListApiKeysUseCase:
     def __init__(self, repository: AuthApiKeyRepositoryPort):
         self.repository = repository
 
-    async def execute(self) -> list[ApiKeyDTO]:
-        records = await self.repository.list_all()
+    async def execute(self, query) -> list[ApiKeyDTO]:
+        records = await self.repository.list_for_owner(query.owner_user_id)
         return [_to_api_key_dto(record) for record in records]
 
 
@@ -149,6 +151,7 @@ class RevokeApiKeyUseCase:
         async with self.uow_factory() as uow:
             record = await uow.repository.revoke_by_public_id(
                 command.public_id,
+                owner_user_id=command.owner_user_id,
                 revoked_at=revoked_at,
             )
             if record is None:
@@ -163,17 +166,25 @@ class DeleteApiKeyUseCase:
 
     async def execute(self, command: DeleteApiKeyCommand) -> None:
         async with self.uow_factory() as uow:
-            deleted = await uow.repository.delete_by_public_id(command.public_id)
+            deleted = await uow.repository.delete_by_public_id(
+                command.public_id,
+                owner_user_id=command.owner_user_id,
+            )
             if not deleted:
                 raise ApiKeyNotFound()
             await uow.commit()
 
 
 class VerifyApiKeyUseCase:
-    def __init__(self, uow_factory: AuthApiKeyUnitOfWorkFactory):
+    def __init__(
+        self,
+        uow_factory: AuthApiKeyUnitOfWorkFactory,
+        user_repository: UserReadRepositoryPort,
+    ):
         self.uow_factory = uow_factory
+        self.user_repository = user_repository
 
-    async def execute(self, query: VerifyApiKeyQuery) -> str:
+    async def execute(self, query: VerifyApiKeyQuery) -> AuthIdentity:
         public_id, secret = parse_api_key_token(query.api_key)
         expected_hash = _hash_key_material(public_id, secret)
 
@@ -193,12 +204,16 @@ class VerifyApiKeyUseCase:
             if not secrets.compare_digest(record.key_hash, expected_hash):
                 raise ApiKeyInvalid()
 
+            user = await self.user_repository.get_by_id(record.owner_user_id)
+            if user is None or user.disabled_at is not None:
+                raise ApiKeyInvalid()
+
             touched = await uow.repository.touch_last_used_at(public_id, used_at=now)
             if touched is None:
                 raise ApiKeyInvalid()
 
             await uow.commit()
-            return touched.created_by_username
+            return AuthIdentity(user_id=user.id, username=user.username)
 
 
 __all__ = [

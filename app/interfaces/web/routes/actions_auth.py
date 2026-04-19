@@ -6,6 +6,7 @@ from fastapi.responses import RedirectResponse
 from app.application.auth.models import (
     CreateApiKeyCommand,
     DeleteApiKeyCommand,
+    ListApiKeysQuery,
     PasswordLoginCommand,
     RevokeApiKeyCommand,
 )
@@ -46,6 +47,15 @@ from app.interfaces.web.presenters.auth_panel import render_auth_panel
 router = APIRouter(prefix="/actions/auth")
 
 
+async def _list_visible_api_keys(
+    *,
+    list_api_keys_use_case: ListApiKeysUseCase,
+    auth_data: AuthIdentity,
+):
+    query = ListApiKeysQuery(owner_user_id=auth_data.user_id or "")
+    return await list_api_keys_use_case.execute(query)
+
+
 @router.post("/login")
 async def ui_login(
     request: Request,
@@ -63,7 +73,7 @@ async def ui_login(
         if is_hx_request(request):
             return render_auth_panel(
                 request=request,
-                auth_data=AuthIdentity(username=None),
+                auth_data=AuthIdentity(user_id=None, username=None),
                 csrf_service=csrf_service,
                 settings=settings,
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -204,7 +214,7 @@ async def ui_create_api_key(
         created = await create_api_key_use_case.execute(
             CreateApiKeyCommand(
                 name=name,
-                created_by_username=auth_data.username or "",
+                owner_user_id=auth_data.user_id or "",
                 expires_at=parsed_expires_at,
             )
         )
@@ -252,8 +262,25 @@ async def ui_revoke_api_key(
     if guard_response is not None:
         return guard_response
 
+    visible_items = await _list_visible_api_keys(
+        list_api_keys_use_case=list_api_keys_use_case,
+        auth_data=auth_data,
+    )
+    if public_id not in {item.public_id for item in visible_items}:
+        return await render_api_keys_page(
+            request=request,
+            auth_data=auth_data,
+            csrf_service=csrf_service,
+            list_api_keys_use_case=list_api_keys_use_case,
+            settings=settings,
+            status_code=status.HTTP_404_NOT_FOUND,
+            error_message="존재하지 않는 API key 입니다.",
+        )
+
     try:
-        await revoke_api_key_use_case.execute(RevokeApiKeyCommand(public_id=public_id))
+        await revoke_api_key_use_case.execute(
+            RevokeApiKeyCommand(public_id=public_id, owner_user_id=auth_data.user_id or "")
+        )
     except ApiKeyNotFound:
         return await render_api_keys_page(
             request=request,
@@ -297,8 +324,25 @@ async def ui_delete_api_key(
     if guard_response is not None:
         return guard_response
 
+    visible_items = await _list_visible_api_keys(
+        list_api_keys_use_case=list_api_keys_use_case,
+        auth_data=auth_data,
+    )
+    if public_id not in {item.public_id for item in visible_items}:
+        return await render_api_keys_page(
+            request=request,
+            auth_data=auth_data,
+            csrf_service=csrf_service,
+            list_api_keys_use_case=list_api_keys_use_case,
+            settings=settings,
+            status_code=status.HTTP_404_NOT_FOUND,
+            error_message="존재하지 않는 API key 입니다.",
+        )
+
     try:
-        await delete_api_key_use_case.execute(DeleteApiKeyCommand(public_id=public_id))
+        await delete_api_key_use_case.execute(
+            DeleteApiKeyCommand(public_id=public_id, owner_user_id=auth_data.user_id or "")
+        )
     except ApiKeyNotFound:
         return await render_api_keys_page(
             request=request,

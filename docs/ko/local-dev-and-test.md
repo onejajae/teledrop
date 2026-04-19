@@ -17,10 +17,14 @@ Docker 없이 직접 실행하려면 아래 순서로 진행하면 됩니다.
 HTTP 기반 로컬 개발에서는 다음 값을 사용하는 것을 권장합니다:
 
 ```dotenv
+WEB_USERNAME=admin
+WEB_PASSWORD=$argon2id$...
 SESSION_COOKIE_SECURE=false
 API_DOCS_ENABLED=true
 CORS_ALLOW_ALL=true
 ```
+
+`WEB_USERNAME`, `WEB_PASSWORD`는 빈 데이터베이스에 첫 사용자를 넣을 때만 사용됩니다.
 
 ## 수동 실행 절차
 1. **Python 의존성 동기화**

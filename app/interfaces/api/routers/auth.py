@@ -44,7 +44,10 @@ async def login(
 async def get_user_info(
     auth_data: AuthIdentity = Depends(get_required_api_auth),
 ):
-    return auth_data.username
+    return {
+        "user_id": auth_data.user_id,
+        "username": auth_data.username,
+    }
 
 
 @router.get("/logout")

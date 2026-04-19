@@ -2,11 +2,12 @@
 
 ## Authentication
 * Password login is required for web UI access
-* Configure account credentials with `WEB_USERNAME` and `WEB_PASSWORD`
+* `WEB_USERNAME` and `WEB_PASSWORD` are used only to bootstrap the first database-backed web user on an empty database
 * Protected REST API endpoints accept:
   * session cookie authentication
   * `X-API-Key: tdpk_<public_id>_<secret>`
 * API key management is web-login only (`/settings/api-keys`)
+* The API key management page only shows the current user's keys
 * Authentication failures for protected REST API return `401` with:
   * `WWW-Authenticate: Session, ApiKey`
 
@@ -42,6 +43,11 @@ Useful auth endpoints:
 * `DELETE /api/drop/{slug}` (`X-Drop-Password` header for protected drops)
 * `GET /api/drop/availability/{slug}`
 
+Ownership and masking rules:
+* New drops are created for the currently authenticated user
+* Private drops are visible only to their owner
+* Private non-owner access is masked as `404` in both API and web UI
+
 ## Web Action Paths (HTMX Forms)
 * `POST /actions/auth/login`
 * `POST /actions/auth/logout`
@@ -60,7 +66,7 @@ Useful auth endpoints:
 ## HTMX SSR Preview UI
 * `GET /` (login + upload/list/detail management panel)
 * `GET /<FILE_SLUG>` (dashboard preview view)
-* `GET /settings/api-keys` (web API key management page; login required)
+* `GET /settings/api-keys` (web API key management page; login required; shows only the current user's keys)
 * UI write actions use CSRF-protected form submissions.
 * Unlocking a password-protected drop redirects back to the clean URL without exposing the password in query parameters.
 * After deploying a new `CSRF_SECRET_KEY`, previously rendered form tokens are expected to fail (403).

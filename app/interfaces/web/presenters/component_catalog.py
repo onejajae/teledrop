@@ -34,6 +34,7 @@ def _sample_drop(
     updated_at_label: str | None = None,
 ) -> DropVM:
     return DropVM(
+        owner_user_id="user_demo",
         slug=slug,
         title=title,
         description=description,
@@ -98,7 +99,6 @@ def component_catalog_context(
         catalog_api_key=ApiKeyVM(
             name="shortcuts",
             public_id="tdp_01HZY8M4T2B6C9",
-            created_by_username="tester",
             created_at=datetime.fromisoformat("2026-03-01T09:00:00+09:00"),
             expires_at="2026-04-01 09:00:00+09:00",
             last_used_at="2026-03-08 08:11:00+09:00",

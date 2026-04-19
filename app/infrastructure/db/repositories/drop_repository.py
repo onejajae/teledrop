@@ -22,6 +22,7 @@ DROP_MUTATION_REPOSITORY_INACTIVE_SESSION_ERROR = "Drop UnitOfWork session is no
 def _build_record(data: DropCreateInput) -> DropRecord:
     now = datetime.now(timezone.utc)
     return DropRecord(
+        owner_user_id=data.owner_user_id,
         slug=data.slug,
         access_scope=data.access_scope.value,
         is_favorite=data.is_favorite,
@@ -45,7 +46,8 @@ def _find_by_slug_row(session: Session, slug: str) -> DropRecord | None:
 
 def _to_entity(row: DropRecord) -> DropEntity:
     return DropEntity(
-        id=str(row.id),
+        id=row.id.hex,
+        owner_user_id=row.owner_user_id,
         slug=row.slug,
         access_scope=AccessScope(row.access_scope),
         is_favorite=bool(row.is_favorite),
@@ -110,15 +112,24 @@ class SQLModelDropRepository(DropRepositoryPort):
     async def list(
         self,
         *,
+        owner_user_id: str,
         limit: int,
         offset: int,
         sort: DropSortField,
         order: str,
     ) -> list[DropEntity]:
-        return await anyio.to_thread.run_sync(self._list, limit, offset, sort, order)
+        return await anyio.to_thread.run_sync(
+            self._list,
+            owner_user_id,
+            limit,
+            offset,
+            sort,
+            order,
+        )
 
     def _list(
         self,
+        owner_user_id: str,
         limit: int,
         offset: int,
         sort: DropSortField,
@@ -132,18 +143,28 @@ class SQLModelDropRepository(DropRepositoryPort):
                 sort_column = DropRecord.size_bytes
 
             ordered_column = sort_column.asc() if order == "asc" else sort_column.desc()
-            query = select(DropRecord).order_by(ordered_column).limit(limit).offset(offset)
+            query = (
+                select(DropRecord)
+                .where(DropRecord.owner_user_id == owner_user_id)
+                .order_by(ordered_column)
+                .limit(limit)
+                .offset(offset)
+            )
             rows = session.exec(query).all()
             return [_to_entity(row) for row in rows]
 
         return self._with_read_session(operation)
 
-    async def count(self) -> int:
-        return await anyio.to_thread.run_sync(self._count)
+    async def count(self, *, owner_user_id: str) -> int:
+        return await anyio.to_thread.run_sync(self._count, owner_user_id)
 
-    def _count(self) -> int:
+    def _count(self, owner_user_id: str) -> int:
         def operation(session: Session) -> int:
-            query = select(func.count()).select_from(DropRecord)
+            query = (
+                select(func.count())
+                .select_from(DropRecord)
+                .where(DropRecord.owner_user_id == owner_user_id)
+            )
             result = session.exec(query).one()
             return int(result)
 
@@ -161,6 +182,20 @@ class SQLModelDropRepository(DropRepositoryPort):
 
         return self._with_read_session(operation)
 
+    async def get_owned_by_slug(
+        self, slug: str, *, owner_user_id: str
+    ) -> DropEntity | None:
+        return await anyio.to_thread.run_sync(self._get_owned_by_slug, slug, owner_user_id)
+
+    def _get_owned_by_slug(self, slug: str, owner_user_id: str) -> DropEntity | None:
+        def operation(session: Session) -> DropEntity | None:
+            row = _find_by_slug_row(session, slug)
+            if row is None or row.owner_user_id != owner_user_id:
+                return None
+            return _to_entity(row)
+
+        return self._with_read_session(operation)
+
     async def create(self, data: DropCreateInput) -> DropEntity:
         session = self._require_session()
         record = _build_record(data)
@@ -169,10 +204,16 @@ class SQLModelDropRepository(DropRepositoryPort):
         session.refresh(record)
         return _to_entity(record)
 
-    async def update_by_slug(self, slug: str, data: DropUpdateInput) -> DropEntity | None:
+    async def update_by_slug(
+        self,
+        slug: str,
+        *,
+        owner_user_id: str,
+        data: DropUpdateInput,
+    ) -> DropEntity | None:
         session = self._require_session()
         row = _find_by_slug_row(session, slug)
-        if row is None:
+        if row is None or row.owner_user_id != owner_user_id:
             return None
         _apply_update(row, data)
         session.add(row)
@@ -180,10 +221,10 @@ class SQLModelDropRepository(DropRepositoryPort):
         session.refresh(row)
         return _to_entity(row)
 
-    async def delete_by_slug(self, slug: str) -> bool:
+    async def delete_by_slug(self, slug: str, *, owner_user_id: str) -> bool:
         session = self._require_session()
         row = _find_by_slug_row(session, slug)
-        if row is None:
+        if row is None or row.owner_user_id != owner_user_id:
             return False
         session.delete(row)
         session.flush()

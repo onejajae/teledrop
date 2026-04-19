@@ -103,7 +103,7 @@ async def list_drops(
 
 @router.post("", response_model=DropDetailResponse)
 async def upload_drop(
-    _auth_data: AuthIdentity = Depends(get_required_api_auth),
+    auth_data: AuthIdentity = Depends(get_required_api_auth),
     create_drop_use_case: CreateDropUseCase = Depends(get_create_drop_use_case),
     file: UploadFile = File(),
     slug: str | None = Form(default=None),
@@ -120,6 +120,7 @@ async def upload_drop(
         file.file.seek(current_pos)
 
     command = CreateDropCommand(
+        owner_user_id=auth_data.user_id or "",
         file_stream=file.file,
         file_name=file.filename,
         mime_type=file.content_type,
@@ -240,7 +241,7 @@ async def drop_stream(
 async def patch_drop(
     slug: str,
     payload: DropPatchRequest,
-    _auth_data: AuthIdentity = Depends(get_required_api_auth),
+    auth_data: AuthIdentity = Depends(get_required_api_auth),
     update_drop_use_case: UpdateDropUseCase = Depends(get_update_drop_use_case),
 ):
     title = payload.title if "title" in payload.model_fields_set else COMMAND_UNSET
@@ -261,6 +262,7 @@ async def patch_drop(
         result = await update_drop_use_case.execute(
             UpdateDropCommand(
                 slug=slug,
+                auth=auth_data,
                 current_password=build_drop_password_credential(
                     password=normalize_drop_password(payload.current_password)
                 ),
@@ -280,7 +282,7 @@ async def patch_drop(
 @router.delete("/{slug}")
 async def delete_drop(
     slug: str,
-    _auth_data: AuthIdentity = Depends(get_required_api_auth),
+    auth_data: AuthIdentity = Depends(get_required_api_auth),
     delete_drop_use_case: DeleteDropUseCase = Depends(get_delete_drop_use_case),
     current_password: str | None = Header(default=None, alias="X-Drop-Password"),
 ):
@@ -288,6 +290,7 @@ async def delete_drop(
         await delete_drop_use_case.execute(
             DeleteDropCommand(
                 slug=slug,
+                auth=auth_data,
                 current_password=build_drop_password_credential(
                     password=normalize_drop_password(current_password)
                 ),

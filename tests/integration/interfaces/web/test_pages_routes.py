@@ -1,11 +1,14 @@
 from types import SimpleNamespace
 
-from fastapi import FastAPI
+from datetime import datetime, timezone
+from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 
+from app.application.auth.types import AuthIdentity
 from app.bootstrap.container import get_app_settings, get_csrf_token_service
 from app.bootstrap.providers.auth import get_list_api_keys_use_case, get_verify_session_use_case
 from app.domain.auth.errors import SessionInvalid
+from app.interfaces.deps.auth import get_optional_session_auth
 from app.interfaces.web.router import router as web_router
 
 
@@ -28,11 +31,30 @@ class _FakeCsrfService:
 
 
 class _FakeListApiKeysUseCase:
-    async def execute(self):
-        return []
+    def __init__(self):
+        self.items = []
+
+    async def execute(self, query=None):
+        if query is None:
+            return list(self.items)
+        return [item for item in self.items if item.owner_user_id == query.owner_user_id]
 
 
-def _client() -> TestClient:
+def _auth_identity() -> AuthIdentity:
+    return AuthIdentity(user_id="user-1", username="tester")
+
+
+def _anonymous_identity() -> AuthIdentity:
+    return AuthIdentity(user_id=None, username=None)
+
+
+async def _fake_optional_session_auth(request: Request) -> AuthIdentity:
+    if request.cookies.get("session_id"):
+        return _auth_identity()
+    return _anonymous_identity()
+
+
+def _client(list_api_keys_use_case: _FakeListApiKeysUseCase | None = None) -> TestClient:
     app = FastAPI()
     app.include_router(web_router)
     fake_settings = SimpleNamespace(
@@ -47,8 +69,11 @@ def _client() -> TestClient:
     )
     app.dependency_overrides[get_app_settings] = lambda: fake_settings
     app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
+    app.dependency_overrides[get_optional_session_auth] = _fake_optional_session_auth
     app.dependency_overrides[get_csrf_token_service] = lambda: _FakeCsrfService()
-    app.dependency_overrides[get_list_api_keys_use_case] = lambda: _FakeListApiKeysUseCase()
+    app.dependency_overrides[get_list_api_keys_use_case] = (
+        lambda: list_api_keys_use_case or _FakeListApiKeysUseCase()
+    )
     return TestClient(app)
 
 
@@ -95,6 +120,40 @@ class TestWebPagesRoutes:
         assert "API Keys" in response.text
         assert "API key 생성" in response.text
 
+    def test_settings_api_keys_only_shows_current_users_keys(self):
+        api_keys_use_case = _FakeListApiKeysUseCase()
+        api_keys_use_case.items.extend(
+            [
+                SimpleNamespace(
+                    public_id="mine",
+                    name="mine",
+                    owner_user_id="user-1",
+                    created_at=datetime.now(timezone.utc),
+                    expires_at=None,
+                    last_used_at=None,
+                    revoked_at=None,
+                ),
+                SimpleNamespace(
+                    public_id="foreign",
+                    name="foreign",
+                    owner_user_id="user-2",
+                    created_at=datetime.now(timezone.utc),
+                    expires_at=None,
+                    last_used_at=None,
+                    revoked_at=None,
+                ),
+            ]
+        )
+        client = _client(api_keys_use_case)
+        client.cookies.set("session_id", "sid")
+
+        response = client.get("/settings/api-keys")
+
+        assert response.status_code == 200
+        assert "mine" in response.text
+        assert "foreign" not in response.text
+        assert "생성자" not in response.text
+
     def test_home_renders_auth_error_banner_from_query(self):
         client = _client()
 
@@ -120,6 +179,12 @@ class TestWebPagesRoutes:
         app.dependency_overrides[get_verify_session_use_case] = (
             lambda: _FakeInvalidVerifySessionUseCase()
         )
+        async def _stale_optional_session_auth(request: Request) -> AuthIdentity:
+            if request.cookies.get("session_id"):
+                request.state.clear_session_cookie_pending = True
+            return _anonymous_identity()
+
+        app.dependency_overrides[get_optional_session_auth] = _stale_optional_session_auth
         app.dependency_overrides[get_csrf_token_service] = lambda: _FakeCsrfService()
         app.dependency_overrides[get_list_api_keys_use_case] = lambda: _FakeListApiKeysUseCase()
         client = TestClient(app)

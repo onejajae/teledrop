@@ -93,9 +93,13 @@ def base_template_context(
     csrf_service: CsrfTokenService,
     **extra: object,
 ) -> dict[str, object]:
+    is_authenticated = bool(
+        getattr(auth_data, "is_authenticated", getattr(auth_data, "user_id", None))
+        or getattr(auth_data, "username", None)
+    )
     context: dict[str, object] = {
         "request": request,
-        "is_login": bool(auth_data.username),
+        "is_login": is_authenticated,
         "csrf_token": csrf_token_for_request(request, settings, csrf_service),
     }
     context.update(extra)
@@ -214,6 +218,7 @@ def as_drop_vm(item: DropListItemDTO | DropDetailDTO) -> DropVM:
     updated_at_label = _format_datetime_label_ko(item.updated_at)
     created_at_relative = _format_relative_time_ko(item.created_at)
     return DropVM(
+        owner_user_id=getattr(item, "owner_user_id", ""),
         slug=slug,
         title=item.title,
         description=item.description,
@@ -241,7 +246,6 @@ def as_api_key_vm(item: ApiKeyDTO) -> ApiKeyVM:
     return ApiKeyVM(
         public_id=item.public_id,
         name=item.name,
-        created_by_username=item.created_by_username,
         created_at=item.created_at,
         expires_at=expires_at,
         last_used_at=item.last_used_at,

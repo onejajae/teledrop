@@ -3,13 +3,14 @@ from types import SimpleNamespace
 import pytest
 from fastapi import HTTPException, Request, Response
 
+from app.application.auth.types import AuthIdentity
 from app.domain.auth.errors import ApiKeyInvalid, SessionExpired, SessionInvalid
 from app.interfaces.api.deps.auth import SessionOnlyAuthenticator, SessionOrApiKeyAuthenticator
 
 
 class _FakeVerifySessionUseCase:
-    def __init__(self, *, username: str = "tester", exc: Exception | None = None):
-        self.username = username
+    def __init__(self, *, identity: AuthIdentity | None = None, exc: Exception | None = None):
+        self.identity = identity or AuthIdentity(user_id="user-1", username="tester")
         self.exc = exc
         self.queries = []
 
@@ -17,12 +18,12 @@ class _FakeVerifySessionUseCase:
         self.queries.append(query)
         if self.exc is not None:
             raise self.exc
-        return self.username
+        return self.identity
 
 
 class _FakeVerifyApiKeyUseCase:
-    def __init__(self, *, username: str = "tester", exc: Exception | None = None):
-        self.username = username
+    def __init__(self, *, identity: AuthIdentity | None = None, exc: Exception | None = None):
+        self.identity = identity or AuthIdentity(user_id="user-1", username="tester")
         self.exc = exc
         self.queries = []
 
@@ -30,7 +31,7 @@ class _FakeVerifyApiKeyUseCase:
         self.queries.append(query)
         if self.exc is not None:
             raise self.exc
-        return self.username
+        return self.identity
 
 
 def _request(cookies: dict[str, str] | None = None, api_key: str | None = None) -> Request:
@@ -88,6 +89,7 @@ class TestSessionOnlyAuthenticator:
         )
 
         assert identity.username is None
+        assert identity.user_id is None
 
     @pytest.mark.parametrize("raised", [SessionExpired(), SessionInvalid()])
     async def test_invalid_or_expired_session_clears_cookie_and_raises_401(self, raised: Exception):
@@ -118,10 +120,13 @@ class TestSessionOrApiKeyAuthenticator:
             response=Response(),
             settings=_settings(),
             verify_session_use_case=_FakeVerifySessionUseCase(),
-            verify_api_key_use_case=_FakeVerifyApiKeyUseCase(username="api-user"),
+            verify_api_key_use_case=_FakeVerifyApiKeyUseCase(
+                identity=AuthIdentity(user_id="user-api", username="api-user")
+            ),
         )
 
         assert identity.username == "api-user"
+        assert identity.user_id == "user-api"
 
     async def test_invalid_api_key_raises_auth_error(self):
         authenticator = SessionOrApiKeyAuthenticator(auto_error=True)
@@ -141,8 +146,12 @@ class TestSessionOrApiKeyAuthenticator:
 
     async def test_valid_session_short_circuits_api_key(self):
         authenticator = SessionOrApiKeyAuthenticator(auto_error=True)
-        verify_session = _FakeVerifySessionUseCase(username="session-user")
-        verify_api_key = _FakeVerifyApiKeyUseCase(username="api-user")
+        verify_session = _FakeVerifySessionUseCase(
+            identity=AuthIdentity(user_id="user-session", username="session-user")
+        )
+        verify_api_key = _FakeVerifyApiKeyUseCase(
+            identity=AuthIdentity(user_id="user-api", username="api-user")
+        )
 
         identity = await authenticator(
             request=_request({"session_id": "sid-2"}, api_key="tdpk_public_secret"),
@@ -153,5 +162,6 @@ class TestSessionOrApiKeyAuthenticator:
         )
 
         assert identity.username == "session-user"
+        assert identity.user_id == "user-session"
         assert verify_session.queries[0].sid == "sid-2"
         assert not verify_api_key.queries

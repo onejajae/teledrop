@@ -2,11 +2,12 @@
 
 ## 인증
 * 웹 UI 접근은 비밀번호 로그인이 필요
-* 계정 정보는 `WEB_USERNAME`, `WEB_PASSWORD`로 설정
+* `WEB_USERNAME`, `WEB_PASSWORD`는 빈 데이터베이스에서 첫 웹 사용자를 만드는 부트스트랩 값으로만 사용됩니다
 * 보호된 REST API 엔드포인트는 다음 인증을 허용:
   * 세션 쿠키 인증
   * `X-API-Key: tdpk_<public_id>_<secret>`
 * API key 관리 기능은 웹 로그인 후 `/settings/api-keys`에서만 사용 가능
+* API key 관리 페이지는 현재 사용자의 키만 보여줍니다
 * 보호된 REST API 인증 실패는 `401`과 함께 다음 헤더를 반환:
   * `WWW-Authenticate: Session, ApiKey`
 
@@ -42,6 +43,11 @@
 * `DELETE /api/drop/{slug}` (보호된 드롭은 `X-Drop-Password` 헤더 사용)
 * `GET /api/drop/availability/{slug}`
 
+소유권 및 마스킹 규칙:
+* 새 드롭은 현재 인증된 사용자 소유로 생성됩니다
+* private 드롭은 소유자만 볼 수 있습니다
+* private 드롭에 대한 비소유자 접근은 API와 웹 UI 모두에서 `404`로 마스킹됩니다
+
 ## 웹 액션 경로(HTMX 폼)
 * `POST /actions/auth/login`
 * `POST /actions/auth/logout`
@@ -60,7 +66,7 @@
 ## HTMX SSR 미리보기 UI
 * `GET /` (로그인 + 업로드/목록/상세 관리 패널)
 * `GET /<파일_SLUG>` (대시보드 미리보기 뷰)
-* `GET /settings/api-keys` (웹 API key 관리 페이지, 로그인 필요)
+* `GET /settings/api-keys` (웹 API key 관리 페이지, 로그인 필요, 현재 사용자의 키만 표시)
 * UI의 상태 변경 요청은 CSRF 보호가 적용됩니다.
 * 비밀번호 보호 드롭 잠금 해제 후에는 쿼리스트링 없이 clean URL로 다시 이동합니다.
 * `CSRF_SECRET_KEY`를 변경해 배포하면, 기존에 렌더된 폼 토큰은 403으로 거부되는 것이 정상입니다.

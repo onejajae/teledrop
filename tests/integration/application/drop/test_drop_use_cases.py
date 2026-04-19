@@ -44,6 +44,7 @@ class _InMemoryRepository:
         now = datetime.now(timezone.utc)
         entity = DropEntity(
             id=f"id-{data.slug}",
+            owner_user_id=data.owner_user_id,
             slug=data.slug,
             access_scope=data.access_scope,
             is_favorite=data.is_favorite,
@@ -61,8 +62,16 @@ class _InMemoryRepository:
         self.items[data.slug] = entity
         return entity
 
-    async def list(self, *, limit: int, offset: int, sort: DropSortField, order: str):
-        values = list(self.items.values())
+    async def list(
+        self,
+        *,
+        owner_user_id: str,
+        limit: int,
+        offset: int,
+        sort: DropSortField,
+        order: str,
+    ):
+        values = [item for item in self.items.values() if item.owner_user_id == owner_user_id]
         if sort == DropSortField.TITLE:
             values.sort(key=lambda item: item.title or item.file_name)
         elif sort == DropSortField.SIZE_BYTES:
@@ -75,15 +84,21 @@ class _InMemoryRepository:
 
         return values[offset : offset + limit]
 
-    async def count(self) -> int:
-        return len(self.items)
+    async def count(self, *, owner_user_id: str) -> int:
+        return sum(1 for item in self.items.values() if item.owner_user_id == owner_user_id)
 
     async def get_by_slug(self, slug: str):
         return self.items.get(slug)
 
-    async def update_by_slug(self, slug: str, data: DropUpdateInput):
+    async def get_owned_by_slug(self, slug: str, *, owner_user_id: str):
         current = self.items.get(slug)
-        if current is None:
+        if current is None or current.owner_user_id != owner_user_id:
+            return None
+        return current
+
+    async def update_by_slug(self, slug: str, *, owner_user_id: str, data: DropUpdateInput):
+        current = self.items.get(slug)
+        if current is None or current.owner_user_id != owner_user_id:
             return None
 
         if data.title is not UNSET:
@@ -100,8 +115,12 @@ class _InMemoryRepository:
         self.items[slug] = current
         return current
 
-    async def delete_by_slug(self, slug: str) -> bool:
-        return self.items.pop(slug, None) is not None
+    async def delete_by_slug(self, slug: str, *, owner_user_id: str) -> bool:
+        current = self.items.get(slug)
+        if current is None or current.owner_user_id != owner_user_id:
+            return False
+        self.items.pop(slug, None)
+        return True
 
 
 class _InMemoryDropUow:
@@ -221,17 +240,23 @@ def _password_credential(password: str | None) -> DropPasswordCredential | None:
     return DropPasswordCredential(password=password)
 
 
+def _auth(user_id: str | None, username: str | None = None) -> AuthIdentity:
+    return AuthIdentity(user_id=user_id, username=username)
+
+
 async def _seed_drop(
     repo: _InMemoryRepository,
     *,
     slug: str,
     storage_key: str,
+    owner_user_id: str = "user-1",
     drop_password: str | None = "pw",
     title: str | None = "title",
     description: str | None = "desc",
 ) -> DropEntity:
     return await repo.create(
         DropCreateInput(
+            owner_user_id=owner_user_id,
             slug=slug,
             access_scope=AccessScope.PRIVATE,
             is_favorite=False,
@@ -255,6 +280,7 @@ class TestDropUseCases:
 
             created = await use_cases.create_drop_use_case.execute(
                 CreateDropCommand(
+                    owner_user_id="user-1",
                     file_stream=io.BytesIO(b"hello world"),
                     file_name="hello.txt",
                     mime_type="text/plain",
@@ -274,16 +300,18 @@ class TestDropUseCases:
                     page_size=20,
                     sort=DropSortField.CREATED_AT,
                     order="desc",
-                    auth=AuthIdentity(username="tester"),
+                    auth=_auth("user-1", "tester"),
                 )
             )
             assert listed.total == 1
             assert listed.items[0].slug == "k1"
+            assert listed.items[0].owner_user_id == "user-1"
 
             updated = await use_cases.update_drop_use_case.execute(
                 UpdateDropCommand(
                     slug="k1",
-                    current_password=_password_credential("pw"),
+                    auth=_auth("user-1", "tester"),
+                    current_password=None,
                     title="t2",
                     is_favorite=True,
                 )
@@ -294,8 +322,8 @@ class TestDropUseCases:
             detail, storage_key = await use_cases.stream_source_use_case.execute(
                 DropStreamQuery(
                     slug="k1",
-                    drop_password=_password_credential("pw"),
-                    auth=AuthIdentity(username="tester"),
+                    drop_password=None,
+                    auth=_auth("user-1", "tester"),
                 )
             )
             assert detail.file_name == "hello.txt"
@@ -310,7 +338,8 @@ class TestDropUseCases:
             await use_cases.delete_drop_use_case.execute(
                 DeleteDropCommand(
                     slug="k1",
-                    current_password=_password_credential("pw"),
+                    auth=_auth("user-1", "tester"),
+                    current_password=None,
                 )
             )
             assert (
@@ -320,7 +349,7 @@ class TestDropUseCases:
                         page_size=20,
                         sort=DropSortField.CREATED_AT,
                         order="desc",
-                        auth=AuthIdentity(username="tester"),
+                        auth=_auth("user-1", "tester"),
                     )
                 )
             ).total == 0
@@ -343,6 +372,7 @@ class TestDropUseCases:
 
             created = await create_use_case.execute(
                 CreateDropCommand(
+                    owner_user_id="user-1",
                     file_stream=io.BytesIO(b"hello"),
                     file_name="hello.txt",
                     mime_type="text/plain",
@@ -374,9 +404,32 @@ class TestDropUseCases:
                     page_size=20,
                     sort=DropSortField.CREATED_AT,
                     order="desc",
-                    auth=AuthIdentity(username=None),
+                    auth=_auth(None, None),
                 )
             )
+
+    async def test_list_drops_returns_only_owner_items(self):
+        repo = _InMemoryRepository()
+        await _seed_drop(repo, slug="mine", storage_key="storage-mine", owner_user_id="user-1")
+        await _seed_drop(repo, slug="other", storage_key="storage-other", owner_user_id="user-2")
+        use_case = ListDropsUseCase(
+            repository=repo,
+            default_page_size=10,
+            max_page_size=200,
+        )
+
+        listed = await use_case.execute(
+            DropListQuery(
+                page=1,
+                page_size=20,
+                sort=DropSortField.CREATED_AT,
+                order="desc",
+                auth=_auth("user-1", "tester"),
+            )
+        )
+
+        assert listed.total == 1
+        assert [item.slug for item in listed.items] == ["mine"]
 
     async def test_create_normalizes_password_with_trim(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -385,6 +438,7 @@ class TestDropUseCases:
 
             created = await use_cases.create_drop_use_case.execute(
                 CreateDropCommand(
+                    owner_user_id="user-1",
                     file_stream=io.BytesIO(b"hello"),
                     file_name="hello.txt",
                     mime_type="text/plain",
@@ -407,6 +461,7 @@ class TestDropUseCases:
 
             await use_cases.create_drop_use_case.execute(
                 CreateDropCommand(
+                    owner_user_id="user-1",
                     file_stream=io.BytesIO(b"hello"),
                     file_name="hello.txt",
                     mime_type="text/plain",
@@ -422,7 +477,8 @@ class TestDropUseCases:
             omitted_title = await use_cases.update_drop_use_case.execute(
                 UpdateDropCommand(
                     slug="k-update",
-                    current_password=_password_credential("pw"),
+                    auth=_auth("user-1", "tester"),
+                    current_password=None,
                     description=None,
                 )
             )
@@ -432,19 +488,21 @@ class TestDropUseCases:
             explicit_null_title = await use_cases.update_drop_use_case.execute(
                 UpdateDropCommand(
                     slug="k-update",
-                    current_password=_password_credential("pw"),
+                    auth=_auth("user-1", "tester"),
+                    current_password=None,
                     title=None,
                 )
             )
             assert explicit_null_title.title is None
 
-    async def test_update_can_clear_password_with_bypass_flag(self):
+    async def test_owner_can_clear_password_without_current_password(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             repo = _InMemoryRepository()
             use_cases = _build_use_cases(repo, temp_dir)
 
             await use_cases.create_drop_use_case.execute(
                 CreateDropCommand(
+                    owner_user_id="user-1",
                     file_stream=io.BytesIO(b"hello"),
                     file_name="hello.txt",
                     mime_type="text/plain",
@@ -460,14 +518,44 @@ class TestDropUseCases:
             updated = await use_cases.update_drop_use_case.execute(
                 UpdateDropCommand(
                     slug="k-clear",
+                    auth=_auth("user-1", "tester"),
                     current_password=None,
-                    bypass_password_check=True,
                     new_password=None,
                 )
             )
 
             assert updated.requires_password is False
             assert repo.items["k-clear"].drop_password is None
+
+    async def test_non_owner_cannot_update_or_delete_private_drop(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo = _InMemoryRepository()
+            use_cases = _build_use_cases(repo, temp_dir)
+            await _seed_drop(
+                repo,
+                slug="owned",
+                storage_key="storage-owned",
+                owner_user_id="user-1",
+            )
+
+            with pytest.raises(DropAccessDeniedError):
+                await use_cases.update_drop_use_case.execute(
+                    UpdateDropCommand(
+                        slug="owned",
+                        auth=_auth("user-2", "other"),
+                        current_password=None,
+                        title="nope",
+                    )
+                )
+
+            with pytest.raises(DropAccessDeniedError):
+                await use_cases.delete_drop_use_case.execute(
+                    DeleteDropCommand(
+                        slug="owned",
+                        auth=_auth("user-2", "other"),
+                        current_password=None,
+                    )
+                )
 
     async def test_delete_finalizes_staged_file_on_success(self):
         repo = _InMemoryRepository()
@@ -482,7 +570,8 @@ class TestDropUseCases:
         await use_case.execute(
             DeleteDropCommand(
                 slug="k-delete",
-                current_password=_password_credential("pw"),
+                auth=_auth("user-1", "tester"),
+                current_password=None,
             )
         )
 
@@ -504,7 +593,8 @@ class TestDropUseCases:
             await use_case.execute(
                 DeleteDropCommand(
                     slug="k-rollback",
-                    current_password=_password_credential("pw"),
+                    auth=_auth("user-1", "tester"),
+                    current_password=None,
                 )
             )
 

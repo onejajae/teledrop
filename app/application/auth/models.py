@@ -16,6 +16,7 @@ class VerifySessionQuery:
 @dataclass(slots=True)
 class AuthSessionDTO:
     sid: str
+    user_id: str
     username: str
     created_at: datetime
     expires_at: datetime
@@ -25,18 +26,25 @@ class AuthSessionDTO:
 @dataclass(slots=True)
 class CreateApiKeyCommand:
     name: str
-    created_by_username: str
+    owner_user_id: str
     expires_at: datetime | None
+
+
+@dataclass(slots=True)
+class ListApiKeysQuery:
+    owner_user_id: str
 
 
 @dataclass(slots=True)
 class RevokeApiKeyCommand:
     public_id: str
+    owner_user_id: str
 
 
 @dataclass(slots=True)
 class DeleteApiKeyCommand:
     public_id: str
+    owner_user_id: str
 
 
 @dataclass(slots=True)
@@ -48,7 +56,7 @@ class VerifyApiKeyQuery:
 class ApiKeyDTO:
     public_id: str
     name: str
-    created_by_username: str
+    owner_user_id: str
     created_at: datetime
     expires_at: datetime | None
     last_used_at: datetime | None
@@ -66,6 +74,7 @@ __all__ = [
     "CreateApiKeyCommand",
     "CreatedApiKeyDTO",
     "DeleteApiKeyCommand",
+    "ListApiKeysQuery",
     "PasswordLoginCommand",
     "RevokeApiKeyCommand",
     "VerifyApiKeyQuery",

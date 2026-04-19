@@ -1,9 +1,10 @@
 from datetime import datetime, timezone
 import io
 from types import SimpleNamespace
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 
+from app.application.auth.types import AuthIdentity
 from app.application.drop.models import DropDetailDTO, DropListDTO, DropListItemDTO, UNSET
 from app.bootstrap.container import get_app_settings, get_csrf_token_service
 from app.bootstrap.providers.auth import get_revoke_session_use_case, get_verify_session_use_case
@@ -16,6 +17,7 @@ from app.bootstrap.providers.drop import (
 )
 from app.domain.drop.errors import DropNotFoundError, DropPasswordInvalidError
 from app.domain.drop.value_objects import AccessScope
+from app.interfaces.deps.auth import get_optional_session_auth
 from app.interfaces.web.router import router as web_router
 
 
@@ -31,7 +33,17 @@ def _credential_matches(expected: str | None, credential) -> bool:
 
 
 def _is_authenticated(auth) -> bool:
-    return bool(auth and getattr(auth, 'username', None))
+    return bool(auth and getattr(auth, 'user_id', None))
+
+
+def _auth_identity() -> AuthIdentity:
+    return AuthIdentity(user_id='user-1', username='tester')
+
+
+async def _fake_optional_session_auth(request: Request) -> AuthIdentity:
+    if request.cookies.get('session_id'):
+        return _auth_identity()
+    return AuthIdentity(user_id=None, username=None)
 
 
 class _FakeVerifySessionUseCase:
@@ -77,7 +89,7 @@ class _FakeDropUseCases:
             self.parent = parent
 
         async def execute(self, command):
-            dto = DropDetailDTO(slug=command.slug, title=command.title, description=command.description, file_name=command.file_name, mime_type=command.mime_type, size_bytes=command.size_bytes, access_scope=command.access_scope, is_favorite=False, requires_password=bool(command.drop_password), created_at=datetime.now(timezone.utc), updated_at=None, sha256='sha')
+            dto = DropDetailDTO(owner_user_id=command.owner_user_id, slug=command.slug, title=command.title, description=command.description, file_name=command.file_name, mime_type=command.mime_type, size_bytes=command.size_bytes, access_scope=command.access_scope, is_favorite=False, requires_password=bool(command.drop_password), created_at=datetime.now(timezone.utc), updated_at=None, sha256='sha')
             self.parent.items[dto.slug] = {'dto': dto, 'password': command.drop_password}
             return dto
 
@@ -87,7 +99,7 @@ class _FakeDropUseCases:
             self.parent = parent
 
         async def execute(self, _query):
-            items = [DropListItemDTO(slug=value['dto'].slug, title=value['dto'].title, description=value['dto'].description, file_name=value['dto'].file_name, mime_type=value['dto'].mime_type, size_bytes=value['dto'].size_bytes, access_scope=value['dto'].access_scope, is_favorite=value['dto'].is_favorite, requires_password=value['dto'].requires_password, created_at=value['dto'].created_at, updated_at=value['dto'].updated_at) for value in self.parent.items.values()]
+            items = [DropListItemDTO(owner_user_id=value['dto'].owner_user_id, slug=value['dto'].slug, title=value['dto'].title, description=value['dto'].description, file_name=value['dto'].file_name, mime_type=value['dto'].mime_type, size_bytes=value['dto'].size_bytes, access_scope=value['dto'].access_scope, is_favorite=value['dto'].is_favorite, requires_password=value['dto'].requires_password, created_at=value['dto'].created_at, updated_at=value['dto'].updated_at) for value in self.parent.items.values()]
             return DropListDTO(items=items, page=1, page_size=200, total=len(items))
 
     class _GetDropMetaUseCase:
@@ -121,7 +133,7 @@ class _FakeDropUseCases:
             if item is None:
                 raise DropNotFoundError()
             expected = item['password']
-            if not getattr(command, 'bypass_password_check', False) and not _credential_matches(expected, command.current_password):
+            if getattr(command, 'auth', None) is None or command.auth.user_id != item['dto'].owner_user_id:
                 raise DropPasswordInvalidError()
             dto = item['dto']
             if command.title is not UNSET:
@@ -147,7 +159,7 @@ class _FakeDropUseCases:
             if item is None:
                 raise DropNotFoundError()
             expected = item['password']
-            if not getattr(command, 'bypass_password_check', False) and not _credential_matches(expected, command.current_password):
+            if getattr(command, 'auth', None) is None or command.auth.user_id != item['dto'].owner_user_id:
                 raise DropPasswordInvalidError()
             self.parent.items.pop(command.slug, None)
 
@@ -160,6 +172,7 @@ class TestWebActionsSmoke:
         fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, CSRF_SECRET_KEY='csrf-secret', DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
         app.dependency_overrides[get_app_settings] = lambda: fake_settings
         app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
+        app.dependency_overrides[get_optional_session_auth] = _fake_optional_session_auth
         app.dependency_overrides[get_csrf_token_service] = lambda: _FakeCsrfService()
         app.dependency_overrides[get_revoke_session_use_case] = lambda: _FakeRevokeSessionUseCase()
         app.dependency_overrides[get_create_drop_use_case] = lambda: fake_use_cases.create_drop_use_case
@@ -173,6 +186,7 @@ class TestWebActionsSmoke:
         upload = client.post('/actions/drop/upload', headers=headers, data={'csrf_token': 'csrf', 'slug': 'kweb', 'user_only': 'true'}, files={'file': ('hello.txt', io.BytesIO(b'hello'), 'text/plain')})
         assert upload.status_code == 204
         assert upload.headers.get('HX-Redirect') == '/drops/kweb'
+        assert fake_use_cases.items['kweb']['dto'].owner_user_id == 'user-1'
         update = client.post('/actions/drop/kweb/detail', headers=headers, data={'csrf_token': 'csrf', 'title': 'new-title'})
         assert update.status_code == 200
         assert '메타데이터가 수정되었습니다.' in update.text
@@ -190,6 +204,7 @@ class TestWebActionsSmoke:
         fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, CSRF_SECRET_KEY='csrf-secret', DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
         app.dependency_overrides[get_app_settings] = lambda: fake_settings
         app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
+        app.dependency_overrides[get_optional_session_auth] = _fake_optional_session_auth
         app.dependency_overrides[get_csrf_token_service] = lambda: _FakeCsrfService()
         app.dependency_overrides[get_revoke_session_use_case] = lambda: _FakeRevokeSessionUseCase()
         app.dependency_overrides[get_create_drop_use_case] = lambda: fake_use_cases.create_drop_use_case
@@ -201,7 +216,7 @@ class TestWebActionsSmoke:
         client.cookies.set('session_id', 'sid')
 
         fake_use_cases.items['locked'] = {
-            'dto': DropDetailDTO(slug='locked', title='locked', description=None, file_name='locked.txt', mime_type='text/plain', size_bytes=5, access_scope=AccessScope.PRIVATE, is_favorite=False, requires_password=True, created_at=datetime.now(timezone.utc), updated_at=None, sha256='sha'),
+            'dto': DropDetailDTO(owner_user_id='user-1', slug='locked', title='locked', description=None, file_name='locked.txt', mime_type='text/plain', size_bytes=5, access_scope=AccessScope.PRIVATE, is_favorite=False, requires_password=True, created_at=datetime.now(timezone.utc), updated_at=None, sha256='sha'),
             'password': 'pw',
         }
 
@@ -219,6 +234,7 @@ class TestWebActionsSmoke:
         fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, CSRF_SECRET_KEY='csrf-secret', DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
         app.dependency_overrides[get_app_settings] = lambda: fake_settings
         app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
+        app.dependency_overrides[get_optional_session_auth] = _fake_optional_session_auth
         app.dependency_overrides[get_csrf_token_service] = lambda: _FakeCsrfService()
         app.dependency_overrides[get_revoke_session_use_case] = lambda: _FakeRevokeSessionUseCase()
         app.dependency_overrides[get_create_drop_use_case] = lambda: fake_use_cases.create_drop_use_case
@@ -230,7 +246,7 @@ class TestWebActionsSmoke:
         client.cookies.set('session_id', 'sid')
 
         fake_use_cases.items['fresh'] = {
-            'dto': DropDetailDTO(slug='fresh', title='fresh', description=None, file_name='fresh.txt', mime_type='text/plain', size_bytes=5, access_scope=AccessScope.PRIVATE, is_favorite=False, requires_password=False, created_at=datetime.now(timezone.utc), updated_at=None, sha256='sha'),
+            'dto': DropDetailDTO(owner_user_id='user-1', slug='fresh', title='fresh', description=None, file_name='fresh.txt', mime_type='text/plain', size_bytes=5, access_scope=AccessScope.PRIVATE, is_favorite=False, requires_password=False, created_at=datetime.now(timezone.utc), updated_at=None, sha256='sha'),
             'password': None,
         }
 
@@ -259,6 +275,7 @@ class TestWebActionsSmoke:
         fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, CSRF_SECRET_KEY='csrf-secret', DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
         app.dependency_overrides[get_app_settings] = lambda: fake_settings
         app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
+        app.dependency_overrides[get_optional_session_auth] = _fake_optional_session_auth
         app.dependency_overrides[get_csrf_token_service] = lambda: _FakeCsrfService()
         app.dependency_overrides[get_revoke_session_use_case] = lambda: _FakeRevokeSessionUseCase()
         app.dependency_overrides[get_create_drop_use_case] = lambda: fake_use_cases.create_drop_use_case
@@ -270,7 +287,7 @@ class TestWebActionsSmoke:
         client.cookies.set('session_id', 'sid')
 
         fake_use_cases.items['locked'] = {
-            'dto': DropDetailDTO(slug='locked', title='locked', description=None, file_name='locked.txt', mime_type='text/plain', size_bytes=5, access_scope=AccessScope.PRIVATE, is_favorite=False, requires_password=True, created_at=datetime.now(timezone.utc), updated_at=None, sha256='sha'),
+            'dto': DropDetailDTO(owner_user_id='user-1', slug='locked', title='locked', description=None, file_name='locked.txt', mime_type='text/plain', size_bytes=5, access_scope=AccessScope.PRIVATE, is_favorite=False, requires_password=True, created_at=datetime.now(timezone.utc), updated_at=None, sha256='sha'),
             'password': 'oldpw',
         }
 
@@ -294,6 +311,7 @@ class TestWebActionsSmoke:
         fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, CSRF_SECRET_KEY='csrf-secret', DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
         app.dependency_overrides[get_app_settings] = lambda: fake_settings
         app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
+        app.dependency_overrides[get_optional_session_auth] = _fake_optional_session_auth
         app.dependency_overrides[get_csrf_token_service] = lambda: _FakeCsrfService()
         app.dependency_overrides[get_revoke_session_use_case] = lambda: _FakeRevokeSessionUseCase()
         app.dependency_overrides[get_create_drop_use_case] = lambda: fake_use_cases.create_drop_use_case
@@ -305,7 +323,7 @@ class TestWebActionsSmoke:
         client.cookies.set('session_id', 'sid')
 
         fake_use_cases.items['fresh'] = {
-            'dto': DropDetailDTO(slug='fresh', title='fresh', description=None, file_name='fresh.txt', mime_type='text/plain', size_bytes=5, access_scope=AccessScope.PRIVATE, is_favorite=False, requires_password=False, created_at=datetime.now(timezone.utc), updated_at=None, sha256='sha'),
+            'dto': DropDetailDTO(owner_user_id='user-1', slug='fresh', title='fresh', description=None, file_name='fresh.txt', mime_type='text/plain', size_bytes=5, access_scope=AccessScope.PRIVATE, is_favorite=False, requires_password=False, created_at=datetime.now(timezone.utc), updated_at=None, sha256='sha'),
             'password': None,
         }
 

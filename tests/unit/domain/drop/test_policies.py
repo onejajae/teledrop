@@ -8,6 +8,8 @@ from app.domain.drop.grants import DropPasswordCredential, DropPasswordGrantServ
 from app.domain.drop.policies import (
     RequestAuthContext,
     assert_drop_access_allowed,
+    assert_drop_owner,
+    is_drop_owner,
     assert_drop_password_matches,
     normalize_drop_password,
 )
@@ -16,11 +18,13 @@ from app.domain.drop.value_objects import AccessScope
 
 def _drop(
     *,
+    owner_user_id: str = "user-1",
     access_scope: AccessScope = AccessScope.PRIVATE,
     drop_password: str | None = None,
 ) -> DropEntity:
     return DropEntity(
         id="drop-1",
+        owner_user_id=owner_user_id,
         slug="slug-1",
         access_scope=access_scope,
         is_favorite=False,
@@ -66,15 +70,32 @@ class TestDropPolicies:
         with pytest.raises(DropAccessDeniedError):
             assert_drop_access_allowed(
                 _drop(access_scope=AccessScope.PRIVATE),
-                RequestAuthContext(username=None),
+                RequestAuthContext(user_id=None, username=None),
             )
 
-    def test_assert_drop_access_allowed_permits_public_and_authenticated_access(self):
+    def test_assert_drop_access_allowed_permits_public_and_owner_access(self):
         assert_drop_access_allowed(_drop(access_scope=AccessScope.PUBLIC), None)
         assert_drop_access_allowed(
             _drop(access_scope=AccessScope.PRIVATE),
-            RequestAuthContext(username="tester"),
+            RequestAuthContext(user_id="user-1", username="tester"),
         )
+
+    def test_assert_drop_access_allowed_rejects_private_non_owner(self):
+        with pytest.raises(DropAccessDeniedError):
+            assert_drop_access_allowed(
+                _drop(access_scope=AccessScope.PRIVATE, owner_user_id="user-1"),
+                RequestAuthContext(user_id="user-2", username="other"),
+            )
+
+    def test_owner_helpers_use_user_id(self):
+        drop = _drop(owner_user_id="user-1")
+
+        assert is_drop_owner(drop, RequestAuthContext(user_id="user-1"))
+        assert not is_drop_owner(drop, RequestAuthContext(user_id="user-2"))
+
+        assert_drop_owner(drop, RequestAuthContext(user_id="user-1"))
+        with pytest.raises(DropAccessDeniedError):
+            assert_drop_owner(drop, RequestAuthContext(user_id="user-2"))
 
     def test_assert_drop_password_matches_accepts_none_pair_and_trimmed_match(self):
         assert_drop_password_matches(

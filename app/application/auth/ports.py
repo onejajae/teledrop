@@ -6,9 +6,19 @@ from typing import Protocol
 
 
 @dataclass(slots=True)
+class UserRecord:
+    id: str
+    username: str
+    password_hash: str
+    created_at: datetime
+    updated_at: datetime
+    disabled_at: datetime | None
+
+
+@dataclass(slots=True)
 class AuthSessionCreateInput:
     sid: str
-    username: str
+    user_id: str
     created_at: datetime
     expires_at: datetime
 
@@ -16,7 +26,7 @@ class AuthSessionCreateInput:
 @dataclass(slots=True)
 class AuthSessionRecord:
     sid: str
-    username: str
+    user_id: str
     created_at: datetime
     expires_at: datetime
     revoked_at: datetime | None
@@ -26,7 +36,7 @@ class AuthSessionRecord:
 class AuthApiKeyCreateInput:
     public_id: str
     name: str
-    created_by_username: str
+    owner_user_id: str
     key_hash: str
     created_at: datetime
     expires_at: datetime | None
@@ -36,12 +46,18 @@ class AuthApiKeyCreateInput:
 class AuthApiKeyRecord:
     public_id: str
     name: str
-    created_by_username: str
+    owner_user_id: str
     key_hash: str
     created_at: datetime
     expires_at: datetime | None
     last_used_at: datetime | None
     revoked_at: datetime | None
+
+
+class UserReadRepositoryPort(Protocol):
+    async def get_by_id(self, user_id: str) -> UserRecord | None: ...
+
+    async def get_by_username(self, username: str) -> UserRecord | None: ...
 
 
 class AuthSessionRepositoryPort(Protocol):
@@ -55,7 +71,7 @@ class AuthSessionRepositoryPort(Protocol):
 class AuthApiKeyRepositoryPort(Protocol):
     async def create(self, data: AuthApiKeyCreateInput) -> AuthApiKeyRecord: ...
 
-    async def list_all(self) -> list[AuthApiKeyRecord]: ...
+    async def list_for_owner(self, owner_user_id: str) -> list[AuthApiKeyRecord]: ...
 
     async def get_by_public_id(self, public_id: str) -> AuthApiKeyRecord | None: ...
 
@@ -68,10 +84,11 @@ class AuthApiKeyRepositoryPort(Protocol):
     async def revoke_by_public_id(
         self,
         public_id: str,
+        owner_user_id: str,
         revoked_at: datetime,
     ) -> AuthApiKeyRecord | None: ...
 
-    async def delete_by_public_id(self, public_id: str) -> bool: ...
+    async def delete_by_public_id(self, public_id: str, owner_user_id: str) -> bool: ...
 
 
 class AuthSessionUnitOfWorkPort(Protocol):
@@ -123,4 +140,6 @@ __all__ = [
     "AuthSessionRecord",
     "AuthSessionUnitOfWorkFactory",
     "AuthSessionUnitOfWorkPort",
+    "UserReadRepositoryPort",
+    "UserRecord",
 ]

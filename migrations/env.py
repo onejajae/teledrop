@@ -5,7 +5,7 @@ from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 
 from app.core.config import get_settings
-from app.infrastructure.db.models import AuthApiKey, AuthSession, DropRecord
+from app.infrastructure.db.models import AuthApiKey, AuthSession, DropRecord, UserRecord
 
 config = context.config
 
