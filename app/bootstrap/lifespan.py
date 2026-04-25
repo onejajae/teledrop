@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from app.bootstrap.container import ensure_app_infra
 from app.bootstrap.runtime_paths import sqlite_parent_dir_from_url
 from app.core.config import Settings
-from app.infrastructure.db.schema import assert_db_schema_current
+from app.infrastructure.db.schema import initialize_database_schema
 
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ def build_lifespan(settings: Settings):
         db_engine = _app.state.infra.db_engine
 
         try:
-            assert_db_schema_current(db_engine)
+            initialize_database_schema(db_engine, settings)
             yield
         finally:
             db_engine.dispose()

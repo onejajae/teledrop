@@ -12,7 +12,7 @@ from app.infrastructure.db.repositories.api_key_repository import (
     SQLModelApiKeyMutationRepository,
     SQLModelApiKeyReadRepository,
 )
-from tests.support.alembic import upgrade_sqlite_db
+from tests.support.db import initialize_sqlite_db
 
 
 class TestApiKeyRepository:
@@ -20,7 +20,7 @@ class TestApiKeyRepository:
         self._temp_dir = tempfile.TemporaryDirectory()
         db_path = Path(self._temp_dir.name) / "api-keys.db"
         sqlite_url = f"sqlite:///{db_path.as_posix()}"
-        upgrade_sqlite_db(sqlite_url)
+        initialize_sqlite_db(sqlite_url)
         settings = SimpleNamespace(SQLITE_HOST=sqlite_url)
         self.engine = create_db_engine(settings)
         self.session_factory = create_db_session_factory(self.engine)

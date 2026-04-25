@@ -12,14 +12,14 @@ REST API를 기반으로 하는 개인용 파일 공유 플랫폼
 
 ### 2. 사용자 비밀번호 해시 생성
 1. 비밀번호는 Argon2 알고리즘을 사용하여 해시해야 합니다.
-> **주의사항:** `compose.yml` 파일에서 환경 변수를 설정할 때 `$` 기호를 `$$` 로 변경해야 합니다.   
+> **주의사항:** `compose.yml` 파일에서 환경 변수를 설정할 때 `$` 기호를 `$$` 로 변경해야 합니다.
 > ```yaml
 > WEB_PASSWORD: $$argon2id$$v=19$$m=65536,t=3,p=4$$0123456789ABCDEF$$abcdefghijklmnopqrstuvwxyz0123456789
 > ```
 > 이렇게 해야 `$` 기호를 올바르게 입력할 수 있습니다.
 
 2. `WEB_USERNAME`, `WEB_PASSWORD`는 부트스트랩 전용 값입니다. 빈 데이터베이스로 처음 실행할 때 초기 웹 사용자를 생성하는 데만 사용됩니다.
-3. 빈 데이터베이스에서 부트스트랩 값을 지정하지 않으면 기본 계정이 `admin/password`로 생성됩니다.  
+3. 빈 데이터베이스에서 부트스트랩 값을 지정하지 않으면 기본 계정이 `admin/password`로 생성됩니다.
 외부 사용자에게 노출되는 환경에서는 실행 전에 반드시 변경하세요.
 
 ### 3. teledrop 실행
@@ -55,7 +55,7 @@ docker run --detach \
    ghcr.io/onejajae/teledrop:latest
 ```
 
-### 4. 옵션 
+### 4. 옵션
 * 리버스 프록시 뒤에서 실행
 > teledrop을 리버스 프록시 뒤에서 실행하는 경우 실제 클라이언트 IP 주소를 얻기 위해 다음 옵션을 추가할 수 있습니다.
 > ```yaml
@@ -65,7 +65,7 @@ docker run --detach \
 >     ...
 >     command: "--proxy-headers --forwarded-allow-ips *"
 >     ...
-> ``` 
+	> ```
 
 * 멀티 워커/인스턴스 환경의 `CSRF_SECRET_KEY` 공유
 > `CSRF_SECRET_KEY`는 기본적으로 프로세스마다 랜덤 값이 생성됩니다.
@@ -116,15 +116,12 @@ docker run --detach \
 >     command: "--workers <프로세스_개수>"
 >     ...
 > ```
-> 사용자, 세션, API key, drop 소유권은 데이터베이스에 저장됩니다.  
+> 사용자, 세션, API key, drop 소유권은 데이터베이스에 저장됩니다.
 > 여러 인스턴스/워커를 실행하면 모든 인스턴스가 동일한 데이터베이스와 파일 저장소를 공유해야 합니다.
 
 * Docker 엔트리포인트 없이 직접 앱 시작
-> teledrop은 시작 시 데이터베이스 스키마를 검증하지만 테이블을 자동 생성하지 않습니다.
-> `uvicorn`을 직접 실행하기 전에 Alembic 마이그레이션을 적용하세요:
-> ```bash
-> uv run alembic -c alembic.ini upgrade head
-> ```
+> teledrop은 빈 데이터베이스에서 시작할 때 현재 스키마를 자동 생성합니다.
+> 기존 Alembic/레거시 데이터베이스는 자동 변환하지 않으므로, 이 버전을 시작하기 전에 `share/database.db`를 백업한 뒤 삭제하세요.
 
 ## 문서
 * [인증 및 API](auth-and-api.md)

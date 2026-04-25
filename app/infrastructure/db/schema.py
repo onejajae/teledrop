@@ -1,80 +1,108 @@
-from alembic.config import Config
-from alembic.runtime.migration import MigrationContext
-from alembic.script import ScriptDirectory
-from alembic.util.exc import CommandError
+from datetime import datetime, timezone
+
+from sqlalchemy import inspect
 from sqlalchemy.engine import Engine
+from sqlalchemy.sql import func
+from sqlmodel import SQLModel, Session, select
 
-from app.bootstrap.runtime_paths import project_root_dir
+from app.core.config import Settings
+from app.infrastructure.db.models import AuthApiKey, AuthSession, DropRecord, UserRecord
 
 
-ALEMBIC_UPGRADE_COMMAND = "uv run alembic -c alembic.ini upgrade head"
+INCOMPATIBLE_DATABASE_HINT = (
+    "Existing database schema is not compatible with this version. "
+    "Back up and remove the old database file, then restart teledrop to create a fresh database."
+)
+
+_CURRENT_REQUIRED_COLUMNS = {
+    "users": {"id", "username", "password_hash", "created_at", "updated_at", "disabled_at"},
+    "drops": {
+        "id",
+        "owner_user_id",
+        "slug",
+        "access_scope",
+        "is_favorite",
+        "drop_password",
+        "file_name",
+        "mime_type",
+        "size_bytes",
+        "sha256",
+        "storage_key",
+        "title",
+        "description",
+        "created_at",
+        "updated_at",
+    },
+    "auth_sessions": {"sid", "user_id", "created_at", "expires_at", "revoked_at"},
+    "auth_api_keys": {
+        "id",
+        "public_id",
+        "name",
+        "owner_user_id",
+        "key_hash",
+        "created_at",
+        "expires_at",
+        "last_used_at",
+        "revoked_at",
+    },
+}
+_LEGACY_TABLES = {"alembic_version", "content", "contents"}
 
 
-class DatabaseSchemaOutOfDateError(RuntimeError):
+class DatabaseSchemaIncompatibleError(RuntimeError):
     pass
 
 
-def _build_alembic_config() -> Config:
-    root_dir = project_root_dir()
-    config = Config(str(root_dir / "alembic.ini"))
-    config.set_main_option("script_location", str(root_dir / "migrations"))
-    return config
+def initialize_database_schema(db_engine: Engine, settings: Settings) -> None:
+    _assert_database_compatible(db_engine)
+    SQLModel.metadata.create_all(db_engine)
+    _bootstrap_initial_user(db_engine, settings)
 
 
-def _expected_heads(script: ScriptDirectory) -> tuple[str, ...]:
-    heads = tuple(script.get_heads())
-    if len(heads) != 1:
-        raise RuntimeError("Expected a single Alembic head revision.")
-    return heads
+def _assert_database_compatible(db_engine: Engine) -> None:
+    inspector = inspect(db_engine)
+    table_names = set(inspector.get_table_names())
 
+    legacy_tables = table_names & _LEGACY_TABLES
+    if legacy_tables:
+        _raise_incompatible(f"legacy table(s) found: {', '.join(sorted(legacy_tables))}")
 
-def _upgrade_hint(reason: str) -> str:
-    return f"{reason} Run `{ALEMBIC_UPGRADE_COMMAND}`."
-
-
-def assert_db_schema_current(db_engine: Engine) -> None:
-    script = ScriptDirectory.from_config(_build_alembic_config())
-    expected_heads = _expected_heads(script)
-
-    with db_engine.connect() as connection:
-        context = MigrationContext.configure(connection)
-        current_heads = tuple(context.get_current_heads())
-
-    if not current_heads:
-        raise DatabaseSchemaOutOfDateError(
-            _upgrade_hint("Database schema is not initialized or has no recorded Alembic revision.")
-        )
-
-    for revision in current_heads:
-        try:
-            resolved = script.get_revision(revision)
-        except CommandError as exc:
-            raise DatabaseSchemaOutOfDateError(
-                _upgrade_hint(
-                    f"Database schema revision '{revision}' is not recognized by this codebase."
-                )
-            ) from exc
-
-        if resolved is None:
-            raise DatabaseSchemaOutOfDateError(
-                _upgrade_hint(
-                    f"Database schema revision '{revision}' is not recognized by this codebase."
-                )
+    for table_name, required_columns in _CURRENT_REQUIRED_COLUMNS.items():
+        if table_name not in table_names:
+            continue
+        current_columns = {column["name"] for column in inspector.get_columns(table_name)}
+        missing_columns = required_columns - current_columns
+        if missing_columns:
+            _raise_incompatible(
+                f"table '{table_name}' is missing column(s): {', '.join(sorted(missing_columns))}"
             )
 
-    if set(current_heads) != set(expected_heads):
-        current_display = ", ".join(current_heads)
-        expected_display = ", ".join(expected_heads)
-        raise DatabaseSchemaOutOfDateError(
-            _upgrade_hint(
-                f"Database schema revision '{current_display}' is not current; "
-                f"expected '{expected_display}'."
+
+def _bootstrap_initial_user(db_engine: Engine, settings: Settings) -> None:
+    now = datetime.now(timezone.utc)
+    with Session(db_engine) as session:
+        user_count = session.exec(select(func.count()).select_from(UserRecord)).one()
+        if int(user_count) > 0:
+            return
+
+        session.add(
+            UserRecord(
+                username=settings.WEB_USERNAME,
+                password_hash=settings.WEB_PASSWORD,
+                created_at=now,
+                updated_at=now,
+                disabled_at=None,
             )
         )
+        session.commit()
+
+
+def _raise_incompatible(reason: str) -> None:
+    raise DatabaseSchemaIncompatibleError(f"{reason}. {INCOMPATIBLE_DATABASE_HINT}")
 
 
 __all__ = [
-    "ALEMBIC_UPGRADE_COMMAND",
-    "DatabaseSchemaOutOfDateError",
-    "assert_db_schema_current",
+    "DatabaseSchemaIncompatibleError",
+    "INCOMPATIBLE_DATABASE_HINT",
+    "initialize_database_schema",
 ]

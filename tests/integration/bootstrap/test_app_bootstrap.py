@@ -7,16 +7,14 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import inspect, text
 
 from app.bootstrap.application import create_app
 from app.bootstrap.lifespan import build_lifespan
 from app.bootstrap.runtime_paths import static_files_dir, sqlite_file_path_from_url, sqlite_parent_dir_from_url, template_dir
 from app.core.config import Settings
-from app.infrastructure.db.schema import (
-    ALEMBIC_UPGRADE_COMMAND,
-    DatabaseSchemaOutOfDateError,
-)
-from tests.support.alembic import upgrade_sqlite_db
+from app.infrastructure.db.engine import create_db_engine
+from app.infrastructure.db.schema import DatabaseSchemaIncompatibleError
 
 class _FakeSettings:
 
@@ -89,7 +87,7 @@ class TestCreateAppBootstrap:
 
 class TestLifespanBootstrap:
 
-    def test_lifespan_startup_creates_directories_validates_schema_and_disposes_engine(self):
+    def test_lifespan_startup_creates_directories_initializes_schema_and_disposes_engine(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
             share_dir = tmp_path / 'share-dir'
@@ -104,14 +102,14 @@ class TestLifespanBootstrap:
                 async with lifespan(app):
                     assert share_dir.is_dir()
                     assert db_file.parent.is_dir()
-            with patch('app.bootstrap.lifespan.ensure_app_infra') as ensure_mock, patch('app.bootstrap.lifespan.assert_db_schema_current') as validate_schema_mock:
+            with patch('app.bootstrap.lifespan.ensure_app_infra') as ensure_mock, patch('app.bootstrap.lifespan.initialize_database_schema') as initialize_schema_mock:
                 asyncio.run(run_lifespan())
             ensure_mock.assert_called_once()
             assert ensure_mock.call_args.kwargs['settings'] is settings
-            validate_schema_mock.assert_called_once_with(fake_engine)
+            initialize_schema_mock.assert_called_once_with(fake_engine, settings)
             fake_engine.dispose.assert_called_once_with()
 
-    def test_lifespan_startup_fails_when_db_schema_is_not_migrated(self):
+    def test_lifespan_startup_fails_when_db_schema_is_incompatible(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
             share_dir = tmp_path / 'share-dir'
@@ -121,25 +119,29 @@ class TestLifespanBootstrap:
                 SHARE_DIRECTORY=str(share_dir),
                 SQLITE_HOST=f'sqlite:///{db_file.as_posix()}',
             )
+            db_file.parent.mkdir(parents=True, exist_ok=True)
+            engine = create_db_engine(settings)
+            with engine.begin() as conn:
+                conn.execute(text("CREATE TABLE alembic_version (version_num VARCHAR NOT NULL)"))
+            engine.dispose()
             lifespan = build_lifespan(settings)
 
             async def run_lifespan():
                 async with lifespan(FastAPI()):
                     raise AssertionError('lifespan should not reach application startup')
 
-            with pytest.raises(DatabaseSchemaOutOfDateError, match=ALEMBIC_UPGRADE_COMMAND):
+            with pytest.raises(DatabaseSchemaIncompatibleError, match="not compatible"):
                 asyncio.run(run_lifespan())
 
             assert share_dir.is_dir()
             assert db_file.parent.is_dir()
 
-    def test_lifespan_startup_succeeds_after_alembic_upgrade(self):
+    def test_lifespan_startup_creates_schema_for_empty_database(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
             share_dir = tmp_path / 'share-dir'
             db_file = tmp_path / 'db-dir' / 'database.db'
             sqlite_url = f'sqlite:///{db_file.as_posix()}'
-            upgrade_sqlite_db(sqlite_url)
 
             settings = Settings(
                 _env_file=None,
@@ -154,6 +156,11 @@ class TestLifespanBootstrap:
                     assert db_file.parent.is_dir()
 
             asyncio.run(run_lifespan())
+
+            engine = create_db_engine(settings)
+            table_names = set(inspect(engine).get_table_names())
+            assert {"users", "drops", "auth_sessions", "auth_api_keys"} <= table_names
+            engine.dispose()
 
 class TestMainEntrypointSmoke:
 

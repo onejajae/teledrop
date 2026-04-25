@@ -12,7 +12,7 @@ from app.infrastructure.db.repositories.session_repository import (
     SQLModelSessionMutationRepository,
     SQLModelSessionReadRepository,
 )
-from tests.support.alembic import upgrade_sqlite_db
+from tests.support.db import initialize_sqlite_db
 
 
 class TestSessionRepository:
@@ -20,7 +20,7 @@ class TestSessionRepository:
         self._temp_dir = tempfile.TemporaryDirectory()
         db_path = Path(self._temp_dir.name) / "sessions.db"
         sqlite_url = f"sqlite:///{db_path.as_posix()}"
-        upgrade_sqlite_db(sqlite_url)
+        initialize_sqlite_db(sqlite_url)
         settings = SimpleNamespace(SQLITE_HOST=sqlite_url)
         self.engine = create_db_engine(settings)
         self.session_factory = create_db_session_factory(self.engine)

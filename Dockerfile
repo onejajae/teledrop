@@ -36,8 +36,6 @@ COPY --from=dependency_builder /teledrop ./
 # copy teledrop sources 
 COPY ./main.py .
 COPY ./app ./app
-COPY ./alembic.ini ./alembic.ini
-COPY ./migrations ./migrations
 COPY ./scripts/docker-entrypoint.sh ./scripts/docker-entrypoint.sh
 # Copy built css from node_builder
 COPY --from=node_builder /app/app/interfaces/web/static/gen/output.css ./app/interfaces/web/static/gen/output.css

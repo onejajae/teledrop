@@ -7,7 +7,7 @@ from sqlmodel import select
 from app.infrastructure.db.engine import create_db_engine, create_db_session_factory
 from app.infrastructure.db.models.user import UserRecord as DbUserRecord
 from app.infrastructure.db.repositories.user_repository import SQLModelUserReadRepository
-from tests.support.alembic import upgrade_sqlite_db
+from tests.support.db import initialize_sqlite_db
 
 
 class TestUserRepository:
@@ -15,7 +15,7 @@ class TestUserRepository:
         self._temp_dir = tempfile.TemporaryDirectory()
         db_path = Path(self._temp_dir.name) / "users.db"
         sqlite_url = f"sqlite:///{db_path.as_posix()}"
-        upgrade_sqlite_db(sqlite_url)
+        initialize_sqlite_db(sqlite_url)
         settings = SimpleNamespace(SQLITE_HOST=sqlite_url)
         self.engine = create_db_engine(settings)
         self.session_factory = create_db_session_factory(self.engine)

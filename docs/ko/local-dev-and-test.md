@@ -8,7 +8,7 @@ Docker 없이 직접 실행하려면 아래 순서로 진행하면 됩니다.
 * Node.js 20+ (CSS 빌드용)
 
 ## 빠른 시작
-환경 구성, Alembic 마이그레이션, CSS 빌드, 서버 실행을 한 번에 처리하려면:
+환경 구성, CSS 빌드, 서버 실행을 한 번에 처리하려면:
 ```bash
 ./scripts/run_dev.sh
 ```
@@ -32,12 +32,7 @@ CORS_ALLOW_ALL=true
    uv sync
    ```
 
-2. **데이터베이스 마이그레이션 적용**
-   ```bash
-   uv run alembic -c alembic.ini upgrade head
-   ```
-
-3. **Tailwind CSS 빌드**
+2. **Tailwind CSS 빌드**
    ```bash
    cd ui-build
    npm install
@@ -46,12 +41,12 @@ CORS_ALLOW_ALL=true
    ```
    `./scripts/run_dev.sh`를 사용하면 `ui-build/node_modules`가 이미 있을 때 `npm install`을 자동으로 건너뜁니다.
 
-4. **서버 실행**
+3. **서버 실행**
    ```bash
    uv run uvicorn main:app --host 0.0.0.0 --port 8000
    ```
 
-마이그레이션을 건너뛰면 앱 시작 시 테이블을 자동 생성하지 않고 즉시 실패합니다.
+앱은 빈 데이터베이스에서 시작할 때 현재 스키마를 자동 생성합니다. 기존 Alembic/레거시 데이터베이스는 거부되므로, 이 버전을 시작하기 전에 `share/database.db`를 백업한 뒤 삭제하세요.
 
 ## 테스트 실행
 테스트는 범위에 따라 다음과 같이 나뉩니다.

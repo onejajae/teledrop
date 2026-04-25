@@ -1,23 +1,15 @@
 # Migration Notes
 
-Drop schema changed from legacy `content`/`contents` tables to `drops`.
-The drop identifier column is now `drops.slug` (replacing legacy `drops.key`).
+This version intentionally breaks compatibility with older database schemas. The app no longer ships Alembic migrations and does not attempt to convert existing `content`/`contents` tables or older `drops`, `auth_sessions`, and `auth_api_keys` layouts.
 
-Before upgrading in production, back up your DB file:
+Before upgrading in production, back up your database file:
 ```bash
 cp share/database.db share/database.db.bak
 ```
 
-Alembic files are provided under `migrations/`.
-When running the official Docker image, container startup automatically runs:
+Then remove the old database file before starting this version:
 ```bash
-alembic -c alembic.ini upgrade head
+rm share/database.db
 ```
 
-`./scripts/run_dev.sh` also applies `head` automatically before starting the server.
-App startup validates that the database is already at Alembic `head`; it does not create tables automatically.
-
-If you run teledrop outside the Docker entrypoint, run migration manually before app startup:
-```bash
-uv run alembic -c alembic.ini upgrade head
-```
+On startup, teledrop creates the current schema automatically and bootstraps the first web user from `WEB_USERNAME` and `WEB_PASSWORD`. Existing uploaded files under `share/` are not reattached to the new database automatically.

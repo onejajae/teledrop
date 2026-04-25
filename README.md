@@ -12,12 +12,13 @@ Private file sharing platform for self-hosted servers, powered by REST API.
 
 ### 2. Hash User Password
 1. The password must be hashed using the Argon2 algorithm.
-> **Warning:** When setting environment variables in the `compose.yml` file, make sure to replace `$` with `$$`. For example:  
+> **Warning:** When setting environment variables in the `compose.yml` file, make sure to replace `$` with `$$`. For example:
 > ```yaml
 > WEB_PASSWORD: $$argon2id$$v=19$$m=65536,t=3,p=4$$0123456789ABCDEF$$abcdefghijklmnopqrstuvwxyz0123456789
 > ```
 > This ensures that the `$` symbol is correctly escaped and not interpreted by Docker Compose.
-2. If a user account is not set, the default account credentials will be `admin/password`.  
+2. `WEB_USERNAME` and `WEB_PASSWORD` are bootstrap-only values. On first startup with an empty database, teledrop creates the initial web user from those values.
+3. If the bootstrap values are omitted on an empty database, the initial user is created with `admin/password`.
 Set custom credentials before running any deployment exposed to other users.
 
 ### 3. Run teledrop
@@ -63,7 +64,7 @@ docker run --detach \
 >     ...
 >     command: "--proxy-headers --forwarded-allow-ips *"
 >     ...
-> ``` 
+	> ```
 
 * Shared `CSRF_SECRET_KEY` for multiple workers/instances
 > `CSRF_SECRET_KEY` defaults to a per-process random value.
@@ -102,7 +103,7 @@ docker run --detach \
 > curl -H "X-API-Key: tdpk_<public_id>_<secret>" http://localhost:8000/api/drop
 > ```
 > API key values are shown once at creation time and cannot be retrieved again.
-> `created_by_username` is stored as an audit snapshot field.
+> The API key page only lists keys owned by the current signed-in user.
 
 * Running multiple worker processes
 > To improve performance, specify the number of worker processes using the `--workers` option:
@@ -114,15 +115,12 @@ docker run --detach \
 >     command: "--workers <NUMBER_OF_PROCESSES>"
 >     ...
 > ```
-> Session authentication is stored in the database.  
+> Users, sessions, API keys, and drop ownership are stored in the database.
 > If you run multiple instances/workers, all instances must share the same database and file storage.
 
 * Direct app startup outside the Docker entrypoint
-> teledrop validates the database schema at startup but does not create tables automatically.
-> Apply Alembic migrations before launching `uvicorn` directly:
-> ```bash
-> uv run alembic -c alembic.ini upgrade head
-> ```
+> teledrop creates the current database schema automatically at startup when the database is empty.
+> Existing Alembic/legacy databases are not migrated automatically; back up and remove `share/database.db` before starting this version.
 
 ## Documentation
 * [Authentication and API](docs/en/auth-and-api.md)

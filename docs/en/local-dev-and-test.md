@@ -8,7 +8,7 @@ If you prefer running without Docker, follow these steps:
 * Node.js 20+ (for building CSS)
 
 ## Quick Start
-You can use the provided script to set up the environment, apply Alembic migrations, build CSS, and run the server:
+You can use the provided script to set up the environment, build CSS, and run the server:
 ```bash
 ./scripts/run_dev.sh
 ```
@@ -32,12 +32,7 @@ CORS_ALLOW_ALL=true
    uv sync
    ```
 
-2. **Apply Database Migrations**:
-   ```bash
-   uv run alembic -c alembic.ini upgrade head
-   ```
-
-3. **Build Tailwind CSS**:
+2. **Build Tailwind CSS**:
    ```bash
    cd ui-build
    npm install
@@ -46,12 +41,12 @@ CORS_ALLOW_ALL=true
    ```
    `./scripts/run_dev.sh` automatically skips `npm install` when `ui-build/node_modules` already exists.
 
-4. **Run Server**:
+3. **Run Server**:
    ```bash
    uv run uvicorn main:app --host 0.0.0.0 --port 8000
    ```
 
-If you skip the migration step, app startup fails fast with a command hint instead of creating tables automatically.
+App startup creates the current database schema automatically when the database is empty. Existing Alembic/legacy databases are rejected; back up and remove `share/database.db` before starting this version.
 
 ## Run Tests
 Test suites are organized by scope:

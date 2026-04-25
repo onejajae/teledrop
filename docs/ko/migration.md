@@ -1,22 +1,15 @@
 # 마이그레이션 안내
 
-드롭 스키마가 기존 `content`/`contents` 테이블에서 `drops`로 변경되었습니다.
+이 버전은 기존 데이터베이스 스키마와의 호환을 의도적으로 끊습니다. 더 이상 Alembic 마이그레이션을 제공하지 않으며, 기존 `content`/`contents` 테이블이나 예전 `drops`, `auth_sessions`, `auth_api_keys` 구조를 자동 변환하지 않습니다.
 
-운영 환경 업그레이드 전 DB 백업을 권장합니다:
+운영 환경에서 업그레이드하기 전에 데이터베이스 파일을 백업하세요:
 ```bash
 cp share/database.db share/database.db.bak
 ```
 
-`migrations/`에 Alembic 리비전이 포함되어 있습니다.
-공식 Docker 이미지는 컨테이너 시작 시 아래 명령을 자동 실행합니다:
+그 다음 이 버전을 시작하기 전에 기존 데이터베이스 파일을 삭제하세요:
 ```bash
-alembic -c alembic.ini upgrade head
+rm share/database.db
 ```
 
-`./scripts/run_dev.sh`도 서버 시작 전에 `head`까지 자동 적용합니다.
-앱 시작 시에는 데이터베이스가 이미 Alembic `head`인지 검증만 하며, 테이블을 자동 생성하지 않습니다.
-
-Docker 엔트리포인트를 사용하지 않고 실행한다면, 앱 시작 전에 수동으로 실행하세요:
-```bash
-uv run alembic -c alembic.ini upgrade head
-```
+시작 시 teledrop은 현재 스키마를 자동 생성하고 `WEB_USERNAME`, `WEB_PASSWORD`로 첫 웹 사용자를 부트스트랩합니다. `share/` 아래의 기존 업로드 파일은 새 데이터베이스에 자동으로 다시 연결되지 않습니다.

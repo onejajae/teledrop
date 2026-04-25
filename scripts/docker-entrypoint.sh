@@ -3,7 +3,6 @@ set -eu
 
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 APP_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)"
-ALEMBIC_INI="$APP_ROOT/alembic.ini"
 
 # docker compose command can be provided as a single string (e.g. "--workers 2")
 # Split that form so uvicorn receives proper argv tokens.
@@ -38,8 +37,6 @@ PY
 if [ "$1" = "uvicorn" ]; then
   echo "Preparing runtime directories..."
   prepare_runtime_dirs
-  echo "Running Alembic migrations..."
-  alembic -c "$ALEMBIC_INI" upgrade head
 fi
 
 exec "$@"

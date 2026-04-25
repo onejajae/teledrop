@@ -31,11 +31,9 @@ if sqlite_dir is not None:
 PY
 }
 
-# 2. Database migrations
+# 2. Runtime directories
 echo "Preparing runtime directories..."
 prepare_runtime_dirs
-echo "Applying Alembic migrations..."
-uv run alembic -c alembic.ini upgrade head
 
 # 3. Tailwind CSS
 echo "Building Tailwind CSS..."

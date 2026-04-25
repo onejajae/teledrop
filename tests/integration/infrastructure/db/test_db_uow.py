@@ -12,7 +12,7 @@ from app.infrastructure.db.engine import create_db_engine, create_db_session_fac
 from app.infrastructure.db.models.user import UserRecord as DbUserRecord
 from app.infrastructure.db.repositories import SQLModelDropReadRepository
 from app.infrastructure.db.uow_drop import SQLModelDropUnitOfWork
-from tests.support.alembic import upgrade_sqlite_db
+from tests.support.db import initialize_sqlite_db
 
 
 def _drop_create_input(slug: str, owner_user_id: str) -> DropCreateInput:
@@ -37,7 +37,7 @@ class TestDropUnitOfWork:
         self._temp_dir = tempfile.TemporaryDirectory()
         db_path = Path(self._temp_dir.name) / "uow.db"
         sqlite_url = f"sqlite:///{db_path.as_posix()}"
-        upgrade_sqlite_db(sqlite_url)
+        initialize_sqlite_db(sqlite_url)
         settings = SimpleNamespace(SQLITE_HOST=sqlite_url)
         self.engine = create_db_engine(settings)
         self.session_factory = create_db_session_factory(self.engine)
