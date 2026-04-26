@@ -17,12 +17,18 @@ Private file sharing platform for self-hosted servers, powered by REST API.
 > WEB_PASSWORD: $$argon2id$$v=19$$m=65536,t=3,p=4$$0123456789ABCDEF$$abcdefghijklmnopqrstuvwxyz0123456789
 > ```
 > This ensures that the `$` symbol is correctly escaped and not interpreted by Docker Compose.
-2. `WEB_USERNAME` and `WEB_PASSWORD` are bootstrap-only values. On first startup with an empty database, teledrop creates the initial web user from those values.
-3. If the bootstrap values are omitted on an empty database, the initial user is created with `admin/password`.
-Set custom credentials before running any deployment exposed to other users.
+2. `WEB_USERNAME` and `WEB_PASSWORD` are bootstrap-only values. On first startup with an empty database, teledrop creates the initial web user from those values. `WEB_PASSWORD` must be a valid Argon2 hash.
+3. If the bootstrap values are omitted on an empty database, the initial user is created with `admin/password` only when `BOOTSTRAP_ALLOW_INSECURE_DEFAULTS=true`.
+Set custom credentials and `BOOTSTRAP_ALLOW_INSECURE_DEFAULTS=false` before running any deployment exposed to other users. With that flag disabled, startup fails on an empty database if the credentials are missing, invalid, or still resolve to `admin/password`.
 
 ### 3. Run teledrop
 * Configure `compose.yml` (Recommended)
+Create `.env` next to `compose.yml` or export these variables before running Compose:
+```dotenv
+WEB_USERNAME=<YOUR_LOGIN_USERNAME>
+WEB_PASSWORD='$argon2id$v=19$m=65536,t=3,p=4$...'
+```
+
 ```yaml
 services:
   teledrop:
@@ -34,9 +40,10 @@ services:
     volumes:
       - <YOUR_SHARE_DIRECTORY_OR_DOCKER_VOLUME>:/teledrop/share
     environment:
-      - TZ=Asia/Seoul
-      - WEB_USERNAME=<YOUR_LOGIN_USERNAME>
-      - WEB_PASSWORD=<YOUR_HASHED_LOGIN_PASSWORD>  # Use $$ instead of $ in compose.yml
+      TZ: Asia/Seoul
+      WEB_USERNAME: ${WEB_USERNAME:?Set WEB_USERNAME before running docker compose}
+      WEB_PASSWORD: ${WEB_PASSWORD:?Set WEB_PASSWORD to a valid Argon2 hash}
+      BOOTSTRAP_ALLOW_INSECURE_DEFAULTS: "false"
 ```
 ```bash
 docker compose up -d
@@ -47,8 +54,9 @@ docker compose up -d
 docker run --detach \
    --name teledrop \
    -p 80:8000 \
-   --env WEB_USERNAME=<YOUR_LOGIN_USERNAME> \
-   --env WEB_PASSWORD=<YOUR_HASHED_LOGIN_PASSWORD> \
+   --env WEB_USERNAME \
+   --env WEB_PASSWORD \
+   --env BOOTSTRAP_ALLOW_INSECURE_DEFAULTS=false \
    --restart unless-stopped \
    --volume <YOUR_SHARE_DIRECTORY_OR_DOCKER_VOLUME>:/teledrop/share \
    ghcr.io/onejajae/teledrop:latest
@@ -95,7 +103,8 @@ docker run --detach \
 > ```
 
 * API key auth for external clients
-> Protected REST API endpoints accept either a session cookie or `X-API-Key`.
+> REST API read endpoints accept either a session cookie or `X-API-Key`.
+> REST API mutation endpoints (`POST/PATCH/DELETE /api/drop...`) require `X-API-Key`.
 > API key management (create/revoke/delete) is available only in the authenticated web UI:
 > `/settings/api-keys`
 > Example request:
@@ -104,6 +113,11 @@ docker run --detach \
 > ```
 > API key values are shown once at creation time and cannot be retrieved again.
 > The API key page only lists keys owned by the current signed-in user.
+
+* Upload and download security
+> `MAX_UPLOAD_BYTES` defaults to 1073741824 bytes (1 GiB) and is enforced before and during file writes.
+> File downloads always use `Content-Disposition: attachment`; `disposition=inline` is accepted only for compatibility and is ignored.
+> Drop link passwords are stored as Argon2id hashes. Legacy plaintext protected drops are incompatible; back up and recreate the database before using this version.
 
 * Running multiple worker processes
 > To improve performance, specify the number of worker processes using the `--workers` option:

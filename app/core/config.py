@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     SESSION_COOKIE_PATH: str = "/"
     API_DOCS_ENABLED: bool = False
     CORS_ALLOW_ALL: bool = False
+    MAX_UPLOAD_BYTES: int = 1024 * 1024 * 1024
+    BOOTSTRAP_ALLOW_INSECURE_DEFAULTS: bool = True
 
     def validate_auth_configuration(self):
         if not self.CSRF_SECRET_KEY:
@@ -44,6 +46,9 @@ class Settings(BaseSettings):
 
         if self.SESSION_COOKIE_SAMESITE == "none" and not self.SESSION_COOKIE_SECURE:
             raise ValueError("SESSION_COOKIE_SECURE must be true when SESSION_COOKIE_SAMESITE is 'none'.")
+
+        if self.MAX_UPLOAD_BYTES <= 0:
+            raise ValueError("MAX_UPLOAD_BYTES must be greater than 0.")
 
         return None
 

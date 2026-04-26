@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 from types import SimpleNamespace
 from fastapi.templating import Jinja2Templates
 from app.bootstrap.runtime_paths import static_files_dir, template_dir
@@ -286,6 +288,14 @@ class TestWebTemplateSmoke:
         assert 'data-td-controller="upload-panel"' in form_html
         assert 'data-td-role="file-input"' in form_html
         assert 'data-td-role="dropzone"' in form_html
+        assert 'role="button"' in form_html
+        assert 'tabindex="0"' in form_html
+        assert 'aria-controls="upload-file"' in form_html
+        assert 'aria-describedby="upload-dropzone-help upload-selected-file"' in form_html
+        assert 'focus-visible:ring-2' in form_html
+        assert 'data-td-role="selection"' in form_html
+        assert 'data-td-role="preview"' not in form_html
+        assert '업로드 미리보기' not in form_html
         assert 'data-td-role="submit"' in form_html
         assert 'td-logo-wordmark' not in form_html
         assert '파일을 선택하거나 끌어서 놓기' in form_html
@@ -317,7 +327,12 @@ class TestWebTemplateSmoke:
         assert 'aria-label="img.png 다운로드"' in selected
         assert 'aria-label="링크 복사"' in selected
         assert '카드 클릭 시 다운로드' in selected
-        assert selected.index('카드 클릭 시 다운로드') < selected.index('src="/api/drop/img1?disposition=inline"')
+        assert '파일 다운로드' in selected
+        assert 'src="/api/drop/img1?disposition=inline"' not in selected
+        assert '<video' not in selected
+        assert '<audio' not in selected
+        assert '<object' not in selected
+        assert '미리보기' not in selected
         assert 'join join-vertical w-full sm:w-auto sm:join-horizontal' not in selected
         assert 'data-td-action="copy-link"' in selected
         assert 'data-td-copy-url="/img1"' in selected
@@ -329,11 +344,27 @@ class TestWebTemplateSmoke:
         assert 'id="detail-password-modal"' in selected
         assert 'data-td-dialog="detail-edit-modal"' in selected
         assert 'data-td-dialog="detail-password-modal"' in selected
+        assert 'aria-labelledby="detail-edit-modal-title"' in selected
+        assert 'aria-describedby="detail-edit-modal-description"' in selected
+        assert 'id="detail-edit-modal-title"' in selected
+        assert 'id="detail-edit-modal-description" class="sr-only"' in selected
+        assert 'aria-labelledby="detail-password-modal-title"' in selected
+        assert 'aria-describedby="detail-password-modal-description"' in selected
         assert 'name="csrf_token" value="csrf"' in selected
+        assert '<label for="detail-edit-title"' in selected
         assert 'id="detail-edit-title"' in selected
+        assert '<label for="detail-password-new"' in selected
         assert 'id="detail-password-new"' in selected
+        assert 'placeholder="새 비밀번호 입력"' in selected
+        assert 'placeholder="한 번 더 입력"' in selected
+        assert 'placeholder="•••••"' not in selected
         assert 'data-td-role="password-form"' in selected
         assert 'data-td-role="password-submit"' in selected
+        assert 'id="detail-password-mismatch"' in selected
+        assert 'aria-describedby="detail-password-mismatch"' in selected
+        assert 'aria-invalid="false"' in selected
+        assert 'aria-live="polite"' in selected
+        assert 'aria-hidden="true"' in selected
         assert 'data-td-role="password-submit" disabled' not in selected
         assert 'disabled data-td-role="password-submit"' not in selected
         assert 'shadow-xl mb-6' not in selected
@@ -386,8 +417,14 @@ class TestWebTemplateSmoke:
         assert 'aria-label="즐겨찾기"' in html
         assert 'aria-label="전체 공개"' in html
         assert 'flex w-full items-center gap-3' not in html
-        assert 'badge badge-warning badge-soft mr-auto' in html
-        assert 'flex flex-wrap items-center justify-end gap-2' in html
+        assert 'badge badge-warning badge-soft self-start sm:mr-auto' in html
+        assert 'flex flex-wrap items-center justify-start gap-2 sm:justify-end w-full sm:w-auto' in html
+        assert 'sm:btn-square' in html
+        assert '>즐겨</span>' in html
+        assert '>공개</span>' in html
+        assert '>수정</span>' in html
+        assert '>암호</span>' in html
+        assert '>삭제</span>' in html
         assert 'join-item' not in html
         assert 'rounded-xl' in html
 
@@ -397,11 +434,12 @@ class TestWebTemplateSmoke:
         assert '목록으로' not in html
         assert '외부 공유는 꺼져 있으며 비밀번호가 설정되어 있습니다.' not in html
         assert '현재 비밀번호를 입력하면 관리와 미리보기를 계속할 수 있습니다.' not in html
-        assert 'badge badge-warning badge-soft mr-auto' in html
+        assert 'badge badge-warning badge-soft self-start sm:mr-auto' in html
         assert 'aria-label="메타데이터 수정"' in html
         assert 'aria-label="비밀번호 해제"' in html
         assert 'aria-label="삭제"' in html
         assert 'aria-label="즐겨찾기"' in html
+        assert '>해제</span>' in html
         assert 'name="password" value=' not in html
         assert 'name="current_password" value=' not in html
         assert 'drop_password=' not in html
@@ -415,8 +453,9 @@ class TestWebTemplateSmoke:
         selected_drop = _drop_vm('shared1', '공유 파일', 'shared.png', 'image/png', 'public', False, True, None, description=None, size_human='123 B', size_bytes=123, created_at='2026-02-22T00:00:00Z', updated_at=None, created_at_label=None, updated_at_label=None)
         html = _render('pages/manage_drop.html', is_login=True, active_nav='drops', csrf_token='csrf', detail=_detail_context(key='shared1', mode='manage', drop=selected_drop, requires_password=True, download_url='/api/drop/shared1', preview_url='/api/drop/shared1?disposition=inline', page_url='/shared1', manage_url='/drops/shared1', badge_label='공유 중', badge_tone='success', badge_appearance='soft', can_copy_link=True, show_owner_actions=True, access_granted=True, locked_prompt_action='/drops/shared1'))
         assert '공유 중' in html
-        assert 'badge badge-success badge-soft mr-auto' in html
+        assert 'badge badge-success badge-soft self-start sm:mr-auto' in html
         assert 'aria-label="메타데이터 수정"' in html
+        assert '>비공개</span>' in html
         assert 'drop_password=' not in html
         assert '?password=' not in html
 
@@ -452,6 +491,14 @@ class TestWebTemplateSmoke:
 
 class TestWebUiContract:
 
+    def test_htmx_is_vendored_locally_from_exact_ui_build_dependency(self):
+        package_json = json.loads((Path(__file__).parents[3] / 'ui-build' / 'package.json').read_text(encoding='utf-8'))
+        vendor_source = (static_files_dir() / 'vendor' / 'htmx' / 'htmx.min.js').read_text(encoding='utf-8')
+
+        assert package_json['devDependencies']['htmx.org'] == '2.0.8'
+        assert 'var htmx=function()' in vendor_source
+        assert 'https://cdn.jsdelivr.net/npm/htmx.org' not in vendor_source
+
     def test_full_pages_bootstrap_theme_before_css(self):
         theme = load_web_theme_payload()
         for template_name, context, include_htmx in _full_page_cases():
@@ -476,9 +523,10 @@ class TestWebUiContract:
             assert '<script src="/static/js/ui-actions.js" defer></script>' in html
             assert '<script src="/static/js/theme.js" defer></script>' in html
             if include_htmx:
-                assert 'https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js' in html
+                assert '<script src="/static/vendor/htmx/htmx.min.js"></script>' in html
             else:
-                assert 'https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js' not in html
+                assert '<script src="/static/vendor/htmx/htmx.min.js"></script>' not in html
+            assert 'https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js' not in html
 
     def test_theme_toggle_markup_uses_button_with_aria_pressed(self):
         header = _render('layout/header.html', is_login=True, csrf_token='csrf', active_nav='drops')
@@ -518,17 +566,23 @@ class TestWebUiContract:
         assert '#0ea5e9' not in source
         assert '#1f2937' not in source
 
-    def test_upload_panel_js_handles_preview_and_progress_only(self):
+    def test_upload_panel_js_handles_selection_and_progress_only(self):
         source = (static_files_dir() / 'js' / 'upload-panel.js').read_text(encoding='utf-8')
         assert '[data-td-controller="upload-panel"]' in source
         assert 'htmx:xhr:progress' in source
         assert 'DataTransfer' in source
         assert '[data-td-role="file-input"]' in source
         assert '[data-td-role="dropzone"]' in source
+        assert '[data-td-role="selection"]' in source
         assert '[data-td-role="submit"]' in source
+        assert 'event.key !== "Enter" && event.key !== " "' in source
+        assert 'fileInput.click()' in source
         assert 'dropzone.dataset.dragging = isDragging ? "true" : "false"' in source
         assert 'setDragState(false);' in source
         assert 'dragDepth' in source
+        assert 'createObjectURL' not in source
+        assert 'revokeObjectURL' not in source
+        assert 'preview-image' not in source
         assert '공유 링크 주소 확인 중...' not in source
 
     def test_drop_detail_js_handles_password_modal_validation_only(self):
@@ -537,6 +591,9 @@ class TestWebUiContract:
         assert '[data-td-role="password-form"]' in source
         assert '[data-td-role="password-submit"]' in source
         assert 'password.value === confirm.value' in source
+        assert 'confirm.setAttribute("aria-invalid", showMismatch ? "true" : "false")' in source
+        assert 'mismatch.setAttribute("aria-hidden", showMismatch ? "false" : "true")' in source
+        assert 'confirm.setAttribute("aria-describedby", describedByIds.join(" "))' in source
         assert 'submit.disabled = showMismatch;' in source
         assert '__teledropRefreshPanels' not in source
         assert '/upload-panel' not in source
@@ -554,6 +611,13 @@ class TestWebUiContract:
         assert 'dialog.close' in source
         assert 'timezone-offset' in source
         assert 'getTimezoneOffset()' in source
+        assert 'htmx:beforeSwap' in source
+        assert 'xhr.status < 400 || xhr.status >= 500' in source
+        assert 'HX-Redirect' in source
+        assert 'event.detail.shouldSwap = true' in source
+        assert 'event.detail.isError = false' in source
+        assert 'content-type' in source
+        assert 'copyPreviewUrl' not in source
 
     def test_web_templates_use_data_td_contracts_without_inline_handlers(self):
         combined = '\n'.join(

@@ -464,6 +464,10 @@ class TestAuthUseCase:
         with pytest.raises(ValueError):
             settings.validate_auth_configuration()
 
+        settings = _settings(MAX_UPLOAD_BYTES=0)
+        with pytest.raises(ValueError, match="MAX_UPLOAD_BYTES"):
+            settings.validate_auth_configuration()
+
     async def test_create_api_key_list_and_verify_flow(self):
         owner = _user(user_id="user-1", username="admin")
         repo = _InMemoryApiKeyRepository()

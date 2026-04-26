@@ -12,3 +12,7 @@ class DropAccessDeniedError(Exception):
 
 class DropSlugUnavailableError(Exception):
     pass
+
+
+class DropUploadTooLargeError(Exception):
+    pass

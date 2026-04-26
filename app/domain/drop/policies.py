@@ -1,9 +1,12 @@
-import secrets
+from argon2 import PasswordHasher
+from argon2.exceptions import InvalidHashError, VerificationError
 
 from app.domain.drop.entities import DropEntity
 from app.domain.drop.errors import DropAccessDeniedError, DropPasswordInvalidError
 from app.domain.drop.grants import DropPasswordCredential, DropPasswordGrantService
 from app.domain.drop.value_objects import AccessScope
+
+_DROP_PASSWORD_HASHER = PasswordHasher()
 
 
 class RequestAuthContext:
@@ -17,6 +20,24 @@ def normalize_drop_password(password: str | None) -> str | None:
         return None
     stripped = password.strip()
     return stripped or None
+
+
+def hash_drop_password(password: str | None) -> str | None:
+    normalized = normalize_drop_password(password)
+    if normalized is None:
+        return None
+    return _DROP_PASSWORD_HASHER.hash(normalized)
+
+
+def verify_drop_password_hash(password_hash: str | None, password: str | None) -> bool:
+    normalized_hash = normalize_drop_password(password_hash)
+    normalized_password = normalize_drop_password(password)
+    if normalized_hash is None or normalized_password is None:
+        return False
+    try:
+        return _DROP_PASSWORD_HASHER.verify(normalized_hash, normalized_password)
+    except (InvalidHashError, VerificationError):
+        return False
 
 
 def assert_drop_access_allowed(drop: DropEntity, auth: RequestAuthContext | None):
@@ -38,18 +59,18 @@ def assert_drop_password_matches(
     credential: DropPasswordCredential | None,
     grant_service: DropPasswordGrantService,
 ):
-    expected = normalize_drop_password(drop.drop_password)
-    if expected is None:
+    expected_hash = normalize_drop_password(drop.drop_password)
+    if expected_hash is None:
         return
 
     if credential is None:
         raise DropPasswordInvalidError()
 
     provided = normalize_drop_password(credential.password)
-    if provided is not None and secrets.compare_digest(expected, provided):
+    if provided is not None and verify_drop_password_hash(expected_hash, provided):
         return
 
-    if grant_service.verify(drop.slug, expected, credential.grant_token):
+    if grant_service.verify(drop.slug, expected_hash, credential.grant_token):
         return
 
     raise DropPasswordInvalidError()

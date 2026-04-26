@@ -31,7 +31,26 @@
     return true;
   };
 
-  const copyPreviewUrl = (trigger) => {
+  const isHtmlResponse = (xhr) => {
+    const contentType = xhr.getResponseHeader("content-type") || "";
+    return contentType.toLowerCase().includes("text/html");
+  };
+
+  const allowClientErrorHtmlSwap = (event) => {
+    const xhr = event.detail?.xhr;
+    if (!xhr || xhr.status < 400 || xhr.status >= 500) {
+      return;
+    }
+
+    if (xhr.getResponseHeader("HX-Redirect") || !isHtmlResponse(xhr)) {
+      return;
+    }
+
+    event.detail.shouldSwap = true;
+    event.detail.isError = false;
+  };
+
+  const copyShareUrl = (trigger) => {
     const relativeUrl = trigger.dataset.tdCopyUrl;
     if (!relativeUrl || !navigator.clipboard) {
       return;
@@ -101,6 +120,7 @@
   };
 
   syncTimezoneOffsets();
+  document.body.addEventListener("htmx:beforeSwap", allowClientErrorHtmlSwap);
 
   document.addEventListener("click", (event) => {
     const trigger = event.target.closest("[data-td-action]");
@@ -115,7 +135,7 @@
 
     if (trigger.dataset.tdAction === "copy-link") {
       event.preventDefault();
-      copyPreviewUrl(trigger);
+      copyShareUrl(trigger);
       return;
     }
 

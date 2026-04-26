@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 
 import anyio.to_thread
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.application.drop.ports import (
@@ -12,6 +13,7 @@ from app.application.drop.ports import (
     DropUpdateInput,
 )
 from app.domain.drop.entities import DropEntity
+from app.domain.drop.errors import DropSlugUnavailableError
 from app.domain.drop.value_objects import AccessScope, DropSortField
 from app.infrastructure.db.models.drop import DropRecord
 
@@ -200,7 +202,12 @@ class SQLModelDropRepository(DropRepositoryPort):
         session = self._require_session()
         record = _build_record(data)
         session.add(record)
-        session.flush()
+        try:
+            session.flush()
+        except IntegrityError as exc:
+            if _is_slug_unique_violation(exc):
+                raise DropSlugUnavailableError() from exc
+            raise
         session.refresh(record)
         return _to_entity(record)
 
@@ -255,3 +262,8 @@ __all__ = [
     "SQLModelDropReadRepository",
     "SQLModelDropRepository",
 ]
+
+
+def _is_slug_unique_violation(exc: IntegrityError) -> bool:
+    message = str(getattr(exc, "orig", exc))
+    return "drops.slug" in message and "UNIQUE" in message.upper()

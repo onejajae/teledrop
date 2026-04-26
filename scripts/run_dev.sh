@@ -35,13 +35,13 @@ PY
 echo "Preparing runtime directories..."
 prepare_runtime_dirs
 
-# 3. Tailwind CSS
-echo "Building Tailwind CSS..."
+# 3. UI assets
+echo "Building UI assets..."
 if [ ! -d "ui-build/node_modules" ]; then
     echo "Installing Node dependencies..."
-    (cd ui-build && npm install)
+    (cd ui-build && npm ci)
 fi
-(cd ui-build && npm run build:css)
+(cd ui-build && npm run build)
 
 # 4. Running Server
 echo "Starting server..."

@@ -26,6 +26,8 @@
     const isMatch = password.value === confirm.value;
     const showMismatch = confirm.value.length > 0 && !isMatch;
     mismatch.classList.toggle("hidden", !showMismatch);
+    mismatch.setAttribute("aria-hidden", showMismatch ? "false" : "true");
+    confirm.setAttribute("aria-invalid", showMismatch ? "true" : "false");
     submit.disabled = showMismatch;
   };
 
@@ -39,7 +41,16 @@
     }
     form.dataset.initialized = "true";
 
-    const { password, confirm } = parts;
+    const { password, confirm, mismatch } = parts;
+    if (mismatch.id) {
+      const describedBy = confirm.getAttribute("aria-describedby") || "";
+      const describedByIds = describedBy.split(/\s+/).filter(Boolean);
+      if (!describedByIds.includes(mismatch.id)) {
+        describedByIds.push(mismatch.id);
+        confirm.setAttribute("aria-describedby", describedByIds.join(" "));
+      }
+    }
+
     const handleSync = () => syncPasswordForm(form);
     password.addEventListener("input", handleSync);
     password.addEventListener("change", handleSync);

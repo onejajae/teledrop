@@ -100,6 +100,34 @@ class SessionOrApiKeyAuthenticator:
         return AuthIdentity(user_id=None, username=None)
 
 
+class ApiKeyOnlyAuthenticator:
+    def __init__(self, auto_error: bool = True):
+        self.auto_error = auto_error
+
+    async def __call__(
+        self,
+        request: Request,
+        response: Response,
+        settings: Settings = Depends(get_app_settings),
+        verify_api_key_use_case: VerifyApiKeyUseCase = Depends(get_verify_api_key_use_case),
+    ) -> AuthIdentity:
+        api_key = extract_api_key(request)
+        if api_key:
+            try:
+                return await verify_api_key_use_case.execute(
+                    VerifyApiKeyQuery(api_key=api_key)
+                )
+            except ApiKeyInvalid:
+                pass
+
+        if self.auto_error:
+            raise api_auth_unauthorized_exception(
+                detail="A valid API key is required for this endpoint.",
+            )
+
+        return AuthIdentity(user_id=None, username=None)
+
+
 async def get_required_session_auth(
     auth_data: AuthIdentity = Depends(SessionOnlyAuthenticator(auto_error=True)),
 ) -> AuthIdentity:
@@ -111,9 +139,17 @@ async def get_required_api_auth(
 ) -> AuthIdentity:
     return auth_data
 
+
+async def get_required_api_key_auth(
+    auth_data: AuthIdentity = Depends(ApiKeyOnlyAuthenticator(auto_error=True)),
+) -> AuthIdentity:
+    return auth_data
+
 __all__ = [
+    "ApiKeyOnlyAuthenticator",
     "SessionOnlyAuthenticator",
     "SessionOrApiKeyAuthenticator",
+    "get_required_api_key_auth",
     "get_required_api_auth",
     "get_required_session_auth",
 ]

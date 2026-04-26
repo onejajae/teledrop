@@ -14,11 +14,11 @@
 {% call modal_form("detail-password-modal", "비밀번호 설정", "/actions/drop/" ~ detail.key ~ "/password", "설정", description="새 비밀번호를 설정합니다.", form_attrs='data-td-role="password-form"', submit_attrs='data-td-role="password-submit"') %}
   <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
   {% call field("새 비밀번호", "detail-password-new") %}
-    {{ text_input("new_password", input_id="detail-password-new", input_type="password", placeholder="•••••", attrs='data-td-role="password-input"') }}
+    {{ text_input("new_password", input_id="detail-password-new", input_type="password", placeholder="새 비밀번호 입력", attrs='data-td-role="password-input"') }}
   {% endcall %}
   {% call field("비밀번호 확인", "detail-password-confirm") %}
-    {{ text_input("confirm_password", input_id="detail-password-confirm", input_type="password", placeholder="•••••", attrs='data-td-role="password-confirm"') }}
+    {{ text_input("confirm_password", input_id="detail-password-confirm", input_type="password", placeholder="한 번 더 입력", attrs='data-td-role="password-confirm" aria-describedby="detail-password-mismatch" aria-invalid="false"') }}
   {% endcall %}
-  <p data-td-role="password-mismatch" class="hidden text-xs text-error">비밀번호가 일치하지 않습니다.</p>
+  <p id="detail-password-mismatch" data-td-role="password-mismatch" class="hidden text-xs text-error" aria-live="polite" aria-hidden="true">비밀번호가 일치하지 않습니다.</p>
 {% endcall %}
 {% endif %}

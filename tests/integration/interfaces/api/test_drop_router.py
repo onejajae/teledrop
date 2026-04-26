@@ -28,6 +28,7 @@ from app.domain.drop.errors import (
     DropAccessDeniedError,
     DropNotFoundError,
     DropPasswordInvalidError,
+    DropUploadTooLargeError,
 )
 from app.domain.drop.value_objects import AccessScope
 from app.interfaces.api.deps.auth import get_required_api_auth
@@ -36,14 +37,14 @@ from app.interfaces.deps.auth import get_optional_api_auth, get_optional_session
 
 
 class _FakeVerifySessionUseCase:
-    async def execute(self, _query) -> str:
-        return "tester"
+    async def execute(self, _query) -> AuthIdentity:
+        return _auth_identity()
 
 
 class _FakeVerifyApiKeyUseCase:
-    async def execute(self, query) -> str:
+    async def execute(self, query) -> AuthIdentity:
         if query.api_key == "tdpk_public_secret":
-            return "tester"
+            return _auth_identity()
         raise ApiKeyInvalid()
 
 
@@ -196,6 +197,7 @@ class _FakeDropUseCases:
 def _client(
     fake_use_cases: _FakeDropUseCases,
     revoke_use_case: _FakeRevokeSessionUseCase | None = None,
+    max_upload_bytes: int = 1024 * 1024,
 ) -> TestClient:
     app = FastAPI()
     app.include_router(api_router, prefix="/api")
@@ -207,6 +209,7 @@ def _client(
         SESSION_TTL_SECONDS=86400,
         DEFAULT_PAGE_SIZE=10,
         MAX_PAGE_SIZE=200,
+        MAX_UPLOAD_BYTES=max_upload_bytes,
     )
     app.dependency_overrides[get_check_slug_availability_use_case] = (
         lambda: fake_use_cases.check_slug_availability_use_case
@@ -320,10 +323,10 @@ class TestDropRouterIntegration:
         fake_use_cases = _FakeDropUseCases()
         fake_use_cases.add_drop("k1", title="original")
         client = _client(fake_use_cases)
-        client.cookies.set("session_id", "sid")
+        headers = {"X-API-Key": "tdpk_public_secret"}
 
-        omitted = client.patch("/api/drop/k1", json={})
-        explicit_null = client.patch("/api/drop/k1", json={"title": None})
+        omitted = client.patch("/api/drop/k1", json={}, headers=headers)
+        explicit_null = client.patch("/api/drop/k1", json={"title": None}, headers=headers)
 
         assert omitted.status_code == 200
         assert omitted.json()["title"] == "original"
@@ -334,6 +337,77 @@ class TestDropRouterIntegration:
         assert explicit_null.json()["title"] is None
         assert fake_use_cases.update_commands[1].title is None
         assert fake_use_cases.update_commands[1].auth.user_id == "user-1"
+
+    @pytest.mark.parametrize("method", ["post", "patch", "delete"])
+    def test_rest_mutations_reject_session_cookie_without_api_key(self, method: str):
+        fake_use_cases = _FakeDropUseCases()
+        fake_use_cases.add_drop("k1")
+        client = _client(fake_use_cases)
+        client.cookies.set("session_id", "sid")
+
+        if method == "post":
+            response = client.post(
+                "/api/drop",
+                data={"slug": "upload-1", "access_scope": "private"},
+                files={"file": ("hello.txt", b"hello", "text/plain")},
+            )
+        elif method == "patch":
+            response = client.patch("/api/drop/k1", json={"title": "blocked"})
+        else:
+            response = client.delete("/api/drop/k1")
+
+        assert response.status_code == 401
+        assert response.headers.get("www-authenticate") == "Session, ApiKey"
+        assert response.headers.get("set-cookie") is None
+        assert fake_use_cases.update_commands == []
+
+    def test_rest_mutation_rejects_invalid_api_key_without_clearing_session_cookie(self):
+        fake_use_cases = _FakeDropUseCases()
+        fake_use_cases.add_drop("k1")
+        client = _client(fake_use_cases)
+        client.cookies.set("session_id", "sid")
+
+        response = client.patch(
+            "/api/drop/k1",
+            headers={"X-API-Key": "tdpk_public_wrong"},
+            json={"title": "blocked"},
+        )
+
+        assert response.status_code == 401
+        assert response.headers.get("www-authenticate") == "Session, ApiKey"
+        assert response.headers.get("set-cookie") is None
+        assert fake_use_cases.update_commands == []
+
+    def test_upload_rejects_file_larger_than_configured_limit(self):
+        fake_use_cases = _FakeDropUseCases()
+        client = _client(fake_use_cases, max_upload_bytes=4)
+
+        response = client.post(
+            "/api/drop",
+            headers={"X-API-Key": "tdpk_public_secret"},
+            data={"slug": "too-large", "access_scope": "private"},
+            files={"file": ("hello.txt", b"hello", "text/plain")},
+        )
+
+        assert response.status_code == 413
+
+    def test_upload_maps_stream_write_size_limit_error_to_413(self):
+        class _TooLargeCreateDropUseCase:
+            async def execute(self, _command):
+                raise DropUploadTooLargeError()
+
+        fake_use_cases = _FakeDropUseCases()
+        fake_use_cases.create_drop_use_case = _TooLargeCreateDropUseCase()
+        client = _client(fake_use_cases)
+
+        response = client.post(
+            "/api/drop",
+            headers={"X-API-Key": "tdpk_public_secret"},
+            data={"slug": "too-large", "access_scope": "private"},
+            files={"file": ("hello.txt", b"hello", "text/plain")},
+        )
+
+        assert response.status_code == 413
 
     def test_upload_attaches_authenticated_owner_user_id(self):
         class _CapturingCreateDropUseCase:
@@ -356,6 +430,7 @@ class TestDropRouterIntegration:
             SESSION_TTL_SECONDS=86400,
             DEFAULT_PAGE_SIZE=10,
             MAX_PAGE_SIZE=200,
+            MAX_UPLOAD_BYTES=1024 * 1024,
         )
         app.dependency_overrides[get_check_slug_availability_use_case] = (
             lambda: fake_use_cases.check_slug_availability_use_case
@@ -387,10 +462,10 @@ class TestDropRouterIntegration:
         app.dependency_overrides[get_required_api_auth] = _fake_required_api_auth
         app.dependency_overrides[get_optional_session_auth] = _fake_optional_session_auth
         client = TestClient(app)
-        client.cookies.set("session_id", "sid")
 
         response = client.post(
             "/api/drop",
+            headers={"X-API-Key": "tdpk_public_secret"},
             data={"slug": "upload-1", "access_scope": "private"},
             files={"file": ("hello.txt", b"hello", "text/plain")},
         )
@@ -419,6 +494,7 @@ class TestDropRouterIntegration:
             SESSION_TTL_SECONDS=86400,
             DEFAULT_PAGE_SIZE=10,
             MAX_PAGE_SIZE=200,
+            MAX_UPLOAD_BYTES=1024 * 1024,
         )
         app.dependency_overrides[get_check_slug_availability_use_case] = (
             lambda: fake_use_cases.check_slug_availability_use_case
@@ -450,10 +526,12 @@ class TestDropRouterIntegration:
         app.dependency_overrides[get_required_api_auth] = _fake_required_api_auth
         app.dependency_overrides[get_optional_session_auth] = _fake_optional_session_auth
         client = TestClient(app)
-        client.cookies.set("session_id", "sid")
         client.cookies.set(drop_grant_cookie_name("k1"), "grant-token")
 
-        response = client.delete("/api/drop/k1")
+        response = client.delete(
+            "/api/drop/k1",
+            headers={"X-API-Key": "tdpk_public_secret"},
+        )
 
         assert response.status_code == 200
         assert delete_drop_use_case.command is not None

@@ -4,12 +4,15 @@
   "description": "Tailwind CSS build for Teledrop",
   "main": "index.js",
   "scripts": {
+    "build": "npm run build:vendor && npm run build:css",
+    "build:vendor": "node ./scripts/copy-vendor-assets.mjs",
     "build:css": "node ./scripts/build-theme-css.mjs && tailwindcss -i ../app/interfaces/web/static/css/input.css -o ../app/interfaces/web/static/gen/output.css --minify"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.2.0",
     "autoprefixer": "^10.4.24",
     "daisyui": "^5.5.19",
+    "htmx.org": "2.0.8",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.2.0"
   }

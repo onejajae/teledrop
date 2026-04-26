@@ -119,7 +119,11 @@
 
 {% macro field(label, for_id=None, hint=None, classes="", label_classes="") -%}
 <fieldset class="fieldset w-full{{ ' ' ~ classes if classes }}">
+  {% if for_id %}
+  <label for="{{ for_id }}" class="fieldset-legend{{ ' ' ~ label_classes if label_classes }}">{{ label }}</label>
+  {% else %}
   <legend class="fieldset-legend{{ ' ' ~ label_classes if label_classes }}">{{ label }}</legend>
+  {% endif %}
   {% if caller is defined %}{{ caller() }}{% endif %}
   {% if hint %}
   <p class="label text-base-content/70">{{ hint }}</p>

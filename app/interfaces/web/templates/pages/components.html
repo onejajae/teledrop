@@ -249,10 +249,10 @@
 
       {% call modal_form("catalog-password-modal", "비밀번호 설정", "#", "적용", description="비워두면 비밀번호를 해제합니다.", submit_id="catalog-password-submit") %}
         {% call field("새 비밀번호", "catalog-password-new") %}
-          {{ text_input("new_password", input_id="catalog-password-new", input_type="password", placeholder="•••••") }}
+          {{ text_input("new_password", input_id="catalog-password-new", input_type="password", placeholder="새 비밀번호 입력") }}
         {% endcall %}
         {% call field("비밀번호 확인", "catalog-password-confirm") %}
-          {{ text_input("confirm_password", input_id="catalog-password-confirm", input_type="password", placeholder="•••••") }}
+          {{ text_input("confirm_password", input_id="catalog-password-confirm", input_type="password", placeholder="한 번 더 입력") }}
         {% endcall %}
       {% endcall %}
 {% endblock %}

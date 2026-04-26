@@ -23,6 +23,7 @@ from app.domain.drop.entities import DropEntity
 from app.domain.drop.errors import (
     DropAccessDeniedError,
     DropNotFoundError,
+    DropSlugUnavailableError,
 )
 from app.domain.drop.grants import DropPasswordCredential, DropPasswordGrantService
 from app.domain.drop.policies import (
@@ -31,6 +32,7 @@ from app.domain.drop.policies import (
     assert_drop_access_allowed,
     is_drop_owner,
     assert_drop_password_matches,
+    hash_drop_password,
     normalize_drop_password,
 )
 from app.domain.drop.value_objects import AccessScope
@@ -121,41 +123,64 @@ class CreateDropUseCase:
         storage: DropStoragePort,
         slug_service: DropSlugService,
         uow_factory: DropUnitOfWorkFactory,
+        max_upload_bytes: int,
     ):
         self.storage = storage
         self.slug_service = slug_service
         self.uow_factory = uow_factory
+        self.max_upload_bytes = max_upload_bytes
 
     async def execute(self, command: CreateDropCommand) -> DropDetailDTO:
-        slug = await self.slug_service.resolve(command.slug)
-        password = normalize_drop_password(command.drop_password)
+        requested_slug = normalize_drop_password(command.slug)
+        slug = await self.slug_service.resolve(requested_slug)
+        password_hash = hash_drop_password(command.drop_password)
         access_scope = command.access_scope
 
         if access_scope not in (AccessScope.PUBLIC, AccessScope.PRIVATE):
             access_scope = AccessScope.PRIVATE
 
-        storage_key, sha256 = await self.storage.write_stream(command.file_stream)
-
-        async with self.uow_factory() as uow:
-            created = await uow.repository.create(
-                DropCreateInput(
-                    owner_user_id=command.owner_user_id,
-                    slug=slug,
-                    access_scope=access_scope,
-                    is_favorite=False,
-                    drop_password=password,
-                    file_name=command.file_name,
-                    mime_type=command.mime_type,
-                    size_bytes=command.size_bytes,
-                    sha256=sha256,
-                    storage_key=storage_key,
-                    title=command.title,
-                    description=command.description,
-                )
+        storage_key = ""
+        try:
+            storage_key, sha256 = await self.storage.write_stream(
+                command.file_stream,
+                max_bytes=self.max_upload_bytes,
             )
-            await uow.commit()
-        return _to_detail_dto(created)
 
+            last_slug_error: DropSlugUnavailableError | None = None
+            for attempt in range(self.slug_service.max_attempts):
+                if attempt > 0:
+                    slug = await self.slug_service.resolve(None)
+
+                try:
+                    async with self.uow_factory() as uow:
+                        created = await uow.repository.create(
+                            DropCreateInput(
+                                owner_user_id=command.owner_user_id,
+                                slug=slug,
+                                access_scope=access_scope,
+                                is_favorite=False,
+                                drop_password=password_hash,
+                                file_name=command.file_name,
+                                mime_type=command.mime_type,
+                                size_bytes=command.size_bytes,
+                                sha256=sha256,
+                                storage_key=storage_key,
+                                title=command.title,
+                                description=command.description,
+                            )
+                        )
+                        await uow.commit()
+                    return _to_detail_dto(created)
+                except DropSlugUnavailableError as exc:
+                    last_slug_error = exc
+                    if requested_slug is not None:
+                        raise
+
+            raise last_slug_error or DropSlugUnavailableError()
+        except Exception:
+            if storage_key:
+                await self.storage.discard_upload(storage_key)
+            raise
 
 class ListDropsUseCase:
     def __init__(
@@ -212,6 +237,12 @@ class GetDropMetaUseCase:
             _assert_password(drop, query.drop_password, self.grant_service)
         return _to_detail_dto(drop)
 
+    async def issue_grant_token(self, query: DropMetaQuery) -> str | None:
+        drop = await _get_by_slug_or_raise(self.repository, query.slug)
+        _assert_access(drop, query.auth)
+        _assert_password(drop, query.drop_password, self.grant_service)
+        return self.grant_service.issue(drop.slug, drop.drop_password)
+
     async def execute_for_display(self, slug: str, auth: AuthIdentity | None) -> DropDetailDTO:
         drop = await _get_by_slug_or_raise(self.repository, slug)
         _assert_access(drop, auth)
@@ -265,7 +296,7 @@ class UpdateDropUseCase:
             if command.is_favorite is not COMMAND_UNSET:
                 update.is_favorite = command.is_favorite
             if command.new_password is not COMMAND_UNSET:
-                update.drop_password = normalize_drop_password(command.new_password)
+                update.drop_password = hash_drop_password(command.new_password)
 
             updated = await uow.repository.update_by_slug(
                 command.slug,

@@ -9,11 +9,7 @@
     const fileInput = root.querySelector('[data-td-role="file-input"]');
     const dropzone = root.querySelector('[data-td-role="dropzone"]');
     const placeholder = root.querySelector('[data-td-role="placeholder"]');
-    const preview = root.querySelector('[data-td-role="preview"]');
-    const previewImage = root.querySelector('[data-td-role="preview-image"]');
-    const previewVideo = root.querySelector('[data-td-role="preview-video"]');
-    const previewVideoSource = root.querySelector('[data-td-role="preview-video-source"]');
-    const previewFile = root.querySelector('[data-td-role="preview-file"]');
+    const selection = root.querySelector('[data-td-role="selection"]');
     const fileNameText = root.querySelector('[data-td-role="filename"]');
     const submitButton = root.querySelector('[data-td-role="submit"]');
     const progressWrap = root.querySelector('[data-td-role="progress-wrap"]');
@@ -23,18 +19,10 @@
       return;
     }
 
-    let previewUrl = null;
     let dragDepth = 0;
 
     const setDragState = (isDragging) => {
       dropzone.dataset.dragging = isDragging ? "true" : "false";
-    };
-
-    const revokePreviewUrl = () => {
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-        previewUrl = null;
-      }
     };
 
     const updateSubmitState = () => {
@@ -42,15 +30,10 @@
       submitButton.disabled = !hasFile;
     };
 
-    const renderPreview = (file) => {
-      revokePreviewUrl();
-      previewImage?.classList.add("hidden");
-      previewVideo?.classList.add("hidden");
-      previewFile?.classList.add("hidden");
-
+    const renderSelection = (file) => {
       if (!file) {
         placeholder?.classList.remove("hidden");
-        preview?.classList.add("hidden");
+        selection?.classList.add("hidden");
         if (fileNameText) {
           fileNameText.textContent = "";
         }
@@ -59,27 +42,9 @@
       }
 
       placeholder?.classList.add("hidden");
-      preview?.classList.remove("hidden");
+      selection?.classList.remove("hidden");
       if (fileNameText) {
         fileNameText.textContent = file.name;
-      }
-      previewUrl = URL.createObjectURL(file);
-
-      if (file.type.startsWith("image/")) {
-        if (previewImage) {
-          previewImage.src = previewUrl;
-          previewImage.classList.remove("hidden");
-        }
-      } else if (file.type.startsWith("video/")) {
-        if (previewVideoSource) {
-          previewVideoSource.src = previewUrl;
-        }
-        if (previewVideo) {
-          previewVideo.load();
-          previewVideo.classList.remove("hidden");
-        }
-      } else {
-        previewFile?.classList.remove("hidden");
       }
 
       updateSubmitState();
@@ -87,7 +52,16 @@
 
     fileInput.addEventListener("change", () => {
       const file = fileInput.files?.[0] || null;
-      renderPreview(file);
+      renderSelection(file);
+    });
+
+    dropzone.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") {
+        return;
+      }
+
+      event.preventDefault();
+      fileInput.click();
     });
 
     ["dragenter", "dragover"].forEach((eventName) => {
@@ -120,7 +94,7 @@
       const transfer = new DataTransfer();
       transfer.items.add(droppedFile);
       fileInput.files = transfer.files;
-      renderPreview(droppedFile);
+      renderSelection(droppedFile);
     });
 
     form.addEventListener("submit", (event) => {

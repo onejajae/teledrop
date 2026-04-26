@@ -55,11 +55,13 @@ def get_create_drop_use_case(
     storage: LocalFileStorage = Depends(get_file_storage),
     slug_service: DropSlugService = Depends(get_drop_slug_service),
     uow_factory: DropUnitOfWorkFactory = Depends(get_drop_uow_factory),
+    settings: Settings = Depends(get_app_settings),
 ) -> CreateDropUseCase:
     return CreateDropUseCase(
         storage=storage,
         slug_service=slug_service,
         uow_factory=uow_factory,
+        max_upload_bytes=settings.MAX_UPLOAD_BYTES,
     )
 
 

@@ -31,17 +31,17 @@ class DropPasswordGrantService:
         self._ttl_seconds = ttl_seconds
         self._now_fn = now_fn or _utc_now
 
-    def issue(self, slug: str, password: str | None) -> str | None:
-        normalized_password = _normalize_drop_password(password)
-        if normalized_password is None:
+    def issue(self, slug: str, password_hash: str | None) -> str | None:
+        normalized_password_hash = _normalize_drop_password_hash(password_hash)
+        if normalized_password_hash is None:
             return None
 
         expires_at = int(_normalize_datetime(self._now_fn()).timestamp()) + self._ttl_seconds
-        signature = self._sign(slug, normalized_password, expires_at)
+        signature = self._sign(slug, normalized_password_hash, expires_at)
         return f"{self._VERSION}.{expires_at}.{signature}"
 
-    def verify(self, slug: str, expected_password: str | None, grant_token: str | None) -> bool:
-        normalized_expected = _normalize_drop_password(expected_password)
+    def verify(self, slug: str, expected_password_hash: str | None, grant_token: str | None) -> bool:
+        normalized_expected = _normalize_drop_password_hash(expected_password_hash)
         if normalized_expected is None or not grant_token:
             return False
 
@@ -64,18 +64,18 @@ class DropPasswordGrantService:
         expected_signature = self._sign(slug, normalized_expected, expires_at)
         return secrets.compare_digest(expected_signature, provided_signature)
 
-    def _sign(self, slug: str, normalized_password: str, expires_at: int) -> str:
+    def _sign(self, slug: str, normalized_password_hash: str, expires_at: int) -> str:
         message = (
-            f"{self._PURPOSE}:{slug}:{normalized_password}:{expires_at}"
+            f"{self._PURPOSE}:{slug}:{normalized_password_hash}:{expires_at}"
         ).encode("utf-8")
         digest = hmac.new(self._secret_key, message, hashlib.sha256).digest()
         return base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
 
 
-def _normalize_drop_password(password: str | None) -> str | None:
-    if password is None:
+def _normalize_drop_password_hash(password_hash: str | None) -> str | None:
+    if password_hash is None:
         return None
-    stripped = password.strip()
+    stripped = password_hash.strip()
     return stripped or None
 
 

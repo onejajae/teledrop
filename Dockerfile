@@ -1,3 +1,5 @@
+ARG UV_VERSION=0.11.7
+
 # 1. node base for building tailwind css
 FROM node:24-alpine AS node_builder
 WORKDIR /app
@@ -6,15 +8,17 @@ COPY ui-build/scripts ./ui-build/scripts
 COPY app/interfaces/web/static ./app/interfaces/web/static
 COPY app/interfaces/web/templates ./app/interfaces/web/templates
 WORKDIR /app/ui-build
-RUN npm install
-RUN npm run build:css
+RUN npm ci
+RUN npm run build
 
 # python base image
 FROM python:3.14-alpine AS python_base
 
+FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
+
 # 2. dependencies install
 FROM python_base AS dependency_builder
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+COPY --from=uv /uv /bin/uv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
 # set workdir
@@ -39,6 +43,7 @@ COPY ./app ./app
 COPY ./scripts/docker-entrypoint.sh ./scripts/docker-entrypoint.sh
 # Copy built css from node_builder
 COPY --from=node_builder /app/app/interfaces/web/static/gen/output.css ./app/interfaces/web/static/gen/output.css
+COPY --from=node_builder /app/app/interfaces/web/static/vendor ./app/interfaces/web/static/vendor
 
 # set path
 ENV PATH="/teledrop/.venv/bin:$PATH"

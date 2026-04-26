@@ -11,7 +11,9 @@ from app.domain.drop.policies import (
     assert_drop_owner,
     is_drop_owner,
     assert_drop_password_matches,
+    hash_drop_password,
     normalize_drop_password,
+    verify_drop_password_hash,
 )
 from app.domain.drop.value_objects import AccessScope
 
@@ -103,11 +105,20 @@ class TestDropPolicies:
             None,
             self._grant_service,
         )
+        password_hash = hash_drop_password("  secret  ")
         assert_drop_password_matches(
-            _drop(drop_password="  secret  "),
+            _drop(drop_password=password_hash),
             _credential("secret"),
             self._grant_service,
         )
+
+    def test_drop_password_hash_does_not_store_plaintext(self):
+        password_hash = hash_drop_password("secret")
+
+        assert password_hash is not None
+        assert password_hash != "secret"
+        assert verify_drop_password_hash(password_hash, "secret")
+        assert not verify_drop_password_hash(password_hash, "wrong")
 
     @pytest.mark.parametrize(
         ("expected", "provided"),
@@ -123,8 +134,16 @@ class TestDropPolicies:
     ):
         with pytest.raises(DropPasswordInvalidError):
             assert_drop_password_matches(
-                _drop(drop_password=expected),
+                _drop(drop_password=hash_drop_password(expected)),
                 _credential(provided),
+                self._grant_service,
+            )
+
+    def test_assert_drop_password_matches_rejects_legacy_plaintext_storage(self):
+        with pytest.raises(DropPasswordInvalidError):
+            assert_drop_password_matches(
+                _drop(drop_password="secret"),
+                _credential("secret"),
                 self._grant_service,
             )
 

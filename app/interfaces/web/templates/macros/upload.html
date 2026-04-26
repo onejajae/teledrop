@@ -2,12 +2,16 @@
 {% from "macros/ui.html" import icon_shell %}
 
 {% macro upload_dropzone(prefix="upload") -%}
-<input id="{{ prefix }}-file" data-td-role="file-input" type="file" name="file" required class="hidden" />
+<input id="{{ prefix }}-file" data-td-role="file-input" type="file" name="file" required class="sr-only" tabindex="-1" />
 
 <label for="{{ prefix }}-file"
   data-td-role="dropzone"
   data-dragging="false"
-  class="group hero flex w-full flex-1 cursor-pointer overflow-hidden rounded-[1.35rem] border-2 border-dashed border-base-300 bg-base-200/35 shadow-sm transition-all duration-200 hover:border-primary/35 hover:bg-base-200/55 data-[dragging=true]:border-primary data-[dragging=true]:bg-base-200 data-[dragging=true]:ring data-[dragging=true]:ring-primary/15">
+  role="button"
+  tabindex="0"
+  aria-controls="{{ prefix }}-file"
+  aria-describedby="{{ prefix }}-dropzone-help {{ prefix }}-selected-file"
+  class="group hero flex w-full flex-1 cursor-pointer overflow-hidden rounded-[1.35rem] border-2 border-dashed border-base-300 bg-base-200/35 shadow-sm transition-all duration-200 hover:border-primary/35 hover:bg-base-200/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/45 focus-visible:ring-offset-2 focus-visible:ring-offset-base-100 data-[dragging=true]:border-primary data-[dragging=true]:bg-base-200 data-[dragging=true]:ring data-[dragging=true]:ring-primary/15">
   <div class="hero-content w-full p-0 text-center">
     <div class="flex min-h-[22rem] w-full flex-1 items-center justify-center px-6 py-10 sm:min-h-[28rem]">
       <div data-td-role="placeholder" class="w-full space-y-6">
@@ -16,20 +20,16 @@
         {% endcall %}
         <div class="space-y-2">
           <p class="text-lg font-semibold tracking-tight">파일을 선택하거나 끌어서 놓기</p>
-          <p class="mx-auto max-w-xs text-sm leading-6 opacity-65">업로드 즉시 private 상태로 생성되며, 다음 화면에서 공유 범위를 설정할 수 있습니다.</p>
+          <p id="{{ prefix }}-dropzone-help" class="mx-auto max-w-xs text-sm leading-6 opacity-65">업로드 즉시 private 상태로 생성되며, 다음 화면에서 공유 범위를 설정할 수 있습니다.</p>
         </div>
       </div>
-      <div data-td-role="preview" class="hidden w-full space-y-4">
-        <img data-td-role="preview-image" alt="업로드 미리보기" class="mx-auto hidden max-h-72 rounded-[1rem] border border-base-300/70 bg-base-100 shadow-sm" />
-        <video data-td-role="preview-video" class="mx-auto hidden max-h-72 rounded-[1rem] border border-base-300/70 bg-base-100 shadow-sm" controls>
-          <source data-td-role="preview-video-source" />
-        </video>
-        <div data-td-role="preview-file" class="mx-auto hidden w-full max-w-sm rounded-[1rem] border border-base-300/70 bg-base-100 px-4 py-4 text-sm shadow-sm">
-          선택한 파일
-        </div>
+      <div data-td-role="selection" class="hidden w-full space-y-4" aria-live="polite">
+        {% call icon_shell(classes="mx-auto h-20 w-20 text-primary") %}
+          {{ icon_cloud_arrow_up(class="h-9 w-9") }}
+        {% endcall %}
         <div class="space-y-1">
           <p class="text-[0.68rem] font-medium uppercase tracking-[0.24em] opacity-45">Selected file</p>
-          <p data-td-role="filename" class="text-base font-semibold leading-6"></p>
+          <p id="{{ prefix }}-selected-file" data-td-role="filename" class="break-words text-base font-semibold leading-6"></p>
         </div>
       </div>
     </div>

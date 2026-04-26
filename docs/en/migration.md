@@ -1,6 +1,6 @@
 # Migration Notes
 
-This version intentionally breaks compatibility with older database schemas. The app no longer ships Alembic migrations and does not attempt to convert existing `content`/`contents` tables or older `drops`, `auth_sessions`, and `auth_api_keys` layouts.
+This version intentionally breaks compatibility with older database schemas. The app no longer ships Alembic migrations and does not attempt to convert existing `content`/`contents` tables, older `drops`, `auth_sessions`, and `auth_api_keys` layouts, or plaintext password-protected drops.
 
 Before upgrading in production, back up your database file:
 ```bash
@@ -13,3 +13,5 @@ rm share/database.db
 ```
 
 On startup, teledrop creates the current schema automatically and bootstraps the first web user from `WEB_USERNAME` and `WEB_PASSWORD`. Existing uploaded files under `share/` are not reattached to the new database automatically.
+
+For production, set `BOOTSTRAP_ALLOW_INSECURE_DEFAULTS=false` together with explicit non-default bootstrap credentials. `WEB_PASSWORD` must be a valid Argon2 hash. With that flag disabled, startup fails on an empty database if credentials are missing, invalid, or still resolve to `admin/password`.

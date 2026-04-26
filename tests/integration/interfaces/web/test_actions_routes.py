@@ -210,6 +210,10 @@ class _FakeDropUseCases:
         async def execute(self, query):
             return _detail_dto(query.slug)
 
+        async def issue_grant_token(self, query):
+            await self.execute(query)
+            return f"grant-{query.slug}"
+
     class _ListDropsUseCase:
         async def execute(self, _query):
             return DropListDTO(items=[], page=1, page_size=200, total=0)
@@ -233,6 +237,7 @@ def _client(
         CSRF_SECRET_KEY="csrf-secret",
         DEFAULT_PAGE_SIZE=10,
         MAX_PAGE_SIZE=200,
+        MAX_UPLOAD_BYTES=10_000_000,
     )
 
     app.dependency_overrides[get_app_settings] = lambda: fake_settings
@@ -414,6 +419,7 @@ class TestWebActionRoutesIntegration:
             CSRF_SECRET_KEY="csrf-secret",
             DEFAULT_PAGE_SIZE=10,
             MAX_PAGE_SIZE=200,
+            MAX_UPLOAD_BYTES=10_000_000,
         )
         app.dependency_overrides[get_app_settings] = lambda: fake_settings
         app.dependency_overrides[get_verify_session_use_case] = (
@@ -753,6 +759,7 @@ class TestWebActionRoutesIntegration:
             CSRF_SECRET_KEY="csrf-secret",
             DEFAULT_PAGE_SIZE=10,
             MAX_PAGE_SIZE=200,
+            MAX_UPLOAD_BYTES=10_000_000,
         )
         app.dependency_overrides[get_app_settings] = lambda: fake_settings
         app.dependency_overrides[get_verify_session_use_case] = (

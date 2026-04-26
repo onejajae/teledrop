@@ -174,7 +174,7 @@ class TestApiSmoke:
         app = FastAPI()
         app.include_router(api_router, prefix='/api')
         fake_use_cases = _FakeDropUseCases()
-        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
+        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200, MAX_UPLOAD_BYTES=1024 * 1024)
         app.dependency_overrides[get_check_slug_availability_use_case] = lambda: fake_use_cases.check_slug_availability_use_case
         app.dependency_overrides[get_create_drop_use_case] = lambda: fake_use_cases.create_drop_use_case
         app.dependency_overrides[get_delete_drop_use_case] = lambda: fake_use_cases.delete_drop_use_case
@@ -187,10 +187,11 @@ class TestApiSmoke:
         app.dependency_overrides[get_verify_api_key_use_case] = lambda: _FakeVerifyApiKeyUseCase()
         client = TestClient(app)
         client.cookies.set('session_id', 'sid')
+        headers = {"X-API-Key": "tdpk_public_secret"}
         available_before_upload = client.get('/api/drop/availability/k1')
         assert available_before_upload.status_code == 200
         assert available_before_upload.json()['available']
-        upload = client.post('/api/drop', data={'slug': 'k1', 'access_scope': 'private', 'drop_password': 'pw'}, files={'file': ('hello.txt', io.BytesIO(b'hello world'), 'text/plain')})
+        upload = client.post('/api/drop', headers=headers, data={'slug': 'k1', 'access_scope': 'private', 'drop_password': 'pw'}, files={'file': ('hello.txt', io.BytesIO(b'hello world'), 'text/plain')})
         assert upload.status_code == 200
         assert upload.json()['slug'] == 'k1'
         assert 'key' not in upload.json()
@@ -202,21 +203,23 @@ class TestApiSmoke:
         assert listed.json()['total'] == 1
         assert listed.json()['items'][0]['slug'] == 'k1'
         assert 'key' not in listed.json()['items'][0]
-        patched = client.patch('/api/drop/k1', json={'title': 'updated', 'current_password': 'pw'})
+        patched = client.patch('/api/drop/k1', headers=headers, json={'title': 'updated', 'current_password': 'pw'})
         assert patched.status_code == 200
         assert patched.json()['title'] == 'updated'
         assert patched.json()['slug'] == 'k1'
         streamed = client.get('/api/drop/k1?disposition=inline', headers={'X-Drop-Password': 'pw'})
         assert streamed.status_code == 200
         assert streamed.content == b'hello world'
-        deleted = client.delete('/api/drop/k1', headers={'X-Drop-Password': 'pw'})
+        assert streamed.headers['content-disposition'].startswith('attachment;')
+        assert streamed.headers['x-content-type-options'] == 'nosniff'
+        deleted = client.delete('/api/drop/k1', headers={**headers, 'X-Drop-Password': 'pw'})
         assert deleted.status_code == 200
 
     def test_auth_unauthorized_response_includes_session_headers(self):
         app = FastAPI()
         app.include_router(api_router, prefix='/api')
         fake_use_cases = _FakeDropUseCases()
-        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
+        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200, MAX_UPLOAD_BYTES=1024 * 1024)
         app.dependency_overrides[get_check_slug_availability_use_case] = lambda: fake_use_cases.check_slug_availability_use_case
         app.dependency_overrides[get_create_drop_use_case] = lambda: fake_use_cases.create_drop_use_case
         app.dependency_overrides[get_delete_drop_use_case] = lambda: fake_use_cases.delete_drop_use_case
@@ -237,7 +240,7 @@ class TestApiSmoke:
         app = FastAPI()
         app.include_router(api_router, prefix='/api')
         fake_use_cases = _FakeDropUseCases()
-        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
+        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200, MAX_UPLOAD_BYTES=1024 * 1024)
         app.dependency_overrides[get_check_slug_availability_use_case] = lambda: fake_use_cases.check_slug_availability_use_case
         app.dependency_overrides[get_create_drop_use_case] = lambda: fake_use_cases.create_drop_use_case
         app.dependency_overrides[get_delete_drop_use_case] = lambda: fake_use_cases.delete_drop_use_case
@@ -250,11 +253,12 @@ class TestApiSmoke:
         app.dependency_overrides[get_verify_api_key_use_case] = lambda: _FakeVerifyApiKeyUseCase()
         client = TestClient(app)
         client.cookies.set('session_id', 'sid')
-        upload = client.post('/api/drop', data={'slug': 'k-grant', 'access_scope': 'private', 'drop_password': 'pw'}, files={'file': ('hello.txt', io.BytesIO(b'hello world'), 'text/plain')})
+        headers = {"X-API-Key": "tdpk_public_secret"}
+        upload = client.post('/api/drop', headers=headers, data={'slug': 'k-grant', 'access_scope': 'private', 'drop_password': 'pw'}, files={'file': ('hello.txt', io.BytesIO(b'hello world'), 'text/plain')})
         assert upload.status_code == 200
         client.cookies.set(drop_grant_cookie_name('k-grant'), 'grant-token')
 
-        deleted = client.delete('/api/drop/k-grant')
+        deleted = client.delete('/api/drop/k-grant', headers=headers)
 
         assert deleted.status_code == 200
 
@@ -262,7 +266,7 @@ class TestApiSmoke:
         app = FastAPI()
         app.include_router(api_router, prefix='/api')
         fake_use_cases = _FakeDropUseCases()
-        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
+        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200, MAX_UPLOAD_BYTES=1024 * 1024)
         app.dependency_overrides[get_check_slug_availability_use_case] = lambda: fake_use_cases.check_slug_availability_use_case
         app.dependency_overrides[get_create_drop_use_case] = lambda: fake_use_cases.create_drop_use_case
         app.dependency_overrides[get_delete_drop_use_case] = lambda: fake_use_cases.delete_drop_use_case
@@ -275,7 +279,7 @@ class TestApiSmoke:
         app.dependency_overrides[get_verify_api_key_use_case] = lambda: _FakeVerifyApiKeyUseCase()
         client = TestClient(app)
         client.cookies.set('session_id', 'sid')
-        upload = client.post('/api/drop', data={'slug': 'k-auth', 'access_scope': 'private', 'drop_password': 'pw'}, files={'file': ('hello.txt', io.BytesIO(b'hello world'), 'text/plain')})
+        upload = client.post('/api/drop', headers={"X-API-Key": "tdpk_public_secret"}, data={'slug': 'k-auth', 'access_scope': 'private', 'drop_password': 'pw'}, files={'file': ('hello.txt', io.BytesIO(b'hello world'), 'text/plain')})
         assert upload.status_code == 200
 
         meta = client.get('/api/drop/k-auth/meta')
@@ -289,7 +293,7 @@ class TestApiSmoke:
         app = FastAPI()
         app.include_router(api_router, prefix='/api')
         fake_use_cases = _FakeDropUseCases()
-        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
+        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200, MAX_UPLOAD_BYTES=1024 * 1024)
         app.dependency_overrides[get_check_slug_availability_use_case] = lambda: fake_use_cases.check_slug_availability_use_case
         app.dependency_overrides[get_create_drop_use_case] = lambda: fake_use_cases.create_drop_use_case
         app.dependency_overrides[get_delete_drop_use_case] = lambda: fake_use_cases.delete_drop_use_case
@@ -319,7 +323,7 @@ class TestApiSmoke:
     def test_auth_me_accepts_api_key(self):
         app = FastAPI()
         app.include_router(api_router, prefix='/api')
-        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
+        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200, MAX_UPLOAD_BYTES=1024 * 1024)
         app.dependency_overrides[get_app_settings] = lambda: fake_settings
         app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
         app.dependency_overrides[get_verify_api_key_use_case] = lambda: _FakeVerifyApiKeyUseCase()

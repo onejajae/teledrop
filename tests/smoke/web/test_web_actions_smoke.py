@@ -123,6 +123,10 @@ class _FakeDropUseCases:
                 raise DropPasswordInvalidError()
             return item['dto']
 
+        async def issue_grant_token(self, query):
+            await self.execute(query)
+            return f"grant-{query.slug}"
+
     class _UpdateDropUseCase:
 
         def __init__(self, parent):
@@ -169,7 +173,7 @@ class TestWebActionsSmoke:
         app = FastAPI()
         app.include_router(web_router)
         fake_use_cases = _FakeDropUseCases()
-        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, CSRF_SECRET_KEY='csrf-secret', DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
+        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, CSRF_SECRET_KEY='csrf-secret', DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200, MAX_UPLOAD_BYTES=10_000_000)
         app.dependency_overrides[get_app_settings] = lambda: fake_settings
         app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
         app.dependency_overrides[get_optional_session_auth] = _fake_optional_session_auth
@@ -201,7 +205,7 @@ class TestWebActionsSmoke:
         app = FastAPI()
         app.include_router(web_router)
         fake_use_cases = _FakeDropUseCases()
-        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, CSRF_SECRET_KEY='csrf-secret', DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
+        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, CSRF_SECRET_KEY='csrf-secret', DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200, MAX_UPLOAD_BYTES=10_000_000)
         app.dependency_overrides[get_app_settings] = lambda: fake_settings
         app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
         app.dependency_overrides[get_optional_session_auth] = _fake_optional_session_auth
@@ -231,7 +235,7 @@ class TestWebActionsSmoke:
         app = FastAPI()
         app.include_router(web_router)
         fake_use_cases = _FakeDropUseCases()
-        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, CSRF_SECRET_KEY='csrf-secret', DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
+        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, CSRF_SECRET_KEY='csrf-secret', DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200, MAX_UPLOAD_BYTES=10_000_000)
         app.dependency_overrides[get_app_settings] = lambda: fake_settings
         app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
         app.dependency_overrides[get_optional_session_auth] = _fake_optional_session_auth
@@ -272,7 +276,7 @@ class TestWebActionsSmoke:
         app = FastAPI()
         app.include_router(web_router)
         fake_use_cases = _FakeDropUseCases()
-        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, CSRF_SECRET_KEY='csrf-secret', DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
+        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, CSRF_SECRET_KEY='csrf-secret', DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200, MAX_UPLOAD_BYTES=10_000_000)
         app.dependency_overrides[get_app_settings] = lambda: fake_settings
         app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
         app.dependency_overrides[get_optional_session_auth] = _fake_optional_session_auth
@@ -308,7 +312,7 @@ class TestWebActionsSmoke:
         app = FastAPI()
         app.include_router(web_router)
         fake_use_cases = _FakeDropUseCases()
-        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, CSRF_SECRET_KEY='csrf-secret', DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200)
+        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, CSRF_SECRET_KEY='csrf-secret', DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200, MAX_UPLOAD_BYTES=10_000_000)
         app.dependency_overrides[get_app_settings] = lambda: fake_settings
         app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
         app.dependency_overrides[get_optional_session_auth] = _fake_optional_session_auth

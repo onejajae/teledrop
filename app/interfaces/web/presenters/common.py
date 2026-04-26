@@ -112,11 +112,11 @@ def normalize_sort_value(sortby: str | None) -> str:
     return sortby or "created_at"
 
 
-def drop_file_urls(slug: str) -> tuple[str, str]:
+def drop_file_urls(slug: str) -> tuple[str, str | None]:
     encoded_slug = quote(slug, safe="")
     return (
         f"/api/drop/{encoded_slug}",
-        f"/api/drop/{encoded_slug}?disposition=inline",
+        None,
     )
 
 

@@ -4,6 +4,8 @@ from sqlalchemy import inspect
 from sqlalchemy.engine import Engine
 from sqlalchemy.sql import func
 from sqlmodel import SQLModel, Session, select
+from argon2 import PasswordHasher, extract_parameters
+from argon2.exceptions import InvalidHashError, VerificationError
 
 from app.core.config import Settings
 from app.infrastructure.db.models import AuthApiKey, AuthSession, DropRecord, UserRecord
@@ -53,6 +55,10 @@ class DatabaseSchemaIncompatibleError(RuntimeError):
     pass
 
 
+class BootstrapConfigurationError(RuntimeError):
+    pass
+
+
 def initialize_database_schema(db_engine: Engine, settings: Settings) -> None:
     _assert_database_compatible(db_engine)
     SQLModel.metadata.create_all(db_engine)
@@ -85,6 +91,8 @@ def _bootstrap_initial_user(db_engine: Engine, settings: Settings) -> None:
         if int(user_count) > 0:
             return
 
+        _validate_bootstrap_credentials(settings)
+
         session.add(
             UserRecord(
                 username=settings.WEB_USERNAME,
@@ -97,12 +105,58 @@ def _bootstrap_initial_user(db_engine: Engine, settings: Settings) -> None:
         session.commit()
 
 
+def _validate_bootstrap_credentials(settings: Settings) -> None:
+    username = (settings.WEB_USERNAME or "").strip()
+    password_hash = (settings.WEB_PASSWORD or "").strip()
+    if not username or not password_hash:
+        raise BootstrapConfigurationError(
+            "WEB_USERNAME and WEB_PASSWORD must be set before bootstrapping "
+            "the initial user."
+        )
+
+    if not _is_argon2_password_hash(password_hash):
+        raise BootstrapConfigurationError(
+            "WEB_PASSWORD must be a valid Argon2 password hash before "
+            "bootstrapping the initial user."
+        )
+
+    if _uses_insecure_bootstrap_defaults(settings, username, password_hash):
+        raise BootstrapConfigurationError(
+            "Refusing to bootstrap the default admin/password user while "
+            "BOOTSTRAP_ALLOW_INSECURE_DEFAULTS is false."
+        )
+
+
+def _is_argon2_password_hash(password_hash: str) -> bool:
+    try:
+        extract_parameters(password_hash)
+    except InvalidHashError:
+        return False
+    return True
+
+
+def _uses_insecure_bootstrap_defaults(
+    settings: Settings,
+    username: str,
+    password_hash: str,
+) -> bool:
+    if getattr(settings, "BOOTSTRAP_ALLOW_INSECURE_DEFAULTS", True):
+        return False
+    if username != "admin":
+        return False
+    try:
+        return PasswordHasher().verify(password_hash, "password")
+    except (InvalidHashError, VerificationError):
+        return False
+
+
 def _raise_incompatible(reason: str) -> None:
     raise DatabaseSchemaIncompatibleError(f"{reason}. {INCOMPATIBLE_DATABASE_HINT}")
 
 
 __all__ = [
     "DatabaseSchemaIncompatibleError",
+    "BootstrapConfigurationError",
     "INCOMPATIBLE_DATABASE_HINT",
     "initialize_database_schema",
 ]

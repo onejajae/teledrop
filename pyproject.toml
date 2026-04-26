@@ -21,3 +21,16 @@ dev = [
 testpaths = ["tests"]
 pythonpath = ["."]
 asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py314"
+
+[tool.ruff.lint.per-file-ignores]
+"app/core/auth/__init__.py" = ["F401"]
+"app/core/utils/__init__.py" = ["F401"]
+"app/infrastructure/db/schema.py" = ["F401"]
+"app/interfaces/web/routes/actions_drop.py" = ["F401"]
+"app/interfaces/web/router.py" = ["F401"]
+"tests/integration/application/drop/test_drop_use_cases.py" = ["E731"]
+"tests/integration/infrastructure/db/test_api_key_repository.py" = ["F401"]
+"tests/smoke/web/test_web_actions_smoke.py" = ["F841"]

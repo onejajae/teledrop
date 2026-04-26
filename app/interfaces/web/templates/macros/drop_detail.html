@@ -3,18 +3,18 @@
 {% from "macros/ui.html" import button, field, icon_shell, inset_surface, page_section, surface_card, text_input, textarea_input %}
 
 {% macro detail_action_bar(download_url, page_url, can_copy_link=true, detail_mode="panel") -%}
-<div class="join join-vertical w-full sm:w-auto sm:join-horizontal">
-  {% call button(href=download_url, kind="primary", size="sm", classes="join-item w-full sm:w-auto", attrs='download aria-label="다운로드" title="다운로드"') %}
+<div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+  {% call button(href=download_url, kind="primary", size="sm", classes="w-full rounded-xl sm:w-auto", attrs='download aria-label="다운로드" title="다운로드"') %}
     {{ icon_arrow_down_tray() }}
     <span class="sm:hidden">다운로드</span>
   {% endcall %}
-  {% if can_copy_link %}
-  {% call button(kind="outline", size="sm", classes="join-item w-full sm:w-auto", attrs='data-td-action="copy-link" data-td-copy-url="' ~ page_url ~ '" aria-label="링크 복사" title="링크 복사"') %}
+  {% if can_copy_link and page_url %}
+  {% call button(kind="outline", size="sm", classes="w-full rounded-xl sm:w-auto", attrs='data-td-action="copy-link" data-td-copy-url="' ~ page_url ~ '" aria-label="링크 복사" title="링크 복사"') %}
     {{ icon_document_duplicate() }}
     <span data-td-role="copy-label" class="sm:hidden">링크 복사</span>
   {% endcall %}
   {% elif detail_mode == "manage" %}
-  {% call button(kind="outline", size="sm", classes="join-item w-full sm:w-auto", attrs='aria-label="공유 시작 후 링크 복사 가능" title="공유 시작 후 링크 복사 가능"', disabled=true) %}
+  {% call button(kind="outline", size="sm", classes="w-full rounded-xl sm:w-auto", attrs='aria-label="공유 시작 후 링크 복사 가능" title="공유 시작 후 링크 복사 가능"', disabled=true) %}
     {{ icon_document_duplicate() }}
     <span class="sm:hidden">공유 시작 후 링크 복사 가능</span>
   {% endcall %}
@@ -95,7 +95,7 @@
     </div>
   {% endcall %}
   {% if detail_mode == "manage" %}
-  <p class="text-xs opacity-60">현재 비밀번호를 입력해야 미리보기와 관리 작업을 계속할 수 있습니다.</p>
+  <p class="text-xs opacity-60">현재 비밀번호를 입력해야 다운로드와 관리 작업을 계속할 수 있습니다.</p>
   {% elif is_login %}
   <p class="text-xs opacity-60">로그인 중이라면 상세 화면에서 비밀번호 변경을 시도할 수 있습니다.</p>
   {% endif %}
@@ -103,15 +103,16 @@
 {%- endmacro %}
 
 {% macro owner_action_group(selected_drop, selected_key, csrf_token=None, interactive=true, wrapper_classes="", chromed=true) -%}
-{% set button_classes = "btn btn-ghost btn-sm btn-square rounded-xl text-base-content/70" %}
-{% set danger_button_classes = "btn btn-error btn-sm btn-square rounded-xl" %}
-<div class="flex flex-wrap items-center justify-end gap-2{% if chromed %} rounded-[1rem] border border-base-300/70 bg-base-100/80 p-1 shadow-sm{% endif %}{% if wrapper_classes %} {{ wrapper_classes }}{% endif %}" aria-label="상세 관리 액션">
+{% set button_classes = "btn btn-ghost btn-sm min-w-16 rounded-xl px-3 text-base-content/70 sm:btn-square sm:min-w-0 sm:px-0" %}
+{% set danger_button_classes = "btn btn-error btn-sm min-w-16 rounded-xl px-3 sm:btn-square sm:min-w-0 sm:px-0" %}
+<div class="flex flex-wrap items-center justify-start gap-2 sm:justify-end{% if chromed %} rounded-[1rem] border border-base-300/70 bg-base-100/80 p-1 shadow-sm{% endif %}{% if wrapper_classes %} {{ wrapper_classes }}{% endif %}" aria-label="상세 관리 액션">
   {% if interactive %}
   <form method="post" action="/actions/drop/{{ selected_key }}/favorite" class="flex">
     <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
     <input type="hidden" name="favorite" value="{{ 'false' if selected_drop.is_favorite else 'true' }}" />
     <button type="submit" class="{{ button_classes }}" aria-label="{% if selected_drop.is_favorite %}즐겨찾기 해제{% else %}즐겨찾기{% endif %}" title="{% if selected_drop.is_favorite %}즐겨찾기 해제{% else %}즐겨찾기{% endif %}">
       {{ icon_star(filled=selected_drop.is_favorite) }}
+      <span class="text-[0.68rem] font-semibold leading-4 sm:hidden">즐겨</span>
     </button>
   </form>
 
@@ -121,26 +122,32 @@
     <button type="submit" class="{{ button_classes }}" aria-label="{% if selected_drop.access_scope == 'private' %}전체 공개{% else %}나만 보기{% endif %}" title="{% if selected_drop.access_scope == 'private' %}전체 공개{% else %}나만 보기{% endif %}">
       {% if selected_drop.access_scope == "private" %}
       {{ icon_eye() }}
+      <span class="text-[0.68rem] font-semibold leading-4 sm:hidden">공개</span>
       {% else %}
       {{ icon_eye_slash() }}
+      <span class="text-[0.68rem] font-semibold leading-4 sm:hidden">비공개</span>
       {% endif %}
     </button>
   </form>
   {% else %}
   <button type="button" class="{{ button_classes }}" aria-label="{% if selected_drop.is_favorite %}즐겨찾기 해제{% else %}즐겨찾기{% endif %}" title="{% if selected_drop.is_favorite %}즐겨찾기 해제{% else %}즐겨찾기{% endif %}">
     {{ icon_star(filled=selected_drop.is_favorite) }}
+    <span class="text-[0.68rem] font-semibold leading-4 sm:hidden">즐겨</span>
   </button>
   <button type="button" class="{{ button_classes }}" aria-label="{% if selected_drop.access_scope == 'private' %}전체 공개{% else %}나만 보기{% endif %}" title="{% if selected_drop.access_scope == 'private' %}전체 공개{% else %}나만 보기{% endif %}">
     {% if selected_drop.access_scope == "private" %}
     {{ icon_eye() }}
+    <span class="text-[0.68rem] font-semibold leading-4 sm:hidden">공개</span>
     {% else %}
     {{ icon_eye_slash() }}
+    <span class="text-[0.68rem] font-semibold leading-4 sm:hidden">비공개</span>
     {% endif %}
   </button>
   {% endif %}
 
   <button type="button" class="{{ button_classes }}" aria-label="메타데이터 수정" title="메타데이터 수정" data-td-action="open-dialog" data-td-dialog="detail-edit-modal">
     {{ icon_pencil_square() }}
+    <span class="text-[0.68rem] font-semibold leading-4 sm:hidden">수정</span>
   </button>
 
   {% if selected_drop.requires_password and interactive %}
@@ -150,11 +157,13 @@
     <input type="hidden" name="confirm_password" value="" />
     <button type="submit" class="{{ button_classes }}" aria-label="비밀번호 해제" title="비밀번호 해제">
       {{ icon_lock_closed() }}
+      <span class="text-[0.68rem] font-semibold leading-4 sm:hidden">해제</span>
     </button>
   </form>
   {% else %}
   <button type="button" class="{{ button_classes }}" aria-label="비밀번호 설정" title="비밀번호 설정" data-td-action="open-dialog" data-td-dialog="detail-password-modal">
     {{ icon_lock_closed() }}
+    <span class="text-[0.68rem] font-semibold leading-4 sm:hidden">암호</span>
   </button>
   {% endif %}
 
@@ -163,11 +172,13 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
     <button type="submit" class="{{ danger_button_classes }}" aria-label="삭제" title="삭제">
       {{ icon_trash() }}
+      <span class="text-[0.68rem] font-semibold leading-4 sm:hidden">삭제</span>
     </button>
   </form>
   {% else %}
   <button type="button" class="{{ danger_button_classes }}" aria-label="삭제" title="삭제">
     {{ icon_trash() }}
+    <span class="text-[0.68rem] font-semibold leading-4 sm:hidden">삭제</span>
   </button>
   {% endif %}
 </div>
@@ -175,16 +186,20 @@
 
 {% macro modal_form(dialog_name, title, form_action, submit_label, description=None, form_id=None, form_attrs="", form_classes="mt-4 space-y-3", close_label="취소", close_attrs=None, submit_id=None, submit_disabled=false, submit_kind="primary", submit_classes="", submit_attrs="") -%}
 {% set cleaned_form_classes = form_classes | replace('mt-4 ', '') | replace('mt-4', '') %}
+{% set title_id = dialog_name ~ "-title" %}
+{% set description_id = dialog_name ~ "-description" %}
 {% set modal_content %}
   {% if caller is defined %}{{ caller() }}{% endif %}
 {% endset %}
-<dialog id="{{ dialog_name }}" data-td-dialog="{{ dialog_name }}" class="modal modal-bottom sm:modal-middle">
+<dialog id="{{ dialog_name }}" data-td-dialog="{{ dialog_name }}" class="modal modal-bottom sm:modal-middle" aria-labelledby="{{ title_id }}" aria-describedby="{{ description_id }}">
   {% call page_section(tag="div", classes="modal-box p-0 shadow-xl", body_classes="gap-0 p-0") %}
     <div class="border-b border-base-200/80 px-5 py-4 sm:px-6 sm:py-5">
       <div class="space-y-1.5">
-        <h3 class="text-lg font-semibold tracking-tight sm:text-xl">{{ title }}</h3>
+        <h3 id="{{ title_id }}" class="text-lg font-semibold tracking-tight sm:text-xl">{{ title }}</h3>
         {% if description %}
-        <p class="max-w-md text-sm leading-6 text-base-content/70">{{ description }}</p>
+        <p id="{{ description_id }}" class="max-w-md text-sm leading-6 text-base-content/70">{{ description }}</p>
+        {% else %}
+        <p id="{{ description_id }}" class="sr-only">{{ title }} 양식</p>
         {% endif %}
       </div>
     </div>

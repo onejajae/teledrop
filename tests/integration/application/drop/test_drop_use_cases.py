@@ -30,8 +30,13 @@ from app.application.drop.use_cases import (
     UpdateDropUseCase,
 )
 from app.domain.drop.entities import DropEntity
-from app.domain.drop.errors import DropAccessDeniedError
+from app.domain.drop.errors import (
+    DropAccessDeniedError,
+    DropSlugUnavailableError,
+    DropUploadTooLargeError,
+)
 from app.domain.drop.grants import DropPasswordCredential, DropPasswordGrantService
+from app.domain.drop.policies import hash_drop_password, verify_drop_password_hash
 from app.domain.drop.value_objects import AccessScope, DropSortField
 from app.infrastructure.storage.local_file_storage import LocalFileStorage
 
@@ -41,6 +46,8 @@ class _InMemoryRepository:
         self.items: dict[str, DropEntity] = {}
 
     async def create(self, data: DropCreateInput) -> DropEntity:
+        if data.slug in self.items:
+            raise DropSlugUnavailableError()
         now = datetime.now(timezone.utc)
         entity = DropEntity(
             id=f"id-{data.slug}",
@@ -123,6 +130,18 @@ class _InMemoryRepository:
         return True
 
 
+class _RaceRepository(_InMemoryRepository):
+    def __init__(self, fail_once_slugs: set[str]):
+        super().__init__()
+        self.fail_once_slugs = fail_once_slugs
+
+    async def create(self, data: DropCreateInput) -> DropEntity:
+        if data.slug in self.fail_once_slugs:
+            self.fail_once_slugs.remove(data.slug)
+            raise DropSlugUnavailableError()
+        return await super().create(data)
+
+
 class _InMemoryDropUow:
     def __init__(self, repository: _InMemoryRepository):
         self.repository = repository
@@ -164,12 +183,17 @@ class _DeleteStorageSpy:
         self._payloads: dict[str, bytes] = {}
         self._counter = 0
 
-    async def write_stream(self, file_stream):
+    async def write_stream(self, file_stream, *, max_bytes: int | None = None):
         payload = file_stream.read()
+        if max_bytes is not None and len(payload) > max_bytes:
+            raise DropUploadTooLargeError()
         storage_key = f"spy-{self._counter}"
         self._counter += 1
         self._payloads[storage_key] = payload
         return storage_key, hashlib.sha256(payload).hexdigest()
+
+    async def discard_upload(self, storage_key: str) -> None:
+        self._payloads.pop(storage_key, None)
 
     async def stage_delete(self, storage_key: str) -> tuple[str, str | None]:
         self.stage_calls.append(storage_key)
@@ -210,6 +234,7 @@ def _build_use_cases(repo: _InMemoryRepository, temp_dir: str) -> _UseCases:
             storage=storage,
             slug_service=slug_service,
             uow_factory=uow_factory,
+            max_upload_bytes=1024 * 1024,
         ),
         list_drops_use_case=ListDropsUseCase(
             repository=repo,
@@ -260,7 +285,7 @@ async def _seed_drop(
             slug=slug,
             access_scope=AccessScope.PRIVATE,
             is_favorite=False,
-            drop_password=drop_password,
+            drop_password=hash_drop_password(drop_password),
             file_name=f"{slug}.txt",
             mime_type="text/plain",
             size_bytes=4,
@@ -367,6 +392,7 @@ class TestDropUseCases:
                 storage=storage,
                 slug_service=slug_service,
                 uow_factory=uow_factory,
+                max_upload_bytes=1024 * 1024,
             )
             availability_use_case = CheckSlugAvailabilityUseCase(slug_service=slug_service)
 
@@ -388,6 +414,135 @@ class TestDropUseCases:
             assert created.slug == "cat-dance-happy"
             assert await availability_use_case.execute("another-slug")
             assert not await availability_use_case.execute("cat-dance-happy")
+
+    async def test_create_retries_generated_slug_after_repository_unique_race(self):
+        repo = _RaceRepository({"race-slug"})
+        storage = _DeleteStorageSpy()
+        slug_service = DropSlugService(
+            repository=repo,
+            candidate_generator=_StubSlugCandidateGenerator(["race-slug", "free-slug"]),
+        )
+        create_use_case = CreateDropUseCase(
+            storage=storage,
+            slug_service=slug_service,
+            uow_factory=lambda: _InMemoryDropUow(repo),
+            max_upload_bytes=1024 * 1024,
+        )
+
+        created = await create_use_case.execute(
+            CreateDropCommand(
+                owner_user_id="user-1",
+                file_stream=io.BytesIO(b"hello"),
+                file_name="hello.txt",
+                mime_type="text/plain",
+                size_bytes=5,
+                slug=None,
+                access_scope=AccessScope.PRIVATE,
+                drop_password=None,
+                title=None,
+                description=None,
+            )
+        )
+
+        assert created.slug == "free-slug"
+        assert "race-slug" not in repo.items
+        assert list(storage._payloads) == ["spy-0"]
+
+    async def test_create_explicit_slug_unique_race_discards_written_file(self):
+        repo = _RaceRepository({"fixed-slug"})
+        storage = _DeleteStorageSpy()
+        slug_service = DropSlugService(
+            repository=repo,
+            candidate_generator=_StubSlugCandidateGenerator(),
+        )
+        create_use_case = CreateDropUseCase(
+            storage=storage,
+            slug_service=slug_service,
+            uow_factory=lambda: _InMemoryDropUow(repo),
+            max_upload_bytes=1024 * 1024,
+        )
+
+        with pytest.raises(DropSlugUnavailableError):
+            await create_use_case.execute(
+                CreateDropCommand(
+                    owner_user_id="user-1",
+                    file_stream=io.BytesIO(b"hello"),
+                    file_name="hello.txt",
+                    mime_type="text/plain",
+                    size_bytes=5,
+                    slug="fixed-slug",
+                    access_scope=AccessScope.PRIVATE,
+                    drop_password=None,
+                    title=None,
+                    description=None,
+                )
+            )
+
+        assert storage._payloads == {}
+
+    async def test_create_discards_written_file_when_commit_fails(self):
+        repo = _InMemoryRepository()
+        storage = _DeleteStorageSpy()
+        slug_service = DropSlugService(
+            repository=repo,
+            candidate_generator=_StubSlugCandidateGenerator(),
+        )
+        create_use_case = CreateDropUseCase(
+            storage=storage,
+            slug_service=slug_service,
+            uow_factory=lambda: _CommitFailingDropUow(repo),
+            max_upload_bytes=1024 * 1024,
+        )
+
+        with pytest.raises(RuntimeError, match="forced commit failure"):
+            await create_use_case.execute(
+                CreateDropCommand(
+                    owner_user_id="user-1",
+                    file_stream=io.BytesIO(b"hello"),
+                    file_name="hello.txt",
+                    mime_type="text/plain",
+                    size_bytes=5,
+                    slug="commit-fail",
+                    access_scope=AccessScope.PRIVATE,
+                    drop_password=None,
+                    title=None,
+                    description=None,
+                )
+            )
+
+        assert storage._payloads == {}
+
+    async def test_create_rejects_upload_larger_than_configured_limit(self):
+        repo = _InMemoryRepository()
+        storage = _DeleteStorageSpy()
+        slug_service = DropSlugService(
+            repository=repo,
+            candidate_generator=_StubSlugCandidateGenerator(),
+        )
+        create_use_case = CreateDropUseCase(
+            storage=storage,
+            slug_service=slug_service,
+            uow_factory=lambda: _InMemoryDropUow(repo),
+            max_upload_bytes=4,
+        )
+
+        with pytest.raises(DropUploadTooLargeError):
+            await create_use_case.execute(
+                CreateDropCommand(
+                    owner_user_id="user-1",
+                    file_stream=io.BytesIO(b"hello"),
+                    file_name="hello.txt",
+                    mime_type="text/plain",
+                    size_bytes=5,
+                    slug="too-large",
+                    access_scope=AccessScope.PRIVATE,
+                    drop_password=None,
+                    title=None,
+                    description=None,
+                )
+            )
+
+        assert storage._payloads == {}
 
     async def test_list_drops_requires_authenticated_identity(self):
         repo = _InMemoryRepository()
@@ -452,7 +607,8 @@ class TestDropUseCases:
             )
 
             assert created.requires_password
-            assert repo.items["trimmed"].drop_password == "pw"
+            assert repo.items["trimmed"].drop_password != "pw"
+            assert verify_drop_password_hash(repo.items["trimmed"].drop_password, "pw")
 
     async def test_update_distinguishes_unset_and_explicit_none(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -607,3 +763,27 @@ class TestDropUseCases:
         from app.application.drop.ports import UNSET as port_unset
 
         assert model_unset is port_unset
+
+    @pytest.mark.xfail(
+        strict=True,
+        reason=(
+            "Known residual risk: a delete can stage the file before a concurrent "
+            "download stream opens it."
+        ),
+    )
+    async def test_known_risk_delete_can_remove_file_before_concurrent_stream_opens(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            storage = LocalFileStorage(temp_dir)
+            storage_key, _sha256 = await storage.write_stream(
+                io.BytesIO(b"hello"),
+                max_bytes=1024,
+            )
+
+            stream = storage.stream_range(storage_key, 0, 4)
+            await storage.stage_delete(storage_key)
+
+            chunks = []
+            async for chunk in stream:
+                chunks.append(chunk)
+
+            assert b"".join(chunks) == b"hello"

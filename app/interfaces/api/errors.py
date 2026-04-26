@@ -4,6 +4,7 @@ from app.domain.drop.errors import (
     DropAccessDeniedError,
     DropNotFoundError,
     DropPasswordInvalidError,
+    DropUploadTooLargeError,
 )
 
 
@@ -60,11 +61,20 @@ def range_not_satisfiable_exception() -> HTTPException:
     return HTTPException(status_code=status.HTTP_416_RANGE_NOT_SATISFIABLE)
 
 
+def upload_too_large_exception() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+        detail="Uploaded file exceeds the configured maximum size.",
+    )
+
+
 def map_drop_read_exception(exc: Exception) -> HTTPException:
     if isinstance(exc, (DropNotFoundError, DropAccessDeniedError)):
         return HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     if isinstance(exc, DropPasswordInvalidError):
         return HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+    if isinstance(exc, DropUploadTooLargeError):
+        return upload_too_large_exception()
     raise exc
 
 
@@ -73,4 +83,6 @@ def map_drop_mutation_exception(exc: Exception) -> HTTPException:
         return HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     if isinstance(exc, DropPasswordInvalidError):
         return HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+    if isinstance(exc, DropUploadTooLargeError):
+        return upload_too_large_exception()
     raise exc

@@ -19,6 +19,7 @@ HTTP 기반 로컬 개발에서는 다음 값을 사용하는 것을 권장합�
 ```dotenv
 WEB_USERNAME=admin
 WEB_PASSWORD=$argon2id$...
+BOOTSTRAP_ALLOW_INSECURE_DEFAULTS=true
 SESSION_COOKIE_SECURE=false
 API_DOCS_ENABLED=true
 CORS_ALLOW_ALL=true
@@ -32,14 +33,14 @@ CORS_ALLOW_ALL=true
    uv sync
    ```
 
-2. **Tailwind CSS 빌드**
+2. **UI asset 빌드**
    ```bash
    cd ui-build
-   npm install
-   npm run build:css
+   npm ci
+   npm run build
    cd ..
    ```
-   `./scripts/run_dev.sh`를 사용하면 `ui-build/node_modules`가 이미 있을 때 `npm install`을 자동으로 건너뜁니다.
+   `./scripts/run_dev.sh`를 사용하면 `ui-build/node_modules`가 이미 있을 때 `npm ci`를 자동으로 건너뜁니다.
 
 3. **서버 실행**
    ```bash
@@ -62,8 +63,24 @@ uv run pytest -q
 uv run pytest tests/unit -q
 uv run pytest tests/integration -q
 uv run pytest tests/smoke -q
-
-# 마커 기반 실행
-uv run pytest -m unit -q
-uv run pytest -m "integration or smoke" -q
 ```
+
+## 품질 점검
+GitHub Actions 품질 워크플로는 다음 점검을 실행합니다.
+
+```bash
+uv sync --frozen
+uv run pytest -q
+uvx --from ruff==0.15.12 ruff check .
+
+# 정보성 Python 의존성 감사
+uv export --format requirements.txt --no-dev --no-emit-project --no-hashes --frozen --output-file /tmp/teledrop-requirements.txt
+uvx --from pip-audit==2.10.0 pip-audit --requirement /tmp/teledrop-requirements.txt --strict --no-deps --disable-pip --progress-spinner off
+
+cd ui-build
+npm ci
+npm run build
+npm audit --audit-level=high
+```
+
+Docker 빌드는 CSS 빌드 단계에서 `npm ci`를 사용하고 uv 이미지를 `0.11.7`로 고정합니다.

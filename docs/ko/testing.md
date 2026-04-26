@@ -13,8 +13,22 @@ uv run pytest -q
 uv run pytest tests/unit -q
 uv run pytest tests/integration -q
 uv run pytest tests/smoke -q
+```
 
-# 마커 기반 실행
-uv run pytest -m unit -q
-uv run pytest -m "integration or smoke" -q
+## 품질 점검
+CI 품질 워크플로는 다음을 실행합니다.
+
+```bash
+uv sync --frozen
+uv run pytest -q
+uvx --from ruff==0.15.12 ruff check .
+
+# 정보성 Python 의존성 감사
+uv export --format requirements.txt --no-dev --no-emit-project --no-hashes --frozen --output-file /tmp/teledrop-requirements.txt
+uvx --from pip-audit==2.10.0 pip-audit --requirement /tmp/teledrop-requirements.txt --strict --no-deps --disable-pip --progress-spinner off
+
+cd ui-build
+npm ci
+npm run build
+npm audit --audit-level=high
 ```

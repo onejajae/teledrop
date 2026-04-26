@@ -8,6 +8,7 @@ services:
     volumes:
       - ./share:/teledrop/share
     environment:
-      - TZ=Asia/Seoul
-      - WEB_USERNAME=
-      - WEB_PASSWORD=
+      TZ: Asia/Seoul
+      WEB_USERNAME: ${WEB_USERNAME:?Set WEB_USERNAME before running docker compose}
+      WEB_PASSWORD: ${WEB_PASSWORD:?Set WEB_PASSWORD to a valid Argon2 hash}
+      BOOTSTRAP_ALLOW_INSECURE_DEFAULTS: "false"

@@ -2,6 +2,7 @@
 @import "./generated/theme-tokens.css";
 @source "../../templates/**/*.html";
 @source "../**/*.js";
+@source inline("btn-primary btn-outline btn-error btn-ghost btn-sm btn-square btn-block normal-case alert-info alert-success alert-error alert-warning badge-primary badge-secondary badge-accent badge-neutral badge-info badge-success badge-warning badge-error badge-outline badge-soft badge-ghost progress-primary");
 
 @layer base {
   .card,

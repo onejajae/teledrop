@@ -2,6 +2,7 @@ from app.domain.drop.entities import DropEntity
 from app.domain.drop.errors import (
     DropAccessDeniedError,
     DropSlugUnavailableError,
+    DropUploadTooLargeError,
     DropNotFoundError,
     DropPasswordInvalidError,
 )
@@ -15,4 +16,5 @@ __all__ = [
     "DropPasswordInvalidError",
     "DropAccessDeniedError",
     "DropSlugUnavailableError",
+    "DropUploadTooLargeError",
 ]

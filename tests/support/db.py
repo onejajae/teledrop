@@ -11,6 +11,7 @@ def initialize_sqlite_db(sqlite_url: str):
         SQLITE_HOST=sqlite_url,
         WEB_USERNAME="admin",
         WEB_PASSWORD=PasswordHasher().hash("password"),
+        BOOTSTRAP_ALLOW_INSECURE_DEFAULTS=True,
     )
     engine = create_db_engine(settings)
     try:

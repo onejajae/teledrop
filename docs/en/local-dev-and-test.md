@@ -19,6 +19,7 @@ For HTTP local development, set these values in `.env`:
 ```dotenv
 WEB_USERNAME=admin
 WEB_PASSWORD=$argon2id$...
+BOOTSTRAP_ALLOW_INSECURE_DEFAULTS=true
 SESSION_COOKIE_SECURE=false
 API_DOCS_ENABLED=true
 CORS_ALLOW_ALL=true
@@ -32,14 +33,14 @@ CORS_ALLOW_ALL=true
    uv sync
    ```
 
-2. **Build Tailwind CSS**:
+2. **Build UI Assets**:
    ```bash
    cd ui-build
-   npm install
-   npm run build:css
+   npm ci
+   npm run build
    cd ..
    ```
-   `./scripts/run_dev.sh` automatically skips `npm install` when `ui-build/node_modules` already exists.
+   `./scripts/run_dev.sh` automatically skips `npm ci` when `ui-build/node_modules` already exists.
 
 3. **Run Server**:
    ```bash
@@ -62,8 +63,24 @@ uv run pytest -q
 uv run pytest tests/unit -q
 uv run pytest tests/integration -q
 uv run pytest tests/smoke -q
-
-# by marker
-uv run pytest -m unit -q
-uv run pytest -m "integration or smoke" -q
 ```
+
+## Quality Checks
+The GitHub Actions quality workflow runs these checks:
+
+```bash
+uv sync --frozen
+uv run pytest -q
+uvx --from ruff==0.15.12 ruff check .
+
+# informational Python dependency audit
+uv export --format requirements.txt --no-dev --no-emit-project --no-hashes --frozen --output-file /tmp/teledrop-requirements.txt
+uvx --from pip-audit==2.10.0 pip-audit --requirement /tmp/teledrop-requirements.txt --strict --no-deps --disable-pip --progress-spinner off
+
+cd ui-build
+npm ci
+npm run build
+npm audit --audit-level=high
+```
+
+Docker builds use `npm ci` for the CSS build stage and pin the uv image to `0.11.7`.

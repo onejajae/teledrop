@@ -1,27 +1,18 @@
-{% from "macros/drop_detail.html" import metadata_card %}
+{% from "macros/drop_detail.html" import detail_action_bar, metadata_card %}
 {% from "macros/ui.html" import alert %}
-{{ metadata_card(detail.drop, download_url=detail.urls.download, page_url=detail.urls.page, can_copy_link=detail.actions.can_copy_link) }}
+{{ metadata_card(detail.drop, download_url=detail.urls.download) }}
 
-<div class="pt-1">
-  {% if detail.drop.mime_type.startswith('image/') %}
-  <img src="{{ detail.urls.preview }}" alt="{{ detail.drop.file_name }}"
-    class="rounded-xl max-h-[600px] object-contain mx-auto" />
-  {% elif detail.drop.mime_type.startswith('video/') %}
-  <video controls class="w-full rounded-xl">
-    <source src="{{ detail.urls.preview }}" type="{{ detail.drop.mime_type }}">
-    이 브라우저에서는 비디오 재생을 지원하지 않습니다.
-  </video>
-  {% elif detail.drop.mime_type.startswith('audio/') %}
-  <audio controls class="w-full">
-    <source src="{{ detail.urls.preview }}" type="{{ detail.drop.mime_type }}">
-    이 브라우저에서는 오디오 재생을 지원하지 않습니다.
-  </audio>
-  {% elif detail.drop.mime_type == 'application/pdf' %}
-  <object data="{{ detail.urls.preview }}" type="application/pdf" class="w-full h-[800px] rounded-xl">
-    <p>PDF를 표시할 수 없습니다. <a href="{{ detail.urls.download }}">다운로드</a>해서 확인해 주세요.</p>
-  </object>
+<div class="rounded-[1.15rem] border border-base-300/70 bg-base-100/75 p-4 shadow-sm">
+  {% if detail.urls.download %}
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div class="min-w-0 space-y-1">
+      <p class="text-sm font-semibold">파일 다운로드</p>
+      <p class="truncate text-sm text-base-content/70">{{ detail.drop.file_name }}</p>
+    </div>
+    {{ detail_action_bar(detail.urls.download, detail.urls.page, can_copy_link=detail.actions.can_copy_link, detail_mode=detail.mode) }}
+  </div>
   {% else %}
-  {{ alert("이 파일 형식은 미리보기를 지원하지 않습니다.", tone="info", classes="shadow-none") }}
+  {{ alert("파일을 다운로드할 수 없습니다.", tone="info", classes="shadow-none") }}
   {% endif %}
 </div>
 

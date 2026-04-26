@@ -21,7 +21,6 @@ from app.bootstrap.container import get_app_settings, get_csrf_token_service
 from app.bootstrap.providers.drop import (
     get_create_drop_use_case,
     get_delete_drop_use_case,
-    get_drop_password_grant_service,
     get_get_drop_meta_use_case,
     get_update_drop_use_case,
 )
@@ -38,8 +37,8 @@ from app.domain.drop.errors import (
     DropNotFoundError,
     DropPasswordInvalidError,
     DropSlugUnavailableError,
+    DropUploadTooLargeError,
 )
-from app.domain.drop.grants import DropPasswordGrantService
 from app.domain.drop.policies import normalize_drop_password
 from app.domain.drop.value_objects import AccessScope
 from app.interfaces.deps.auth import get_optional_session_auth
@@ -325,6 +324,16 @@ async def ui_upload(
         size_bytes = file.file.tell()
         file.file.seek(current_pos)
 
+    if size_bytes > settings.MAX_UPLOAD_BYTES:
+        return render_upload_panel(
+            request=request,
+            auth_data=auth_data,
+            csrf_service=csrf_service,
+            settings=settings,
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            upload_error_message="업로드 가능한 파일 크기를 초과했습니다.",
+        )
+
     access_scope = AccessScope.PRIVATE if user_only else AccessScope.PUBLIC
 
     try:
@@ -351,6 +360,15 @@ async def ui_upload(
             status_code=status.HTTP_409_CONFLICT,
             upload_error_message="이미 사용 중이거나 사용할 수 없는 URL 입니다.",
         )
+    except DropUploadTooLargeError:
+        return render_upload_panel(
+            request=request,
+            auth_data=auth_data,
+            csrf_service=csrf_service,
+            settings=settings,
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            upload_error_message="업로드 가능한 파일 크기를 초과했습니다.",
+        )
 
     return finalize_ui_response(
         request,
@@ -367,7 +385,6 @@ async def ui_unlock_drop(
     auth_data: AuthIdentity = Depends(get_optional_session_auth),
     csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
     get_drop_meta_use_case: GetDropMetaUseCase = Depends(get_get_drop_meta_use_case),
-    grant_service: DropPasswordGrantService = Depends(get_drop_password_grant_service),
     password: str | None = Form(default=None),
     target_view: str = Form(default="shared"),
     unlock_token: str = Form(default=""),
@@ -399,7 +416,7 @@ async def ui_unlock_drop(
     credential = build_drop_password_credential(password=normalized_password)
 
     try:
-        await get_drop_meta_use_case.execute(
+        issued_grant = await get_drop_meta_use_case.issue_grant_token(
             DropMetaQuery(
                 slug=slug,
                 drop_password=credential,
@@ -422,7 +439,6 @@ async def ui_unlock_drop(
             else drop_preview_page_url(slug)
         )
         response = _redirect_to(redirect_url, hx_request=is_hx_request(request))
-        issued_grant = grant_service.issue(slug, normalized_password)
         if issued_grant is not None:
             set_drop_grant_cookie(response, settings, slug, issued_grant)
         else:
@@ -553,7 +569,6 @@ async def ui_update_drop_password(
     csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
     get_drop_meta_use_case: GetDropMetaUseCase = Depends(get_get_drop_meta_use_case),
     update_drop_use_case: UpdateDropUseCase = Depends(get_update_drop_use_case),
-    grant_service: DropPasswordGrantService = Depends(get_drop_password_grant_service),
     new_password: str | None = Form(default=None),
     confirm_password: str | None = Form(default=None),
     csrf_token: str = Form(default=""),
@@ -616,11 +631,6 @@ async def ui_update_drop_password(
             exc=exc,
         )
 
-    response_credential = None
-    issued_grant = grant_service.issue(slug, normalized_new_password)
-    if issued_grant is not None:
-        response_credential = build_drop_password_credential(grant_token=issued_grant)
-
     response = await render_manage_page(
         request=request,
         auth_data=auth_data,
@@ -628,7 +638,7 @@ async def ui_update_drop_password(
         get_drop_meta_use_case=get_drop_meta_use_case,
         settings=settings,
         slug=slug,
-        credential=response_credential,
+        credential=None,
         use_request_grant=False,
         detail_status_message=(
             "드롭 비밀번호가 해제되었습니다."
@@ -636,10 +646,7 @@ async def ui_update_drop_password(
             else "드롭 비밀번호가 설정되었습니다."
         ),
     )
-    if issued_grant is not None:
-        set_drop_grant_cookie(response, settings, slug, issued_grant)
-    else:
-        clear_drop_grant_cookie(response, settings, slug)
+    clear_drop_grant_cookie(response, settings, slug)
     return finalize_ui_response(request, response, settings)
 
 

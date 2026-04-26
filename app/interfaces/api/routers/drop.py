@@ -42,7 +42,7 @@ from app.core.utils import parse_range_header
 from app.domain.drop.errors import DropAccessDeniedError, DropSlugUnavailableError
 from app.domain.drop.policies import normalize_drop_password
 from app.domain.drop.value_objects import AccessScope, DropSortField
-from app.interfaces.api.deps.auth import get_required_api_auth
+from app.interfaces.api.deps.auth import get_required_api_auth, get_required_api_key_auth
 from app.interfaces.api.errors import (
     drop_list_unauthorized_exception,
     invalid_range_header_exception,
@@ -50,6 +50,7 @@ from app.interfaces.api.errors import (
     map_drop_read_exception,
     range_not_satisfiable_exception,
     slug_unavailable_exception,
+    upload_too_large_exception,
 )
 from app.interfaces.api.schemas.drop import (
     DropDetailResponse,
@@ -103,7 +104,8 @@ async def list_drops(
 
 @router.post("", response_model=DropDetailResponse)
 async def upload_drop(
-    auth_data: AuthIdentity = Depends(get_required_api_auth),
+    auth_data: AuthIdentity = Depends(get_required_api_key_auth),
+    settings: Settings = Depends(get_app_settings),
     create_drop_use_case: CreateDropUseCase = Depends(get_create_drop_use_case),
     file: UploadFile = File(),
     slug: str | None = Form(default=None),
@@ -118,6 +120,9 @@ async def upload_drop(
         file.file.seek(0, 2)
         size_bytes = file.file.tell()
         file.file.seek(current_pos)
+
+    if size_bytes > settings.MAX_UPLOAD_BYTES:
+        raise upload_too_large_exception()
 
     command = CreateDropCommand(
         owner_user_id=auth_data.user_id or "",
@@ -136,6 +141,8 @@ async def upload_drop(
         created = await create_drop_use_case.execute(command)
     except DropSlugUnavailableError:
         raise slug_unavailable_exception()
+    except Exception as exc:
+        raise map_drop_mutation_exception(exc)
 
     return DropDetailResponse.from_dto(created)
 
@@ -197,12 +204,10 @@ async def drop_stream(
     except Exception as exc:
         raise map_drop_read_exception(exc)
 
-    if disposition not in {"attachment", "inline"}:
-        disposition = "attachment"
-
     headers = {
-        "Content-Disposition": f"{disposition}; filename*=UTF-8''{parse.quote(detail.file_name)}",
+        "Content-Disposition": f"attachment; filename*=UTF-8''{parse.quote(detail.file_name)}",
         "content-type": detail.mime_type,
+        "x-content-type-options": "nosniff",
         "accept-ranges": "bytes",
         "content-encoding": "identity",
         "content-length": str(detail.size_bytes),
@@ -241,7 +246,7 @@ async def drop_stream(
 async def patch_drop(
     slug: str,
     payload: DropPatchRequest,
-    auth_data: AuthIdentity = Depends(get_required_api_auth),
+    auth_data: AuthIdentity = Depends(get_required_api_key_auth),
     update_drop_use_case: UpdateDropUseCase = Depends(get_update_drop_use_case),
 ):
     title = payload.title if "title" in payload.model_fields_set else COMMAND_UNSET
@@ -282,7 +287,7 @@ async def patch_drop(
 @router.delete("/{slug}")
 async def delete_drop(
     slug: str,
-    auth_data: AuthIdentity = Depends(get_required_api_auth),
+    auth_data: AuthIdentity = Depends(get_required_api_key_auth),
     delete_drop_use_case: DeleteDropUseCase = Depends(get_delete_drop_use_case),
     current_password: str | None = Header(default=None, alias="X-Drop-Password"),
 ):
