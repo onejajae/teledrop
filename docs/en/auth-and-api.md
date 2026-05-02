@@ -4,14 +4,13 @@
 * Password login is required for web UI access
 * `WEB_USERNAME` and `WEB_PASSWORD` are used only to bootstrap the first database-backed web user on an empty database
 * Web registration is available only when `ENABLE_REGISTRATION=true`; the default is `false`
-* REST API read endpoints accept:
-  * session cookie authentication
+* REST API endpoints are for external file transfer clients and require:
   * `X-API-Key: tdpk_<public_id>_<secret>`
-* REST API mutation endpoints (`POST/PATCH/DELETE /api/drop...`) require `X-API-Key` and do not accept session-only authentication
+* Session cookie authentication is web UI only and is not accepted by REST API endpoints
 * API key management is web-login only (`/settings/api-keys`)
 * The API key management page only shows the current user's keys
 * Authentication failures for protected REST API return `401` with:
-  * `WWW-Authenticate: Session, ApiKey`
+  * `WWW-Authenticate: ApiKey`
 
 Runtime defaults and scaling notes:
 * `SESSION_COOKIE_SECURE` defaults to `true`
@@ -36,24 +35,17 @@ Drop link password policy:
 * Grant cookies are signed from the stored password hash material, not the raw password.
 * Plaintext protected drops from older releases are intentionally incompatible; back up and recreate the database before using this version.
 
-Useful auth endpoints:
-* `POST /api/auth/login`
-* `GET /api/auth/me` (session or API key)
-* `POST /api/auth/logout`
-
-## Breaking Drop API (Reworked)
+## External Drop API
 * `GET /api/drop?page=1&page_size=50&sort=created_at|title|size_bytes&order=asc|desc`
 * `POST /api/drop` (API key only, multipart: `file`, `slug?`, `title?`, `description?`, `access_scope`, `drop_password?`)
-* `GET /api/drop/{slug}/meta` (`X-Drop-Password` header for protected drops)
-* `GET /api/drop/{slug}` (`X-Drop-Password` header for protected drops, Range supported)
-* `PATCH /api/drop/{slug}` (API key only, JSON body: `title?`, `description?`, `access_scope?`, `is_favorite?`, `new_password?`)
-* `DELETE /api/drop/{slug}` (API key only)
-* `GET /api/drop/availability/{slug}`
+* `GET /api/drop/{slug}/meta` (API key only, `X-Drop-Password` header for protected public non-owner reads)
+* `GET /api/drop/{slug}` (API key only, `X-Drop-Password` header for protected public non-owner reads, Range supported)
 
 Ownership and masking rules:
 * New drops are created for the currently authenticated user
 * Private drops are visible only to their owner
 * Private non-owner access is masked as `404` in both API and web UI
+* Public drops may be read through REST by any valid API key; password-protected public drops require `X-Drop-Password` unless the API key belongs to the owner
 
 Known residual risk:
 * Concurrent delete/download races are not changed in this wave. If a delete stages the file before a concurrent download stream opens it, that download can fail; this is covered by a strict xfail test until a later storage-level concurrency design is implemented.
@@ -79,6 +71,7 @@ Known residual risk:
 * `GET /drops` (owned drop library)
 * `GET /drops/{slug}` (owned drop management page)
 * `GET /<FILE_SLUG>` (shared download view)
+* `GET /files/{slug}` (web/session/share download and inline preview stream)
 * `GET /settings/api-keys` (web API key management page; login required; shows only the current user's keys)
 * UI write actions use CSRF-protected form submissions.
 * Unlocking a password-protected drop redirects back to the clean URL without exposing the password in query parameters.

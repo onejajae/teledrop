@@ -1,24 +1,8 @@
-from types import SimpleNamespace
-
-import pytest
-from fastapi import HTTPException, Request, Response
+from fastapi import HTTPException, Request
 
 from app.application.auth.types import AuthIdentity
-from app.domain.auth.errors import ApiKeyInvalid, SessionExpired, SessionInvalid
-from app.interfaces.api.deps.auth import SessionOrApiKeyAuthenticator
-
-
-class _FakeVerifySessionUseCase:
-    def __init__(self, *, identity: AuthIdentity | None = None, exc: Exception | None = None):
-        self.identity = identity or AuthIdentity(user_id="user-1", username="tester")
-        self.exc = exc
-        self.queries = []
-
-    async def execute(self, query):
-        self.queries.append(query)
-        if self.exc is not None:
-            raise self.exc
-        return self.identity
+from app.domain.auth.errors import ApiKeyInvalid
+from app.interfaces.api.deps.auth import ApiKeyOnlyAuthenticator
 
 
 class _FakeVerifyApiKeyUseCase:
@@ -34,11 +18,8 @@ class _FakeVerifyApiKeyUseCase:
         return self.identity
 
 
-def _request(cookies: dict[str, str] | None = None, api_key: str | None = None) -> Request:
+def _request(api_key: str | None = None) -> Request:
     raw_headers: list[tuple[bytes, bytes]] = []
-    if cookies:
-        cookie_header = "; ".join(f"{key}={value}" for key, value in cookies.items())
-        raw_headers.append((b"cookie", cookie_header.encode("utf-8")))
     if api_key:
         raw_headers.append((b"x-api-key", api_key.encode("utf-8")))
 
@@ -56,52 +37,23 @@ def _request(cookies: dict[str, str] | None = None, api_key: str | None = None) 
     return Request(scope)
 
 
-def _settings():
-    return SimpleNamespace(SESSION_COOKIE_NAME="session_id", SESSION_COOKIE_PATH="/")
-
-
-class TestSessionOrApiKeyAuthenticator:
+class TestApiKeyOnlyAuthenticator:
     async def test_auto_error_false_without_credentials_returns_anonymous(self):
-        authenticator = SessionOrApiKeyAuthenticator(auto_error=False)
+        authenticator = ApiKeyOnlyAuthenticator(auto_error=False)
+
         identity = await authenticator(
             request=_request(),
-            response=Response(),
-            settings=_settings(),
-            verify_session_use_case=_FakeVerifySessionUseCase(),
             verify_api_key_use_case=_FakeVerifyApiKeyUseCase(),
         )
 
         assert identity.username is None
         assert identity.user_id is None
 
-    @pytest.mark.parametrize("raised", [SessionExpired(), SessionInvalid()])
-    async def test_invalid_or_expired_session_clears_cookie_and_raises_401(self, raised: Exception):
-        authenticator = SessionOrApiKeyAuthenticator(auto_error=True)
-        request = _request({"session_id": "sid-1"})
-        response = Response()
-        verify_use_case = _FakeVerifySessionUseCase(exc=raised)
+    async def test_valid_api_key_returns_identity(self):
+        authenticator = ApiKeyOnlyAuthenticator(auto_error=True)
 
-        with pytest.raises(HTTPException) as exc_info:
-            await authenticator(
-                request=request,
-                response=response,
-                settings=_settings(),
-                verify_session_use_case=verify_use_case,
-                verify_api_key_use_case=_FakeVerifyApiKeyUseCase(),
-            )
-
-        headers = {key.lower(): value for key, value in (exc_info.value.headers or {}).items()}
-        assert exc_info.value.status_code == 401
-        assert verify_use_case.queries[0].sid == "sid-1"
-        assert "session_id=" in headers.get("set-cookie", "")
-
-    async def test_valid_api_key_without_session_returns_identity(self):
-        authenticator = SessionOrApiKeyAuthenticator(auto_error=True)
         identity = await authenticator(
             request=_request(api_key="tdpk_public_secret"),
-            response=Response(),
-            settings=_settings(),
-            verify_session_use_case=_FakeVerifySessionUseCase(),
             verify_api_key_use_case=_FakeVerifyApiKeyUseCase(
                 identity=AuthIdentity(user_id="user-api", username="api-user")
             ),
@@ -110,40 +62,17 @@ class TestSessionOrApiKeyAuthenticator:
         assert identity.username == "api-user"
         assert identity.user_id == "user-api"
 
-    async def test_invalid_api_key_raises_auth_error(self):
-        authenticator = SessionOrApiKeyAuthenticator(auto_error=True)
+    async def test_invalid_api_key_raises_api_key_auth_error(self):
+        authenticator = ApiKeyOnlyAuthenticator(auto_error=True)
 
-        with pytest.raises(HTTPException) as exc_info:
+        try:
             await authenticator(
                 request=_request(api_key="bad"),
-                response=Response(),
-                settings=_settings(),
-                verify_session_use_case=_FakeVerifySessionUseCase(),
                 verify_api_key_use_case=_FakeVerifyApiKeyUseCase(exc=ApiKeyInvalid()),
             )
-
-        headers = {key.lower(): value for key, value in (exc_info.value.headers or {}).items()}
-        assert exc_info.value.status_code == 401
-        assert headers.get("www-authenticate") == "Session, ApiKey"
-
-    async def test_valid_session_short_circuits_api_key(self):
-        authenticator = SessionOrApiKeyAuthenticator(auto_error=True)
-        verify_session = _FakeVerifySessionUseCase(
-            identity=AuthIdentity(user_id="user-session", username="session-user")
-        )
-        verify_api_key = _FakeVerifyApiKeyUseCase(
-            identity=AuthIdentity(user_id="user-api", username="api-user")
-        )
-
-        identity = await authenticator(
-            request=_request({"session_id": "sid-2"}, api_key="tdpk_public_secret"),
-            response=Response(),
-            settings=_settings(),
-            verify_session_use_case=verify_session,
-            verify_api_key_use_case=verify_api_key,
-        )
-
-        assert identity.username == "session-user"
-        assert identity.user_id == "user-session"
-        assert verify_session.queries[0].sid == "sid-2"
-        assert not verify_api_key.queries
+        except HTTPException as exc:
+            headers = {key.lower(): value for key, value in (exc.headers or {}).items()}
+            assert exc.status_code == 401
+            assert headers.get("www-authenticate") == "ApiKey"
+        else:
+            raise AssertionError("Expected HTTPException")

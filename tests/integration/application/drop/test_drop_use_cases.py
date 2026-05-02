@@ -411,6 +411,39 @@ class TestDropUseCases:
             assert await availability_use_case.execute("another-slug")
             assert not await availability_use_case.execute("cat-dance-happy")
 
+    async def test_create_rejects_invalid_manual_slug_before_storage_write(self):
+        repo = _InMemoryRepository()
+        storage = _DeleteStorageSpy()
+        slug_service = DropSlugService(
+            repository=repo,
+            candidate_generator=_StubSlugCandidateGenerator(),
+        )
+        create_use_case = CreateDropUseCase(
+            storage=storage,
+            slug_service=slug_service,
+            uow_factory=lambda: _InMemoryDropUow(repo),
+            max_upload_bytes=1024 * 1024,
+        )
+
+        with pytest.raises(DropSlugUnavailableError):
+            await create_use_case.execute(
+                CreateDropCommand(
+                    owner_user_id="user-1",
+                    file_stream=io.BytesIO(b"hello"),
+                    file_name="hello.txt",
+                    mime_type="text/plain",
+                    size_bytes=5,
+                    slug="a/b",
+                    access_scope=AccessScope.PRIVATE,
+                    drop_password=None,
+                    title=None,
+                    description=None,
+                )
+            )
+
+        assert repo.items == {}
+        assert storage._counter == 0
+
     async def test_create_retries_generated_slug_after_repository_unique_race(self):
         repo = _RaceRepository({"race-slug"})
         storage = _DeleteStorageSpy()

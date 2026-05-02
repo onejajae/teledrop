@@ -108,7 +108,7 @@ def base_template_context(
 
 def drop_file_url(slug: str) -> str:
     encoded_slug = quote(slug, safe="")
-    return f"/api/drop/{encoded_slug}"
+    return f"/files/{encoded_slug}"
 
 
 def drop_page_url(slug: str) -> str:

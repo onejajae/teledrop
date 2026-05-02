@@ -1,4 +1,4 @@
-from fastapi import HTTPException, Response, status
+from fastapi import HTTPException, status
 
 from app.domain.drop.errors import (
     DropAccessDeniedError,
@@ -8,39 +8,27 @@ from app.domain.drop.errors import (
 )
 
 
-def _api_auth_unauthorized_headers(set_cookie: str | None = None) -> dict[str, str]:
-    headers = {"WWW-Authenticate": "Session, ApiKey"}
+def _api_auth_unauthorized_headers(
+    set_cookie: str | None = None,
+    authenticate: str = "ApiKey",
+) -> dict[str, str]:
+    headers = {"WWW-Authenticate": authenticate}
     if set_cookie is not None:
         headers["set-cookie"] = set_cookie
     return headers
-
-
-def response_set_cookie_header(response: Response) -> str | None:
-    return response.headers.get("set-cookie")
 
 
 def api_auth_unauthorized_exception(
     *,
     detail: str,
     set_cookie: str | None = None,
+    authenticate: str = "ApiKey",
 ) -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        headers=_api_auth_unauthorized_headers(set_cookie),
+        headers=_api_auth_unauthorized_headers(set_cookie, authenticate),
         detail=detail,
     )
-
-
-def session_unauthorized_exception(
-    *,
-    detail: str,
-    set_cookie: str | None = None,
-) -> HTTPException:
-    return api_auth_unauthorized_exception(detail=detail, set_cookie=set_cookie)
-
-
-def login_invalid_exception() -> HTTPException:
-    return HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
 
 def slug_unavailable_exception() -> HTTPException:
@@ -50,18 +38,6 @@ def slug_unavailable_exception() -> HTTPException:
 def drop_list_unauthorized_exception() -> HTTPException:
     return api_auth_unauthorized_exception(
         detail="Authentication credentials were not provided or are invalid."
-    )
-
-
-def invalid_range_header_exception() -> HTTPException:
-    return HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
-
-
-def range_not_satisfiable_exception(file_size: int | None = None) -> HTTPException:
-    headers = {"Content-Range": f"bytes */{file_size}"} if file_size is not None else None
-    return HTTPException(
-        status_code=status.HTTP_416_RANGE_NOT_SATISFIABLE,
-        headers=headers,
     )
 
 

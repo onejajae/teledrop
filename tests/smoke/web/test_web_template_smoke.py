@@ -204,7 +204,7 @@ def _full_page_cases():
                     slug='img1',
                     mode='manage',
                     drop=selected_drop,
-                    download_url='/api/drop/img1',
+                    download_url='/files/img1',
                     page_url='/img1',
                     manage_url='/drops/img1',
                     badge_label='비공개',
@@ -224,7 +224,7 @@ def _full_page_cases():
                     slug='img1',
                     mode='shared',
                     drop=selected_drop,
-                    download_url='/api/drop/img1',
+                    download_url='/files/img1',
                     page_url='/img1',
                 ),
             ),
@@ -324,11 +324,11 @@ class TestWebTemplateSmoke:
         password_prompt = _render('panels/drop_detail.html', is_login=False, detail=_detail_context(slug='locked', requires_password=True, page_url='/locked', locked_prompt_action='/actions/drop/locked/unlock'))
         wrong_password = _render('panels/drop_detail.html', is_login=False, detail=_detail_context(slug='locked', requires_password=True, page_url='/locked', error_message='비밀번호가 올바르지 않습니다.', locked_prompt_action='/actions/drop/locked/unlock'))
         selected_drop = _drop_vm('img1', '이미지', 'img.png', 'image/png', 'public', False, False, '5분 전', description='클라이언트 공유용 제품 사진입니다.', size_human='123 B', size_bytes=123, created_at='2026-02-22T00:00:00Z', updated_at='2026-02-23T00:00:00Z', created_at_label=None, updated_at_label=None)
-        selected = _render('panels/drop_detail.html', is_login=True, csrf_token='csrf', detail=_detail_context(slug='img1', drop=selected_drop, download_url='/api/drop/img1', page_url='/img1', status_message='저장됨'))
+        selected = _render('panels/drop_detail.html', is_login=True, csrf_token='csrf', detail=_detail_context(slug='img1', drop=selected_drop, download_url='/files/img1', page_url='/img1', status_message='저장됨'))
         pdf_drop = _drop_vm('guide1', '가이드', 'guide.pdf', 'application/pdf', 'public', False, False, '10분 전', description='PDF 설명입니다.', size_human='42 KB', size_bytes=43008, created_at='2026-02-22T00:00:00Z', updated_at=None, created_at_label=None, updated_at_label=None)
-        pdf_selected = _render('panels/drop_detail.html', is_login=True, csrf_token='csrf', detail=_detail_context(slug='guide1', drop=pdf_drop, download_url='/api/drop/guide1', page_url='/guide1', status_message='저장됨'))
+        pdf_selected = _render('panels/drop_detail.html', is_login=True, csrf_token='csrf', detail=_detail_context(slug='guide1', drop=pdf_drop, download_url='/files/guide1', page_url='/guide1', status_message='저장됨'))
         video_drop = _drop_vm('clip1', '클립', 'clip.mp4', 'video/mp4', 'public', False, False, '3분 전', description='동영상 설명입니다.', size_human='9.80 MB', size_bytes=10276045, created_at='2026-02-22T00:00:00Z', updated_at=None, created_at_label=None, updated_at_label=None)
-        video_selected = _render('panels/drop_detail.html', is_login=True, csrf_token='csrf', detail=_detail_context(slug='clip1', drop=video_drop, download_url='/api/drop/clip1', page_url='/clip1', status_message='저장됨'))
+        video_selected = _render('panels/drop_detail.html', is_login=True, csrf_token='csrf', detail=_detail_context(slug='clip1', drop=video_drop, download_url='/files/clip1', page_url='/clip1', status_message='저장됨'))
         assert '파일을 선택하면 상세 정보를 볼 수 있습니다.' in unselected
         assert '파일을 선택해 주세요' in unselected
         assert 'rounded-[1.35rem] border border-dashed border-base-300/80 bg-base-100/70' in unselected
@@ -347,7 +347,7 @@ class TestWebTemplateSmoke:
         assert 'aria-label="링크 복사"' in selected
         assert 'aria-label="img.png 다운로드"' not in selected
         assert '카드 클릭 시 다운로드' not in selected
-        assert '<img src="/api/drop/img1?disposition=inline"' in selected
+        assert '<img src="/files/img1?disposition=inline"' in selected
         assert 'alt="img.png"' in selected
         assert 'class="h-auto w-full"' in selected
         assert '<iframe' not in selected
@@ -361,9 +361,9 @@ class TestWebTemplateSmoke:
         assert 'data-tip="링크 복사" title=' not in selected
         assert 'download aria-label="다운로드" data-tip="다운로드"' in selected
         assert 'data-tip="다운로드" title=' not in selected
-        assert selected.index('<h2 class="max-w-full break-words text-lg font-semibold tracking-tight sm:text-xl">이미지</h2>') < selected.index('data-td-copy-url="/img1"') < selected.index('<img src="/api/drop/img1?disposition=inline"')
-        assert selected.index('<h2 class="max-w-full break-words text-lg font-semibold tracking-tight sm:text-xl">이미지</h2>') < selected.index('5분 전') < selected.index('<img src="/api/drop/img1?disposition=inline"')
-        assert selected.index('<img src="/api/drop/img1?disposition=inline"') < selected.index('클라이언트 공유용 제품 사진입니다.')
+        assert selected.index('<h2 class="max-w-full break-words text-lg font-semibold tracking-tight sm:text-xl">이미지</h2>') < selected.index('data-td-copy-url="/img1"') < selected.index('<img src="/files/img1?disposition=inline"')
+        assert selected.index('<h2 class="max-w-full break-words text-lg font-semibold tracking-tight sm:text-xl">이미지</h2>') < selected.index('5분 전') < selected.index('<img src="/files/img1?disposition=inline"')
+        assert selected.index('<img src="/files/img1?disposition=inline"') < selected.index('클라이언트 공유용 제품 사진입니다.')
         assert selected.index('클라이언트 공유용 제품 사진입니다.') < selected.index('파일 다운로드')
         assert 'mt-1 break-words whitespace-pre-wrap text-sm text-base-content/70' in selected
         assert 'card-title text-base' not in selected
@@ -428,17 +428,17 @@ class TestWebTemplateSmoke:
         assert 'aria-label="즐겨찾기"' not in selected
         assert 'aria-label="나만 보기"' not in selected
         assert '상세 관리 액션' not in selected
-        assert '<iframe src="/api/drop/guide1?disposition=inline"' in pdf_selected
+        assert '<iframe src="/files/guide1?disposition=inline"' in pdf_selected
         assert 'title="guide.pdf 미리보기"' in pdf_selected
         assert 'class="h-[70vh] min-h-[28rem] w-full bg-base-100"' in pdf_selected
-        assert '<img src="/api/drop/guide1?disposition=inline"' not in pdf_selected
+        assert '<img src="/files/guide1?disposition=inline"' not in pdf_selected
         assert 'PDF 설명입니다.' in pdf_selected
-        assert pdf_selected.index('<h2 class="max-w-full break-words text-lg font-semibold tracking-tight sm:text-xl">가이드</h2>') < pdf_selected.index('<iframe src="/api/drop/guide1?disposition=inline"')
-        assert pdf_selected.index('<iframe src="/api/drop/guide1?disposition=inline"') < pdf_selected.index('PDF 설명입니다.')
+        assert pdf_selected.index('<h2 class="max-w-full break-words text-lg font-semibold tracking-tight sm:text-xl">가이드</h2>') < pdf_selected.index('<iframe src="/files/guide1?disposition=inline"')
+        assert pdf_selected.index('<iframe src="/files/guide1?disposition=inline"') < pdf_selected.index('PDF 설명입니다.')
         assert '<video class="max-h-[70vh] min-h-[14rem] w-full bg-black" controls preload="metadata" playsinline>' in video_selected
-        assert '<source src="/api/drop/clip1?disposition=inline#t=0.001" type="video/mp4" />' in video_selected
-        assert '<img src="/api/drop/clip1?disposition=inline"' not in video_selected
-        assert '<iframe src="/api/drop/clip1?disposition=inline"' not in video_selected
+        assert '<source src="/files/clip1?disposition=inline#t=0.001" type="video/mp4" />' in video_selected
+        assert '<img src="/files/clip1?disposition=inline"' not in video_selected
+        assert '<iframe src="/files/clip1?disposition=inline"' not in video_selected
         assert '동영상 설명입니다.' in video_selected
         assert video_selected.index('<h2 class="max-w-full break-words text-lg font-semibold tracking-tight sm:text-xl">클립</h2>') < video_selected.index('<video class="max-h-[70vh] min-h-[14rem] w-full bg-black"')
         assert video_selected.index('<video class="max-h-[70vh] min-h-[14rem] w-full bg-black"') < video_selected.index('동영상 설명입니다.')
@@ -469,7 +469,7 @@ class TestWebTemplateSmoke:
 
     def test_manage_page_renders_compact_management_panel(self):
         selected_drop = _drop_vm('img1', '이미지', 'img.png', 'image/png', 'private', False, False, None, size_human='123 B', size_bytes=123, created_at='2026-02-22T00:00:00Z', updated_at=None, created_at_label=None, updated_at_label=None)
-        html = _render('pages/manage_drop.html', is_login=True, active_nav='drops', csrf_token='csrf', detail=_detail_context(slug='img1', mode='manage', drop=selected_drop, download_url='/api/drop/img1', page_url='/img1', manage_url='/drops/img1', badge_label='비공개', badge_tone='warning', badge_appearance='soft', show_owner_actions=True))
+        html = _render('pages/manage_drop.html', is_login=True, active_nav='drops', csrf_token='csrf', detail=_detail_context(slug='img1', mode='manage', drop=selected_drop, download_url='/files/img1', page_url='/img1', manage_url='/drops/img1', badge_label='비공개', badge_tone='warning', badge_appearance='soft', show_owner_actions=True))
         assert '목록으로' not in html
         assert '로그인된 관리자만 접근할 수 있습니다.' not in html
         assert '공유 시작' not in html
@@ -511,7 +511,7 @@ class TestWebTemplateSmoke:
 
     def test_manage_page_renders_password_clear_action_for_passworded_drop(self):
         selected_drop = _drop_vm('locked1', '잠긴 파일', 'locked.png', 'image/png', 'private', False, True, None, description=None, size_human='123 B', size_bytes=123, created_at='2026-02-22T00:00:00Z', updated_at=None, created_at_label=None, updated_at_label=None)
-        html = _render('pages/manage_drop.html', is_login=True, active_nav='drops', csrf_token='csrf', detail=_detail_context(slug='locked1', mode='manage', drop=selected_drop, requires_password=True, download_url='/api/drop/locked1', page_url='/locked1', manage_url='/drops/locked1', badge_label='비공개', badge_tone='warning', badge_appearance='soft', show_owner_actions=True, access_granted=True, locked_prompt_action='/drops/locked1'))
+        html = _render('pages/manage_drop.html', is_login=True, active_nav='drops', csrf_token='csrf', detail=_detail_context(slug='locked1', mode='manage', drop=selected_drop, requires_password=True, download_url='/files/locked1', page_url='/locked1', manage_url='/drops/locked1', badge_label='비공개', badge_tone='warning', badge_appearance='soft', show_owner_actions=True, access_granted=True, locked_prompt_action='/drops/locked1'))
         assert '목록으로' not in html
         assert '외부 공유는 꺼져 있으며 비밀번호가 설정되어 있습니다.' not in html
         assert 'badge badge-warning badge-soft self-start sm:mr-auto' in html
@@ -528,7 +528,7 @@ class TestWebTemplateSmoke:
 
     def test_manage_page_keeps_shared_badge_for_password_protected_public_drop(self):
         selected_drop = _drop_vm('shared1', '공유 파일', 'shared.png', 'image/png', 'public', False, True, None, description=None, size_human='123 B', size_bytes=123, created_at='2026-02-22T00:00:00Z', updated_at=None, created_at_label=None, updated_at_label=None)
-        html = _render('pages/manage_drop.html', is_login=True, active_nav='drops', csrf_token='csrf', detail=_detail_context(slug='shared1', mode='manage', drop=selected_drop, requires_password=True, download_url='/api/drop/shared1', page_url='/shared1', manage_url='/drops/shared1', badge_label='공유 중', badge_tone='success', badge_appearance='soft', can_copy_link=True, show_owner_actions=True, access_granted=True, locked_prompt_action='/drops/shared1'))
+        html = _render('pages/manage_drop.html', is_login=True, active_nav='drops', csrf_token='csrf', detail=_detail_context(slug='shared1', mode='manage', drop=selected_drop, requires_password=True, download_url='/files/shared1', page_url='/shared1', manage_url='/drops/shared1', badge_label='공유 중', badge_tone='success', badge_appearance='soft', can_copy_link=True, show_owner_actions=True, access_granted=True, locked_prompt_action='/drops/shared1'))
         assert '공유 중' in html
         assert 'badge badge-success badge-soft self-start sm:mr-auto' in html
         assert 'aria-label="메타데이터 수정"' in html
@@ -536,7 +536,7 @@ class TestWebTemplateSmoke:
 
     def test_shared_page_renders_admin_bar_without_full_owner_actions(self):
         selected_drop = _drop_vm('img1', '이미지', 'img.png', 'image/png', 'public', False, False, None, size_human='123 B', size_bytes=123, created_at='2026-02-22T00:00:00Z', updated_at=None, created_at_label=None, updated_at_label=None)
-        html = _render('pages/shared_drop.html', is_login=True, csrf_token='csrf', detail=_detail_context(slug='img1', mode='shared', drop=selected_drop, download_url='/api/drop/img1', page_url='/img1', manage_url='/drops/img1', badge_label='공유 중', badge_tone='success', badge_appearance='soft', show_shared_admin_bar=True))
+        html = _render('pages/shared_drop.html', is_login=True, csrf_token='csrf', detail=_detail_context(slug='img1', mode='shared', drop=selected_drop, download_url='/files/img1', page_url='/img1', manage_url='/drops/img1', badge_label='공유 중', badge_tone='success', badge_appearance='soft', show_shared_admin_bar=True))
         assert '관리자 보기' in html
         assert '관리하기' in html
         assert 'badge badge-success badge-soft' in html

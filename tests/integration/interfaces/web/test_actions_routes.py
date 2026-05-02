@@ -22,9 +22,11 @@ from app.bootstrap.providers.drop import (
     get_create_drop_use_case,
     get_delete_drop_use_case,
     get_get_drop_meta_use_case,
+    get_get_drop_stream_source_use_case,
     get_list_drops_use_case,
     get_update_drop_use_case,
 )
+from app.core.drop_grants import drop_grant_cookie_name
 from app.domain.auth.errors import ApiKeyNotFound
 from app.domain.auth.errors import LoginInvalid, UsernameInvalid, UsernameUnavailable
 from app.domain.drop.errors import DropAccessDeniedError, DropNotFoundError
@@ -197,6 +199,7 @@ class _FakeDropUseCases:
 
         self.check_slug_availability_use_case = self._NotUsedUseCase()
         self.get_drop_meta_use_case = self._GetDropMetaUseCase()
+        self.get_drop_stream_source_use_case = self._GetDropStreamSourceUseCase()
         self.delete_drop_use_case = self._NotUsedUseCase()
         self.create_drop_use_case = self._CreateDropUseCase(self)
         self.update_drop_use_case = self._UpdateDropUseCase(self)
@@ -233,6 +236,21 @@ class _FakeDropUseCases:
         async def issue_grant_token(self, query):
             await self.execute(query)
             return f"grant-{query.slug}"
+
+    class _GetDropStreamSourceUseCase:
+        def __init__(self):
+            self.queries = []
+
+        async def execute(self, query):
+            self.queries.append(query)
+            detail = _detail_dto(query.slug)
+            if query.slug == "photo":
+                detail.file_name = "photo.png"
+                detail.mime_type = "image/png"
+            return detail, query.slug
+
+        async def iter_stream_range(self, _storage_key: str, start: int, end: int):
+            yield b"hello"[start : end + 1]
 
     class _ListDropsUseCase:
         async def execute(self, _query):
@@ -271,6 +289,9 @@ def _client(
     app.dependency_overrides[get_create_drop_use_case] = lambda: drop_use_cases.create_drop_use_case
     app.dependency_overrides[get_delete_drop_use_case] = lambda: drop_use_cases.delete_drop_use_case
     app.dependency_overrides[get_get_drop_meta_use_case] = lambda: drop_use_cases.get_drop_meta_use_case
+    app.dependency_overrides[get_get_drop_stream_source_use_case] = (
+        lambda: drop_use_cases.get_drop_stream_source_use_case
+    )
     app.dependency_overrides[get_list_drops_use_case] = lambda: drop_use_cases.list_drops_use_case
     app.dependency_overrides[get_update_drop_use_case] = lambda: drop_use_cases.update_drop_use_case
     app.dependency_overrides[get_create_api_key_use_case] = (
@@ -292,7 +313,98 @@ def _client(
     return TestClient(app)
 
 
+def _assert_web_file_security_headers(response):
+    assert response.headers["cache-control"] == "no-store, private, max-age=0"
+    assert response.headers["pragma"] == "no-cache"
+    assert response.headers["expires"] == "0"
+    assert "Cookie" in response.headers["vary"]
+    assert "Sec-Fetch-Site" in response.headers["vary"]
+    assert response.headers["cross-origin-resource-policy"] == "same-origin"
+    assert response.headers["content-security-policy"] == "frame-ancestors 'self'"
+    assert response.headers["x-frame-options"] == "SAMEORIGIN"
+
+
 class TestWebActionRoutesIntegration:
+    def test_web_file_route_streams_file_with_range_and_inline_headers(self):
+        drop_use_cases = _FakeDropUseCases()
+        client = _client(
+            drop_use_cases=drop_use_cases,
+            api_key_use_cases=_FakeApiKeyUseCases(),
+            csrf_service=_FakeCsrfService(verify_result=True),
+            revoke_use_case=_FakeRevokeSessionUseCase(),
+        )
+
+        response = client.get(
+            "/files/k1?disposition=inline",
+            headers={"Range": "bytes=1-3"},
+        )
+
+        assert response.status_code == 206
+        assert response.headers["content-range"] == "bytes 1-3/5"
+        assert response.headers["content-disposition"].startswith("attachment;")
+        _assert_web_file_security_headers(response)
+        assert response.content == b"ell"
+
+    def test_web_file_route_uses_drop_grant_cookie(self):
+        drop_use_cases = _FakeDropUseCases()
+        client = _client(
+            drop_use_cases=drop_use_cases,
+            api_key_use_cases=_FakeApiKeyUseCases(),
+            csrf_service=_FakeCsrfService(verify_result=True),
+            revoke_use_case=_FakeRevokeSessionUseCase(),
+        )
+        client.cookies.set(drop_grant_cookie_name("locked"), "grant-token")
+
+        response = client.get("/files/locked")
+
+        assert response.status_code == 200
+        _assert_web_file_security_headers(response)
+        [query] = drop_use_cases.get_drop_stream_source_use_case.queries
+        assert query.drop_password.grant_token == "grant-token"
+
+    def test_web_file_route_allows_same_origin_inline_preview(self):
+        drop_use_cases = _FakeDropUseCases()
+        client = _client(
+            drop_use_cases=drop_use_cases,
+            api_key_use_cases=_FakeApiKeyUseCases(),
+            csrf_service=_FakeCsrfService(verify_result=True),
+            revoke_use_case=_FakeRevokeSessionUseCase(),
+        )
+
+        response = client.get(
+            "/files/photo?disposition=inline",
+            headers={
+                "Sec-Fetch-Site": "same-origin",
+                "Sec-Fetch-Dest": "image",
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.headers["content-disposition"].startswith("inline;")
+        assert response.headers["content-type"].startswith("image/png")
+        _assert_web_file_security_headers(response)
+
+    def test_web_file_route_blocks_cross_site_embeds_before_streaming(self):
+        drop_use_cases = _FakeDropUseCases()
+        client = _client(
+            drop_use_cases=drop_use_cases,
+            api_key_use_cases=_FakeApiKeyUseCases(),
+            csrf_service=_FakeCsrfService(verify_result=True),
+            revoke_use_case=_FakeRevokeSessionUseCase(),
+        )
+        client.cookies.set("session_id", "sid")
+
+        response = client.get(
+            "/files/k1?disposition=inline",
+            headers={
+                "Sec-Fetch-Site": "cross-site",
+                "Sec-Fetch-Dest": "image",
+            },
+        )
+
+        assert response.status_code == 403
+        assert drop_use_cases.get_drop_stream_source_use_case.queries == []
+
     def test_unauthenticated_mutation_returns_hx_redirect_for_hx_request(self):
         drop_use_cases = _FakeDropUseCases()
         client = _client(

@@ -2,27 +2,21 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.application.auth.types import AuthIdentity
-from app.application.drop.models import DropDetailDTO, UNSET
+from app.application.drop.models import DropDetailDTO
 from app.bootstrap.container import get_app_settings
 from app.bootstrap.providers.auth import (
-    get_revoke_session_use_case,
     get_verify_api_key_use_case,
-    get_verify_session_use_case,
 )
 from app.bootstrap.providers.drop import (
-    get_check_slug_availability_use_case,
     get_create_drop_use_case,
-    get_delete_drop_use_case,
     get_get_drop_meta_use_case,
     get_get_drop_stream_source_use_case,
     get_list_drops_use_case,
-    get_update_drop_use_case,
 )
-from app.core.drop_grants import drop_grant_cookie_name
 from app.domain.auth.errors import ApiKeyInvalid
 from app.domain.drop.errors import (
     DropAccessDeniedError,
@@ -31,56 +25,30 @@ from app.domain.drop.errors import (
     DropUploadTooLargeError,
 )
 from app.domain.drop.value_objects import AccessScope
-from app.interfaces.api.deps.auth import get_required_api_auth
 from app.interfaces.api.router import api_router
-from app.interfaces.deps.auth import get_optional_api_auth, get_optional_session_auth
-
-
-class _FakeVerifySessionUseCase:
-    async def execute(self, _query) -> AuthIdentity:
-        return _auth_identity()
 
 
 class _FakeVerifyApiKeyUseCase:
     async def execute(self, query) -> AuthIdentity:
         if query.api_key == "tdpk_public_secret":
             return _auth_identity()
+        if query.api_key == "tdpk_other_secret":
+            return AuthIdentity(user_id="user-2", username="other")
         raise ApiKeyInvalid()
-
-
-class _FakeRevokeSessionUseCase:
-    def __init__(self):
-        self.calls: list[str] = []
-
-    async def execute(self, sid: str):
-        self.calls.append(sid)
 
 
 def _auth_identity() -> AuthIdentity:
     return AuthIdentity(user_id="user-1", username="tester")
 
 
-def _anonymous_identity() -> AuthIdentity:
-    return AuthIdentity(user_id=None, username=None)
+def _api_headers(token: str = "tdpk_public_secret") -> dict[str, str]:
+    return {"X-API-Key": token}
 
 
-async def _fake_optional_api_auth(request: Request) -> AuthIdentity:
-    if request.cookies.get("session_id") or request.headers.get("X-API-Key") == "tdpk_public_secret":
-        return _auth_identity()
-    return _anonymous_identity()
-
-
-async def _fake_required_api_auth(request: Request) -> AuthIdentity:
-    identity = await _fake_optional_api_auth(request)
-    if not identity.is_authenticated:
-        raise HTTPException(status_code=401)
-    return identity
-
-
-async def _fake_optional_session_auth(request: Request) -> AuthIdentity:
-    if request.cookies.get("session_id"):
-        return _auth_identity()
-    return _anonymous_identity()
+def _credential_matches(expected: str | None, credential) -> bool:
+    if expected is None:
+        return True
+    return bool(credential and getattr(credential, "password", None) == expected)
 
 
 def _detail_dto(
@@ -92,10 +60,11 @@ def _detail_dto(
     payload_size: int = 11,
     access_scope: AccessScope = AccessScope.PUBLIC,
     requires_password: bool = False,
+    owner_user_id: str = "user-1",
 ) -> DropDetailDTO:
     now = datetime.now(timezone.utc)
     return DropDetailDTO(
-        owner_user_id="user-1",
+        owner_user_id=owner_user_id,
         slug=slug,
         title=title,
         description="desc",
@@ -115,16 +84,14 @@ class _FakeDropUseCases:
     def __init__(self):
         self.items: dict[str, DropDetailDTO] = {}
         self.payloads: dict[str, bytes] = {}
+        self.passwords: dict[str, str | None] = {}
         self.read_errors: dict[tuple[str, str], Exception] = {}
-        self.update_commands = []
 
         self.check_slug_availability_use_case = self._NotUsedUseCase()
         self.create_drop_use_case = self._NotUsedUseCase()
         self.list_drops_use_case = self._NotUsedUseCase()
-        self.delete_drop_use_case = self._NotUsedUseCase()
         self.get_drop_meta_use_case = self._GetDropMetaUseCase(self)
         self.get_drop_stream_source_use_case = self._GetDropStreamSourceUseCase(self)
-        self.update_drop_use_case = self._UpdateDropUseCase(self)
 
     def add_drop(
         self,
@@ -134,6 +101,9 @@ class _FakeDropUseCases:
         title: str | None = "original",
         file_name: str | None = None,
         mime_type: str = "text/plain",
+        access_scope: AccessScope = AccessScope.PUBLIC,
+        owner_user_id: str = "user-1",
+        drop_password: str | None = None,
     ) -> None:
         self.items[slug] = _detail_dto(
             slug=slug,
@@ -141,8 +111,12 @@ class _FakeDropUseCases:
             file_name=file_name,
             mime_type=mime_type,
             payload_size=len(payload),
+            access_scope=access_scope,
+            requires_password=drop_password is not None,
+            owner_user_id=owner_user_id,
         )
         self.payloads[slug] = payload
+        self.passwords[slug] = drop_password
 
     class _NotUsedUseCase:
         async def execute(self, *_args, **_kwargs):
@@ -160,6 +134,13 @@ class _FakeDropUseCases:
             item = self.parent.items.get(query.slug)
             if item is None:
                 raise DropNotFoundError()
+            if item.access_scope == AccessScope.PRIVATE and query.auth.user_id != item.owner_user_id:
+                raise DropAccessDeniedError()
+            if query.auth.user_id != item.owner_user_id and not _credential_matches(
+                self.parent.passwords.get(query.slug),
+                query.drop_password,
+            ):
+                raise DropPasswordInvalidError()
             return item
 
     class _GetDropStreamSourceUseCase:
@@ -174,40 +155,17 @@ class _FakeDropUseCases:
             item = self.parent.items.get(query.slug)
             if item is None:
                 raise DropNotFoundError()
+            await self.parent.get_drop_meta_use_case.execute(query)
             return item, query.slug
 
         async def iter_stream_range(self, storage_key: str, start: int, end: int):
             payload = self.parent.payloads[storage_key]
             yield payload[start : end + 1]
 
-    class _UpdateDropUseCase:
-        def __init__(self, parent: "_FakeDropUseCases"):
-            self.parent = parent
-
-        async def execute(self, command):
-            self.parent.update_commands.append(command)
-            item = self.parent.items.get(command.slug)
-            if item is None:
-                raise DropNotFoundError()
-
-            if command.title is not UNSET:
-                item.title = command.title
-            if command.description is not UNSET:
-                item.description = command.description
-            if command.access_scope is not UNSET:
-                item.access_scope = command.access_scope
-            if command.is_favorite is not UNSET:
-                item.is_favorite = command.is_favorite
-            if command.new_password is not UNSET:
-                item.requires_password = bool(command.new_password)
-
-            return item
-
-
 def _client(
     fake_use_cases: _FakeDropUseCases,
-    revoke_use_case: _FakeRevokeSessionUseCase | None = None,
     max_upload_bytes: int = 1024 * 1024,
+    authenticated: bool = True,
 ) -> TestClient:
     app = FastAPI()
     app.include_router(api_router, prefix="/api")
@@ -221,14 +179,8 @@ def _client(
         MAX_PAGE_SIZE=200,
         MAX_UPLOAD_BYTES=max_upload_bytes,
     )
-    app.dependency_overrides[get_check_slug_availability_use_case] = (
-        lambda: fake_use_cases.check_slug_availability_use_case
-    )
     app.dependency_overrides[get_create_drop_use_case] = (
         lambda: fake_use_cases.create_drop_use_case
-    )
-    app.dependency_overrides[get_delete_drop_use_case] = (
-        lambda: fake_use_cases.delete_drop_use_case
     )
     app.dependency_overrides[get_get_drop_meta_use_case] = (
         lambda: fake_use_cases.get_drop_meta_use_case
@@ -239,19 +191,12 @@ def _client(
     app.dependency_overrides[get_list_drops_use_case] = (
         lambda: fake_use_cases.list_drops_use_case
     )
-    app.dependency_overrides[get_update_drop_use_case] = (
-        lambda: fake_use_cases.update_drop_use_case
-    )
     app.dependency_overrides[get_app_settings] = lambda: fake_settings
-    app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
     app.dependency_overrides[get_verify_api_key_use_case] = lambda: _FakeVerifyApiKeyUseCase()
-    app.dependency_overrides[get_optional_api_auth] = _fake_optional_api_auth
-    app.dependency_overrides[get_required_api_auth] = _fake_required_api_auth
-    app.dependency_overrides[get_optional_session_auth] = _fake_optional_session_auth
-    app.dependency_overrides[get_revoke_session_use_case] = (
-        lambda: revoke_use_case or _FakeRevokeSessionUseCase()
-    )
-    return TestClient(app)
+    client = TestClient(app)
+    if authenticated:
+        client.headers.update(_api_headers())
+    return client
 
 
 class TestDropRouterIntegration:
@@ -294,7 +239,22 @@ class TestDropRouterIntegration:
         response = client.get("/api/drop/k1")
 
         assert response.status_code == 200
-        assert response.headers["content-disposition"].startswith("attachment;")
+        assert response.headers["content-disposition"] == (
+            "attachment; filename=\"k1.txt\"; filename*=UTF-8''k1.txt"
+        )
+        assert "content-disposition" in response.headers["access-control-expose-headers"]
+
+    def test_drop_stream_sanitizes_path_like_content_disposition_filename(self):
+        fake_use_cases = _FakeDropUseCases()
+        fake_use_cases.add_drop("path", file_name="../secret\\report.pdf")
+        client = _client(fake_use_cases)
+
+        response = client.get("/api/drop/path")
+
+        assert response.status_code == 200
+        assert response.headers["content-disposition"] == (
+            "attachment; filename=\"report.pdf\"; filename*=UTF-8''report.pdf"
+        )
 
     def test_drop_stream_allows_inline_disposition_for_safe_image_preview(self):
         fake_use_cases = _FakeDropUseCases()
@@ -416,64 +376,65 @@ class TestDropRouterIntegration:
 
         assert response.status_code == expected_status
 
-    def test_patch_distinguishes_omitted_field_and_explicit_null(self):
-        fake_use_cases = _FakeDropUseCases()
-        fake_use_cases.add_drop("k1", title="original")
-        client = _client(fake_use_cases)
-        headers = {"X-API-Key": "tdpk_public_secret"}
-
-        omitted = client.patch("/api/drop/k1", json={}, headers=headers)
-        explicit_null = client.patch("/api/drop/k1", json={"title": None}, headers=headers)
-
-        assert omitted.status_code == 200
-        assert omitted.json()["title"] == "original"
-        assert fake_use_cases.update_commands[0].title is UNSET
-        assert fake_use_cases.update_commands[0].auth.user_id == "user-1"
-
-        assert explicit_null.status_code == 200
-        assert explicit_null.json()["title"] is None
-        assert fake_use_cases.update_commands[1].title is None
-        assert fake_use_cases.update_commands[1].auth.user_id == "user-1"
-
-    @pytest.mark.parametrize("method", ["post", "patch", "delete"])
-    def test_rest_mutations_reject_session_cookie_without_api_key(self, method: str):
+    @pytest.mark.parametrize(
+        ("method", "path", "expected_status"),
+        [
+            ("get", "/api/drop/availability/k1", 404),
+            ("patch", "/api/drop/k1", 405),
+            ("delete", "/api/drop/k1", 405),
+            ("post", "/api/auth/login", 404),
+            ("get", "/api/auth/me", 404),
+            ("post", "/api/auth/logout", 404),
+        ],
+    )
+    def test_removed_rest_surface_is_not_registered(
+        self,
+        method: str,
+        path: str,
+        expected_status: int,
+    ):
         fake_use_cases = _FakeDropUseCases()
         fake_use_cases.add_drop("k1")
         client = _client(fake_use_cases)
+
+        response = getattr(client, method)(path)
+
+        assert response.status_code == expected_status
+
+    @pytest.mark.parametrize("method", ["get", "post"])
+    def test_rest_api_rejects_session_cookie_without_api_key(self, method: str):
+        fake_use_cases = _FakeDropUseCases()
+        fake_use_cases.add_drop("k1")
+        client = _client(fake_use_cases, authenticated=False)
         client.cookies.set("session_id", "sid")
 
-        if method == "post":
+        if method == "get":
+            response = client.get("/api/drop")
+        else:
             response = client.post(
                 "/api/drop",
                 data={"slug": "upload-1", "access_scope": "private"},
                 files={"file": ("hello.txt", b"hello", "text/plain")},
             )
-        elif method == "patch":
-            response = client.patch("/api/drop/k1", json={"title": "blocked"})
-        else:
-            response = client.delete("/api/drop/k1")
 
         assert response.status_code == 401
-        assert response.headers.get("www-authenticate") == "Session, ApiKey"
+        assert response.headers.get("www-authenticate") == "ApiKey"
         assert response.headers.get("set-cookie") is None
-        assert fake_use_cases.update_commands == []
 
-    def test_rest_mutation_rejects_invalid_api_key_without_clearing_session_cookie(self):
+    def test_rest_api_rejects_invalid_api_key_without_clearing_session_cookie(self):
         fake_use_cases = _FakeDropUseCases()
         fake_use_cases.add_drop("k1")
-        client = _client(fake_use_cases)
+        client = _client(fake_use_cases, authenticated=False)
         client.cookies.set("session_id", "sid")
 
-        response = client.patch(
-            "/api/drop/k1",
+        response = client.get(
+            "/api/drop",
             headers={"X-API-Key": "tdpk_public_wrong"},
-            json={"title": "blocked"},
         )
 
         assert response.status_code == 401
-        assert response.headers.get("www-authenticate") == "Session, ApiKey"
+        assert response.headers.get("www-authenticate") == "ApiKey"
         assert response.headers.get("set-cookie") is None
-        assert fake_use_cases.update_commands == []
 
     def test_upload_rejects_file_larger_than_configured_limit(self):
         fake_use_cases = _FakeDropUseCases()
@@ -517,52 +478,11 @@ class TestDropRouterIntegration:
 
         fake_use_cases = _FakeDropUseCases()
         create_drop_use_case = _CapturingCreateDropUseCase()
-        app = FastAPI()
-        app.include_router(api_router, prefix="/api")
-        fake_settings = SimpleNamespace(
-            SESSION_COOKIE_NAME="session_id",
-            SESSION_COOKIE_PATH="/",
-            SESSION_COOKIE_SECURE=False,
-            SESSION_COOKIE_SAMESITE="lax",
-            SESSION_TTL_SECONDS=86400,
-            DEFAULT_PAGE_SIZE=10,
-            MAX_PAGE_SIZE=200,
-            MAX_UPLOAD_BYTES=1024 * 1024,
-        )
-        app.dependency_overrides[get_check_slug_availability_use_case] = (
-            lambda: fake_use_cases.check_slug_availability_use_case
-        )
-        app.dependency_overrides[get_create_drop_use_case] = lambda: create_drop_use_case
-        app.dependency_overrides[get_delete_drop_use_case] = (
-            lambda: fake_use_cases.delete_drop_use_case
-        )
-        app.dependency_overrides[get_get_drop_meta_use_case] = (
-            lambda: fake_use_cases.get_drop_meta_use_case
-        )
-        app.dependency_overrides[get_get_drop_stream_source_use_case] = (
-            lambda: fake_use_cases.get_drop_stream_source_use_case
-        )
-        app.dependency_overrides[get_list_drops_use_case] = (
-            lambda: fake_use_cases.list_drops_use_case
-        )
-        app.dependency_overrides[get_update_drop_use_case] = (
-            lambda: fake_use_cases.update_drop_use_case
-        )
-        app.dependency_overrides[get_app_settings] = lambda: fake_settings
-        app.dependency_overrides[get_verify_session_use_case] = (
-            lambda: _FakeVerifySessionUseCase()
-        )
-        app.dependency_overrides[get_verify_api_key_use_case] = (
-            lambda: _FakeVerifyApiKeyUseCase()
-        )
-        app.dependency_overrides[get_optional_api_auth] = _fake_optional_api_auth
-        app.dependency_overrides[get_required_api_auth] = _fake_required_api_auth
-        app.dependency_overrides[get_optional_session_auth] = _fake_optional_session_auth
-        client = TestClient(app)
+        fake_use_cases.create_drop_use_case = create_drop_use_case
+        client = _client(fake_use_cases)
 
         response = client.post(
             "/api/drop",
-            headers={"X-API-Key": "tdpk_public_secret"},
             data={"slug": "upload-1", "access_scope": "private"},
             files={"file": ("hello.txt", b"hello", "text/plain")},
         )
@@ -571,91 +491,54 @@ class TestDropRouterIntegration:
         assert create_drop_use_case.command is not None
         assert create_drop_use_case.command.owner_user_id == "user-1"
 
-    def test_delete_ignores_drop_grant_cookie(self):
-        class _CapturingDeleteDropUseCase:
-            def __init__(self):
-                self.command = None
-
-            async def execute(self, command):
-                self.command = command
-
+    def test_api_key_can_read_public_non_owner_drop(self):
         fake_use_cases = _FakeDropUseCases()
-        delete_drop_use_case = _CapturingDeleteDropUseCase()
-        app = FastAPI()
-        app.include_router(api_router, prefix="/api")
-        fake_settings = SimpleNamespace(
-            SESSION_COOKIE_NAME="session_id",
-            SESSION_COOKIE_PATH="/",
-            SESSION_COOKIE_SECURE=False,
-            SESSION_COOKIE_SAMESITE="lax",
-            SESSION_TTL_SECONDS=86400,
-            DEFAULT_PAGE_SIZE=10,
-            MAX_PAGE_SIZE=200,
-            MAX_UPLOAD_BYTES=1024 * 1024,
+        fake_use_cases.add_drop(
+            "public-other",
+            payload=b"public",
+            access_scope=AccessScope.PUBLIC,
+            owner_user_id="user-2",
         )
-        app.dependency_overrides[get_check_slug_availability_use_case] = (
-            lambda: fake_use_cases.check_slug_availability_use_case
-        )
-        app.dependency_overrides[get_create_drop_use_case] = (
-            lambda: fake_use_cases.create_drop_use_case
-        )
-        app.dependency_overrides[get_delete_drop_use_case] = lambda: delete_drop_use_case
-        app.dependency_overrides[get_get_drop_meta_use_case] = (
-            lambda: fake_use_cases.get_drop_meta_use_case
-        )
-        app.dependency_overrides[get_get_drop_stream_source_use_case] = (
-            lambda: fake_use_cases.get_drop_stream_source_use_case
-        )
-        app.dependency_overrides[get_list_drops_use_case] = (
-            lambda: fake_use_cases.list_drops_use_case
-        )
-        app.dependency_overrides[get_update_drop_use_case] = (
-            lambda: fake_use_cases.update_drop_use_case
-        )
-        app.dependency_overrides[get_app_settings] = lambda: fake_settings
-        app.dependency_overrides[get_verify_session_use_case] = (
-            lambda: _FakeVerifySessionUseCase()
-        )
-        app.dependency_overrides[get_verify_api_key_use_case] = (
-            lambda: _FakeVerifyApiKeyUseCase()
-        )
-        app.dependency_overrides[get_optional_api_auth] = _fake_optional_api_auth
-        app.dependency_overrides[get_required_api_auth] = _fake_required_api_auth
-        app.dependency_overrides[get_optional_session_auth] = _fake_optional_session_auth
-        client = TestClient(app)
-        client.cookies.set(drop_grant_cookie_name("k1"), "grant-token")
+        client = _client(fake_use_cases)
 
-        response = client.delete(
-            "/api/drop/k1",
-            headers={"X-API-Key": "tdpk_public_secret"},
-        )
+        meta = client.get("/api/drop/public-other/meta")
+        streamed = client.get("/api/drop/public-other")
 
-        assert response.status_code == 200
-        assert delete_drop_use_case.command is not None
-        assert delete_drop_use_case.command.auth.user_id == "user-1"
+        assert meta.status_code == 200
+        assert meta.json()["slug"] == "public-other"
+        assert streamed.status_code == 200
+        assert streamed.content == b"public"
 
-    def test_logout_clears_session_and_drop_grant_cookies(self):
+    def test_api_key_cannot_read_private_non_owner_drop(self):
         fake_use_cases = _FakeDropUseCases()
-        revoke_use_case = _FakeRevokeSessionUseCase()
-        client = _client(fake_use_cases, revoke_use_case=revoke_use_case)
-        client.cookies.set("session_id", "sid")
-        client.cookies.set("tdg_drop_1", "grant-1")
-        client.cookies.set("tdg_drop_2", "grant-2")
-        client.cookies.set("unrelated", "keep")
+        fake_use_cases.add_drop(
+            "private-other",
+            access_scope=AccessScope.PRIVATE,
+            owner_user_id="user-2",
+        )
+        client = _client(fake_use_cases)
 
-        response = client.post("/api/auth/logout")
-        set_cookie_headers = response.headers.get_list("set-cookie")
+        response = client.get("/api/drop/private-other")
 
-        assert response.status_code == 200
-        assert revoke_use_case.calls == ["sid"]
-        assert any(header.startswith("session_id=") for header in set_cookie_headers)
-        assert any(header.startswith("tdg_drop_1=") for header in set_cookie_headers)
-        assert any(header.startswith("tdg_drop_2=") for header in set_cookie_headers)
-        assert not any(header.startswith("unrelated=") for header in set_cookie_headers)
+        assert response.status_code == 404
 
-    def test_get_logout_is_not_supported(self):
-        client = _client(_FakeDropUseCases(), revoke_use_case=_FakeRevokeSessionUseCase())
+    def test_api_key_requires_drop_password_for_protected_public_non_owner_drop(self):
+        fake_use_cases = _FakeDropUseCases()
+        fake_use_cases.add_drop(
+            "protected-public",
+            payload=b"protected",
+            access_scope=AccessScope.PUBLIC,
+            owner_user_id="user-2",
+            drop_password="pw",
+        )
+        client = _client(fake_use_cases)
 
-        response = client.get("/api/auth/logout")
+        without_password = client.get("/api/drop/protected-public")
+        with_password = client.get(
+            "/api/drop/protected-public",
+            headers=_api_headers() | {"X-Drop-Password": "pw"},
+        )
 
-        assert response.status_code == 405
+        assert without_password.status_code == 401
+        assert with_password.status_code == 200
+        assert with_password.content == b"protected"

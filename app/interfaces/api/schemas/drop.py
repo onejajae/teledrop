@@ -61,15 +61,3 @@ class DropListResponse(BaseModel):
             page_size=data.page_size,
             total=data.total,
         )
-
-
-class SlugAvailabilityResponse(BaseModel):
-    available: bool
-
-
-class DropPatchRequest(BaseModel):
-    title: str | None = None
-    description: str | None = None
-    access_scope: AccessScope | None = None
-    is_favorite: bool | None = None
-    new_password: str | None = None

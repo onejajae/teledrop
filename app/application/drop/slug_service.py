@@ -1,3 +1,4 @@
+import re
 import uuid
 
 from app.application.drop.ports import (
@@ -7,11 +8,14 @@ from app.application.drop.ports import (
 from app.domain.drop.errors import DropSlugUnavailableError
 
 
+SLUG_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,126}[a-z0-9])?$")
+
 DEFAULT_RESERVED_SLUGS = {
     "api",
     "actions",
     "dev",
     "drops",
+    "files",
     "login",
     "logout",
     "register",
@@ -37,6 +41,8 @@ class DropSlugService:
     async def is_available(self, slug: str) -> bool:
         normalized = (slug or "").strip()
         if not normalized:
+            return False
+        if not SLUG_PATTERN.fullmatch(normalized):
             return False
         if normalized in self.reserved_slugs:
             return False

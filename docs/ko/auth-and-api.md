@@ -4,14 +4,13 @@
 * 웹 UI 접근은 비밀번호 로그인이 필요
 * `WEB_USERNAME`, `WEB_PASSWORD`는 빈 데이터베이스에서 첫 웹 사용자를 만드는 부트스트랩 값으로만 사용됩니다
 * 웹 회원가입은 `ENABLE_REGISTRATION=true`일 때만 사용할 수 있으며 기본값은 `false`입니다
-* REST API 읽기 엔드포인트는 다음 인증을 허용:
-  * 세션 쿠키 인증
+* REST API는 외부 파일 전송 클라이언트용이며 다음 인증이 필요합니다:
   * `X-API-Key: tdpk_<public_id>_<secret>`
-* REST API 변경 엔드포인트(`POST/PATCH/DELETE /api/drop...`)는 `X-API-Key`만 허용하며 세션 쿠키만으로는 호출할 수 없습니다
+* 세션 쿠키 인증은 웹 UI 전용이며 REST API에서는 허용하지 않습니다
 * API key 관리 기능은 웹 로그인 후 `/settings/api-keys`에서만 사용 가능
 * API key 관리 페이지는 현재 사용자의 키만 보여줍니다
 * 보호된 REST API 인증 실패는 `401`과 함께 다음 헤더를 반환:
-  * `WWW-Authenticate: Session, ApiKey`
+  * `WWW-Authenticate: ApiKey`
 
 기본 동작 및 확장 환경 참고:
 * `SESSION_COOKIE_SECURE` 기본값은 `true`
@@ -36,24 +35,17 @@
 * grant 쿠키는 raw password가 아니라 저장된 password hash material을 기준으로 서명됩니다.
 * 기존 평문 protected drop은 의도적으로 호환하지 않습니다. 이 버전 사용 전 데이터베이스를 백업하고 재생성하세요.
 
-주요 인증 엔드포인트:
-* `POST /api/auth/login`
-* `GET /api/auth/me` (세션 또는 API key)
-* `POST /api/auth/logout`
-
-## 개편된 드롭 API (Breaking)
+## 외부 드롭 API
 * `GET /api/drop?page=1&page_size=50&sort=created_at|title|size_bytes&order=asc|desc`
 * `POST /api/drop` (API key 전용, multipart: `file`, `slug?`, `title?`, `description?`, `access_scope`, `drop_password?`)
-* `GET /api/drop/{slug}/meta` (보호된 드롭은 `X-Drop-Password` 헤더 사용)
-* `GET /api/drop/{slug}` (보호된 드롭은 `X-Drop-Password` 헤더 사용, Range 지원)
-* `PATCH /api/drop/{slug}` (API key 전용, JSON: `title?`, `description?`, `access_scope?`, `is_favorite?`, `new_password?`)
-* `DELETE /api/drop/{slug}` (API key 전용)
-* `GET /api/drop/availability/{slug}`
+* `GET /api/drop/{slug}/meta` (API key 전용, 비소유자의 비밀번호 보호 public 읽기는 `X-Drop-Password` 헤더 사용)
+* `GET /api/drop/{slug}` (API key 전용, 비소유자의 비밀번호 보호 public 읽기는 `X-Drop-Password` 헤더 사용, Range 지원)
 
 소유권 및 마스킹 규칙:
 * 새 드롭은 현재 인증된 사용자 소유로 생성됩니다
 * private 드롭은 소유자만 볼 수 있습니다
 * private 드롭에 대한 비소유자 접근은 API와 웹 UI 모두에서 `404`로 마스킹됩니다
+* public 드롭은 유효한 API key가 있으면 REST로 읽을 수 있습니다. 비밀번호 보호 public 드롭은 소유자 API key가 아니면 `X-Drop-Password`가 필요합니다
 
 알려진 잔여 리스크:
 * 다운로드와 삭제가 동시에 발생하는 race는 이번 wave에서 동작을 변경하지 않습니다. 삭제가 파일을 먼저 staged 상태로 옮긴 뒤 동시 다운로드 스트림이 파일을 열려고 하면 해당 다운로드가 실패할 수 있으며, 이후 저장소 동시성 설계가 들어가기 전까지 strict xfail 테스트로 고정합니다.
@@ -79,6 +71,7 @@
 * `GET /drops` (내 드롭 목록)
 * `GET /drops/{slug}` (내 드롭 관리 페이지)
 * `GET /<파일_SLUG>` (공유 다운로드 뷰)
+* `GET /files/{slug}` (웹/session/share 다운로드 및 inline preview 스트림)
 * `GET /settings/api-keys` (웹 API key 관리 페이지, 로그인 필요, 현재 사용자의 키만 표시)
 * UI의 상태 변경 요청은 CSRF 보호가 적용됩니다.
 * 비밀번호 보호 드롭 잠금 해제 후에는 쿼리스트링 없이 clean URL로 다시 이동합니다.

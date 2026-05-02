@@ -1,16 +1,13 @@
 from fastapi import Depends, Request
 
-from app.application.auth.models import VerifyApiKeyQuery, VerifySessionQuery
+from app.application.auth.models import VerifySessionQuery
 from app.application.auth.types import AuthIdentity
-from app.application.auth.use_cases import VerifyApiKeyUseCase, VerifySessionUseCase
+from app.application.auth.use_cases import VerifySessionUseCase
 from app.bootstrap.container import get_app_settings
-from app.bootstrap.providers.auth import (
-    get_verify_api_key_use_case,
-    get_verify_session_use_case,
-)
+from app.bootstrap.providers.auth import get_verify_session_use_case
 from app.core.auth import get_session_id_from_request
 from app.core.config import Settings
-from app.domain.auth.errors import ApiKeyInvalid, SessionExpired, SessionInvalid
+from app.domain.auth.errors import SessionExpired, SessionInvalid
 from app.interfaces.web.presenters.common import mark_session_cookie_for_clear
 
 
@@ -57,34 +54,9 @@ async def get_optional_session_auth(
     )
 
 
-async def get_optional_api_auth(
-    request: Request,
-    settings: Settings = Depends(get_app_settings),
-    verify_session_use_case: VerifySessionUseCase = Depends(get_verify_session_use_case),
-    verify_api_key_use_case: VerifyApiKeyUseCase = Depends(get_verify_api_key_use_case),
-) -> AuthIdentity:
-    identity = await authenticate_with_session(
-        request=request,
-        settings=settings,
-        verify_session_use_case=verify_session_use_case,
-    )
-    if identity.is_authenticated:
-        return identity
-
-    api_key = extract_api_key(request)
-    if api_key:
-        try:
-            return await verify_api_key_use_case.execute(VerifyApiKeyQuery(api_key=api_key))
-        except ApiKeyInvalid:
-            pass
-
-    return AuthIdentity(user_id=None, username=None)
-
-
 __all__ = [
     "authenticate_with_session",
     "extract_api_key",
-    "get_optional_api_auth",
     "get_optional_session_auth",
     "session_cookie_clear_pending",
 ]

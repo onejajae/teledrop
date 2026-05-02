@@ -83,11 +83,34 @@ class TestDropSlugService:
         with pytest.raises(DropSlugUnavailableError):
             await service.resolve('drops')
         with pytest.raises(DropSlugUnavailableError):
+            await service.resolve('files')
+        with pytest.raises(DropSlugUnavailableError):
             await service.resolve('register')
         with pytest.raises(DropSlugUnavailableError):
             await service.resolve('login')
         with pytest.raises(DropSlugUnavailableError):
             await service.resolve('logout')
+
+    @pytest.mark.parametrize(
+        "slug",
+        [
+            "a/b",
+            "a%2Fb",
+            "files/x",
+            "../x",
+            "a?b",
+            "a#b",
+            "Upper",
+            "-leading",
+            "trailing-",
+        ],
+    )
+    async def test_manual_slug_invalid_url_segment_raises(self, slug: str):
+        repo = _Repo()
+        service = DropSlugService(repository=repo, candidate_generator=_CandidateGenerator(['x']))
+
+        with pytest.raises(DropSlugUnavailableError):
+            await service.resolve(slug)
 
     async def test_manual_slug_duplicate_raises(self):
         repo = _Repo()
@@ -105,6 +128,16 @@ class TestDropSlugService:
         assert resolved == 'free-slug'
         assert generator.calls == 2
 
+    async def test_auto_slug_skips_invalid_candidates(self):
+        repo = _Repo()
+        generator = _CandidateGenerator(['a/b', 'Upper', 'free-slug'])
+        service = DropSlugService(repository=repo, candidate_generator=generator, max_attempts=3)
+
+        resolved = await service.resolve(None)
+
+        assert resolved == 'free-slug'
+        assert generator.calls == 3
+
     async def test_auto_slug_falls_back_to_uuid_after_max_attempts(self):
         repo = _Repo()
         repo.items['taken'] = DropEntity(id='1', owner_user_id='user-1', slug='taken', access_scope=AccessScope.PRIVATE, is_favorite=False, drop_password=None, file_name='f', mime_type='text/plain', size_bytes=1, sha256='sha', storage_key='s', title=None, description=None, created_at=datetime.now(timezone.utc), updated_at=None)
@@ -120,6 +153,8 @@ class TestDropSlugService:
         service = DropSlugService(repository=repo, candidate_generator=_CandidateGenerator(['x']))
         assert not await service.is_available('')
         assert not await service.is_available('api')
+        assert not await service.is_available('files')
         assert not await service.is_available('register')
+        assert not await service.is_available('a/b')
         assert not await service.is_available('used')
         assert await service.is_available('free')

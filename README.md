@@ -103,8 +103,8 @@ docker run --detach \
 > ```
 
 * API key auth for external clients
-> REST API read endpoints accept either a session cookie or `X-API-Key`.
-> REST API mutation endpoints (`POST/PATCH/DELETE /api/drop...`) require `X-API-Key`.
+> REST API endpoints are for external upload/list/download clients and require `X-API-Key`.
+> Web session cookies are accepted only by the web UI and `/actions/...` form routes.
 > API key management (create/revoke/delete) is available only in the authenticated web UI:
 > `/settings/api-keys`
 > Example request:
@@ -116,7 +116,7 @@ docker run --detach \
 
 * Upload and download security
 > `MAX_UPLOAD_BYTES` defaults to 1073741824 bytes (1 GiB) and is enforced before and during file writes.
-> File downloads always use `Content-Disposition: attachment`.
+> File downloads default to `Content-Disposition: attachment`; safe image/PDF/video previews can request `disposition=inline`.
 > Drop link passwords are stored as Argon2id hashes. Plaintext protected drops from older releases are incompatible; back up and recreate the database before using this version.
 
 * Running multiple worker processes

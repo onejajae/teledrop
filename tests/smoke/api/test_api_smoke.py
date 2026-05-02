@@ -53,6 +53,8 @@ class _FakeVerifyApiKeyUseCase:
     async def execute(self, query) -> AuthIdentity:
         if query.api_key == "tdpk_public_secret":
             return AuthIdentity(user_id="user-1", username="tester")
+        if query.api_key == "tdpk_other_secret":
+            return AuthIdentity(user_id="user-2", username="other")
         raise ApiKeyInvalid()
 
 class _FakeDropUseCases:
@@ -186,34 +188,21 @@ class TestApiSmoke:
         app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
         app.dependency_overrides[get_verify_api_key_use_case] = lambda: _FakeVerifyApiKeyUseCase()
         client = TestClient(app)
-        client.cookies.set('session_id', 'sid')
         headers = {"X-API-Key": "tdpk_public_secret"}
-        available_before_upload = client.get('/api/drop/availability/k1')
-        assert available_before_upload.status_code == 200
-        assert available_before_upload.json()['available']
         upload = client.post('/api/drop', headers=headers, data={'slug': 'k1', 'access_scope': 'private', 'drop_password': 'pw'}, files={'file': ('hello.txt', io.BytesIO(b'hello world'), 'text/plain')})
         assert upload.status_code == 200
         assert upload.json()['slug'] == 'k1'
         assert 'key' not in upload.json()
-        available_after_upload = client.get('/api/drop/availability/k1')
-        assert available_after_upload.status_code == 200
-        assert not available_after_upload.json()['available']
-        listed = client.get('/api/drop')
+        listed = client.get('/api/drop', headers=headers)
         assert listed.status_code == 200
         assert listed.json()['total'] == 1
         assert listed.json()['items'][0]['slug'] == 'k1'
         assert 'key' not in listed.json()['items'][0]
-        patched = client.patch('/api/drop/k1', headers=headers, json={'title': 'updated'})
-        assert patched.status_code == 200
-        assert patched.json()['title'] == 'updated'
-        assert patched.json()['slug'] == 'k1'
-        streamed = client.get('/api/drop/k1', headers={'X-Drop-Password': 'pw'})
+        streamed = client.get('/api/drop/k1', headers=headers)
         assert streamed.status_code == 200
         assert streamed.content == b'hello world'
         assert streamed.headers['content-disposition'].startswith('attachment;')
         assert streamed.headers['x-content-type-options'] == 'nosniff'
-        deleted = client.delete('/api/drop/k1', headers=headers)
-        assert deleted.status_code == 200
 
     def test_auth_unauthorized_response_includes_session_headers(self):
         app = FastAPI()
@@ -233,10 +222,10 @@ class TestApiSmoke:
         client = TestClient(app)
         response = client.get('/api/drop')
         assert response.status_code == 401
-        assert response.headers.get('www-authenticate') == 'Session, ApiKey'
-        assert 'session_id=' in response.headers.get('set-cookie', '')
+        assert response.headers.get('www-authenticate') == 'ApiKey'
+        assert response.headers.get('set-cookie') is None
 
-    def test_owner_delete_bypasses_drop_password(self):
+    def test_removed_management_routes_are_not_registered(self):
         app = FastAPI()
         app.include_router(api_router, prefix='/api')
         fake_use_cases = _FakeDropUseCases()
@@ -252,15 +241,19 @@ class TestApiSmoke:
         app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
         app.dependency_overrides[get_verify_api_key_use_case] = lambda: _FakeVerifyApiKeyUseCase()
         client = TestClient(app)
-        client.cookies.set('session_id', 'sid')
         headers = {"X-API-Key": "tdpk_public_secret"}
-        upload = client.post('/api/drop', headers=headers, data={'slug': 'k-grant', 'access_scope': 'private', 'drop_password': 'pw'}, files={'file': ('hello.txt', io.BytesIO(b'hello world'), 'text/plain')})
+        upload = client.post('/api/drop', headers=headers, data={'slug': 'k-removed', 'access_scope': 'private', 'drop_password': 'pw'}, files={'file': ('hello.txt', io.BytesIO(b'hello world'), 'text/plain')})
         assert upload.status_code == 200
-        client.cookies.set(drop_grant_cookie_name('k-grant'), 'grant-token')
 
-        deleted = client.delete('/api/drop/k-grant', headers=headers)
+        patched = client.patch('/api/drop/k-removed', headers=headers, json={'title': 'updated'})
+        deleted = client.delete('/api/drop/k-removed', headers=headers)
+        availability = client.get('/api/drop/availability/k-removed', headers=headers)
+        auth_me = client.get('/api/auth/me', headers=headers)
 
-        assert deleted.status_code == 200
+        assert patched.status_code == 405
+        assert deleted.status_code == 405
+        assert availability.status_code == 404
+        assert auth_me.status_code == 404
 
     def test_owner_read_bypasses_drop_password(self):
         app = FastAPI()
@@ -278,18 +271,18 @@ class TestApiSmoke:
         app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
         app.dependency_overrides[get_verify_api_key_use_case] = lambda: _FakeVerifyApiKeyUseCase()
         client = TestClient(app)
-        client.cookies.set('session_id', 'sid')
-        upload = client.post('/api/drop', headers={"X-API-Key": "tdpk_public_secret"}, data={'slug': 'k-auth', 'access_scope': 'private', 'drop_password': 'pw'}, files={'file': ('hello.txt', io.BytesIO(b'hello world'), 'text/plain')})
+        headers = {"X-API-Key": "tdpk_public_secret"}
+        upload = client.post('/api/drop', headers=headers, data={'slug': 'k-auth', 'access_scope': 'private', 'drop_password': 'pw'}, files={'file': ('hello.txt', io.BytesIO(b'hello world'), 'text/plain')})
         assert upload.status_code == 200
 
-        meta = client.get('/api/drop/k-auth/meta')
-        streamed = client.get('/api/drop/k-auth')
+        meta = client.get('/api/drop/k-auth/meta', headers=headers)
+        streamed = client.get('/api/drop/k-auth', headers=headers)
 
         assert meta.status_code == 200
         assert streamed.status_code == 200
         assert streamed.content == b'hello world'
 
-    def test_drop_crud_flow_with_api_key(self):
+    def test_drop_transfer_flow_with_api_key(self):
         app = FastAPI()
         app.include_router(api_router, prefix='/api')
         fake_use_cases = _FakeDropUseCases()
@@ -314,21 +307,14 @@ class TestApiSmoke:
         assert listed.status_code == 200
         assert listed.json()['total'] == 1
 
-        patched = client.patch('/api/drop/k2', headers=headers, json={'title': 'updated'})
-        assert patched.status_code == 200
+        streamed = client.get('/api/drop/k2', headers=headers)
+        assert streamed.status_code == 200
+        assert streamed.content == b'hello world'
 
-        deleted = client.delete('/api/drop/k2', headers=headers)
-        assert deleted.status_code == 200
-
-    def test_auth_me_accepts_api_key(self):
+    def test_auth_me_is_removed(self):
         app = FastAPI()
         app.include_router(api_router, prefix='/api')
-        fake_settings = SimpleNamespace(SESSION_COOKIE_NAME='session_id', SESSION_COOKIE_PATH='/', SESSION_COOKIE_SECURE=False, SESSION_COOKIE_SAMESITE='lax', SESSION_TTL_SECONDS=86400, DEFAULT_PAGE_SIZE=10, MAX_PAGE_SIZE=200, MAX_UPLOAD_BYTES=1024 * 1024)
-        app.dependency_overrides[get_app_settings] = lambda: fake_settings
-        app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
-        app.dependency_overrides[get_verify_api_key_use_case] = lambda: _FakeVerifyApiKeyUseCase()
         client = TestClient(app)
 
         response = client.get('/api/auth/me', headers={"X-API-Key": "tdpk_public_secret"})
-        assert response.status_code == 200
-        assert response.json() == {"user_id": "user-1", "username": "tester"}
+        assert response.status_code == 404

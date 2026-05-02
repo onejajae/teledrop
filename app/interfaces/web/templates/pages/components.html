@@ -180,8 +180,8 @@
             <p class="text-base font-semibold">Detail action bar</p>
             <p class="text-xs uppercase tracking-[0.16em] opacity-50">Used in: drop detail</p>
             <div class="mt-4 space-y-4">
-              {{ detail_action_bar("/api/drop/spring-launch-kit", "/spring-launch-kit", can_copy_link=true) }}
-              {{ detail_action_bar("/api/drop/product-teaser", "/product-teaser", can_copy_link=false, detail_mode="manage") }}
+              {{ detail_action_bar("/files/spring-launch-kit", "/spring-launch-kit", can_copy_link=true) }}
+              {{ detail_action_bar("/files/product-teaser", "/product-teaser", can_copy_link=false, detail_mode="manage") }}
             </div>
           {% endcall %}
           {% call surface_card(body_classes="space-y-1") %}

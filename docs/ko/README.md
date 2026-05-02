@@ -104,8 +104,8 @@ docker run --detach \
 > ```
 
 * 외부 클라이언트용 API key 인증
-> REST API 읽기 엔드포인트는 세션 쿠키 또는 `X-API-Key` 인증을 허용합니다.
-> REST API 변경 엔드포인트(`POST/PATCH/DELETE /api/drop...`)는 `X-API-Key`가 필요합니다.
+> REST API는 외부 업로드/목록/다운로드 클라이언트용이며 `X-API-Key`가 필요합니다.
+> 웹 세션 쿠키는 웹 UI와 `/actions/...` 폼 경로에서만 허용됩니다.
 > API key 생성/폐기/삭제 관리는 로그인된 웹 UI에서만 가능합니다:
 > `/settings/api-keys`
 > 요청 예시:
@@ -117,7 +117,7 @@ docker run --detach \
 
 * 업로드 및 다운로드 보안
 > `MAX_UPLOAD_BYTES` 기본값은 1073741824 bytes(1 GiB)이며 업로드 시작 전과 실제 파일 쓰기 중 모두 적용됩니다.
-> 파일 다운로드는 항상 `Content-Disposition: attachment`를 사용합니다.
+> 파일 다운로드는 기본적으로 `Content-Disposition: attachment`를 사용하며, 안전한 이미지/PDF/비디오 미리보기는 `disposition=inline`을 요청할 수 있습니다.
 > 드롭 링크 비밀번호는 Argon2id 해시로 저장됩니다. 이전 릴리스의 평문 protected drop은 호환하지 않으므로 이 버전 사용 전 데이터베이스를 백업하고 재생성하세요.
 
 * 여러 개의 워커 프로세스 실행
