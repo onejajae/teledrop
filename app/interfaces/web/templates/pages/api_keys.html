@@ -1,5 +1,6 @@
 {% extends "layout/base.html" %}
-{% from "macros/ui.html" import alert, badge, button, code_block, empty_state, field, page_section, section_header, surface_card, text_input %}
+{% from "macros/api_keys.html" import api_key_card, api_key_create_form, created_api_key_alert %}
+{% from "macros/ui.html" import alert, empty_state, page_section, section_header %}
 {% set page_title = "teledrop - API Keys" %}
 {% set page_description = "teledrop API key 관리 페이지" %}
 
@@ -16,34 +17,10 @@
         {% endif %}
 
         {% if created_api_key %}
-        {% call alert(tone="warning") %}
-          <div class="flex w-full flex-col items-start gap-3">
-            <div class="space-y-1">
-              <span class="font-semibold">새 API key가 발급되었습니다.</span>
-              <p class="text-sm">이 값은 다시 볼 수 없습니다. 지금 복사해 주세요.</p>
-            </div>
-            {{ code_block(created_api_key.key, classes="block w-full overflow-x-auto") }}
-          </div>
-        {% endcall %}
+        {{ created_api_key_alert(created_api_key) }}
         {% endif %}
 
-        <form method="post" action="/actions/auth/api-keys/create" class="space-y-4">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
-          <input type="hidden" name="timezone_offset_minutes" value="0" data-td-role="timezone-offset" />
-          <div class="grid gap-4 sm:grid-cols-2">
-            {% call field("이름", "api-key-name") %}
-              {{ text_input("name", input_id="api-key-name", placeholder="shortcuts", required=true, attrs='maxlength="100"') }}
-            {% endcall %}
-
-            {% call field("만료 시각 (선택)", "api-key-expires-at", hint="비워두면 만료되지 않습니다.") %}
-              {{ text_input("expires_at", input_id="api-key-expires-at", input_type="datetime-local") }}
-            {% endcall %}
-          </div>
-
-          <div class="flex justify-end">
-            {{ button("API key 생성", kind="primary", type="submit", classes="w-full sm:w-auto") }}
-          </div>
-        </form>
+        {{ api_key_create_form(csrf_token=csrf_token) }}
       {% endcall %}
 
       {% call page_section() %}
@@ -54,52 +31,7 @@
         {% if api_keys %}
         <div class="space-y-2">
           {% for item in api_keys %}
-          {% call surface_card() %}
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div class="min-w-0 space-y-2">
-                <div class="flex flex-wrap items-center gap-2">
-                  <h3 class="font-semibold">{{ item.name }}</h3>
-                  {% if item.is_active %}
-                  {{ badge("active", tone="success", appearance="outline") }}
-                  {% else %}
-                  {{ badge("inactive", tone="error", appearance="outline") }}
-                  {% endif %}
-                </div>
-                <p class="break-all text-sm opacity-75">
-                  <span class="mr-1 font-medium text-base-content">Public ID</span>
-                  <code>{{ item.public_id }}</code>
-                </p>
-              </div>
-
-              <div class="join self-start sm:self-auto">
-                <form method="post" action="/actions/auth/api-keys/{{ item.public_id }}/revoke">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
-                  {{ button("revoke", kind="ghost", size="sm", type="submit", classes="join-item") }}
-                </form>
-                <form method="post" action="/actions/auth/api-keys/{{ item.public_id }}/delete"
-                  data-td-action="confirm-submit"
-                  data-td-confirm="정말 삭제하시겠습니까?">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
-                  {{ button("delete", kind="ghost", size="sm", type="submit", classes="join-item text-error") }}
-                </form>
-              </div>
-            </div>
-
-            <div class="mt-4 grid gap-3 text-sm sm:grid-cols-3">
-              <div class="space-y-1">
-                <p class="text-xs font-semibold opacity-60">생성</p>
-                <p>{{ item.created_at or '-' }}</p>
-              </div>
-              <div class="space-y-1">
-                <p class="text-xs font-semibold opacity-60">만료</p>
-                <p>{{ item.expires_at or '-' }}</p>
-              </div>
-              <div class="space-y-1">
-                <p class="text-xs font-semibold opacity-60">최근 사용</p>
-                <p>{{ item.last_used_at or '-' }}</p>
-              </div>
-            </div>
-          {% endcall %}
+            {{ api_key_card(item, csrf_token=csrf_token) }}
           {% endfor %}
         </div>
         {% else %}

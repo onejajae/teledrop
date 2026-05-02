@@ -1,35 +1,11 @@
-{% from "macros/icons.html" import icon_information_circle, icon_x_circle %}
-{% from "macros/ui.html" import button, icon_shell, inset_surface %}
+{% from "macros/drop_detail.html" import detail_error_state %}
+{% from "macros/ui.html" import button, inset_surface %}
 {% if detail.error.code == 'forbidden' %}
-<div class="mx-auto max-w-sm text-center">
-  <div class="grid place-items-center gap-2">
-    {% call icon_shell(tone="error", classes="inline-flex h-14 w-14") %}
-      {{ icon_x_circle(class="h-5 w-5") }}
-    {% endcall %}
-    <h3 class="text-lg font-semibold">{% if detail.mode == 'shared' and not is_login %}링크를 사용할 수 없습니다.{% else %}권한이 없습니다.{% endif %}</h3>
-  </div>
-  {% if detail.error.message and not (detail.mode == 'shared' and not is_login) %}
-  <p class="mt-3 text-sm leading-6 opacity-70">{{ detail.error.message }}</p>
-  {% endif %}
-  <div class="mt-5 text-center">
-    {{ button("돌아가기", href="/drops" if detail.mode == 'manage' else "/", kind="outline", size="sm", classes="rounded-xl px-8") }}
-  </div>
-</div>
+{% set forbidden_title = "링크를 사용할 수 없습니다." if detail.mode == 'shared' and not is_login else "권한이 없습니다." %}
+{% set forbidden_message = none if detail.mode == 'shared' and not is_login else detail.error.message %}
+{{ detail_error_state(forbidden_title, message=forbidden_message, href="/drops" if detail.mode == 'manage' else "/", icon="error", tone="error") }}
 {% elif detail.error.code == 'not_found' %}
-<div class="mx-auto max-w-sm text-center">
-  <div class="grid place-items-center gap-2">
-    {% call icon_shell(classes="inline-flex h-14 w-14") %}
-      {{ icon_information_circle(class="h-5 w-5") }}
-    {% endcall %}
-    <h3 class="text-lg font-semibold">존재하지 않습니다.</h3>
-  </div>
-  {% if detail.error.message %}
-  <p class="mt-3 text-sm leading-6 opacity-70">{{ detail.error.message }}</p>
-  {% endif %}
-  <div class="mt-5 text-center">
-    {{ button("돌아가기", href="/drops" if detail.mode == 'manage' else "/", kind="outline", size="sm", classes="rounded-xl px-8") }}
-  </div>
-</div>
+{{ detail_error_state("존재하지 않습니다.", message=detail.error.message, href="/drops" if detail.mode == 'manage' else "/") }}
 {% else %}
 {% call inset_surface(classes="p-8 text-center") %}
   <p class="font-semibold">{{ detail.error.message or "파일을 불러올 수 없습니다." }}</p>

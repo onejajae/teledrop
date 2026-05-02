@@ -1,23 +1,10 @@
-{% from "macros/drop_detail.html" import detail_action_bar, metadata_card %}
-{% from "macros/ui.html" import alert %}
+{% from "macros/drop_detail.html" import download_panel, metadata_card %}
 {{ metadata_card(detail.drop, download_url=detail.urls.download) }}
 
-<div class="rounded-[1.15rem] border border-base-300/70 bg-base-100/75 p-4 shadow-sm">
-  {% if detail.urls.download %}
-  <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-    <div class="min-w-0 space-y-1">
-      <p class="text-sm font-semibold">파일 다운로드</p>
-      <p class="truncate text-sm text-base-content/70">{{ detail.drop.file_name }}</p>
-    </div>
-    {{ detail_action_bar(detail.urls.download, detail.urls.page, can_copy_link=detail.actions.can_copy_link, detail_mode=detail.mode) }}
-  </div>
-  {% else %}
-  {{ alert("파일을 다운로드할 수 없습니다.", tone="info", classes="shadow-none") }}
-  {% endif %}
-</div>
+{{ download_panel(detail) }}
 
 {% if detail.drop.description %}
 <div>
   <p class="text-sm whitespace-pre-wrap">{{ detail.drop.description }}</p>
-  </div>
+</div>
 {% endif %}

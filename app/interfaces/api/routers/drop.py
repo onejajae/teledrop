@@ -59,6 +59,16 @@ from app.interfaces.deps.auth import get_optional_api_auth
 
 router = APIRouter(prefix="/drop", tags=["Drop"])
 
+INLINE_PREVIEW_MIME_TYPES = frozenset(
+    {
+        "image/avif",
+        "image/gif",
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+    }
+)
+
 
 @router.get("/availability/{slug}", response_model=SlugAvailabilityResponse)
 async def slug_availability(
@@ -182,6 +192,7 @@ async def drop_stream(
     ),
     drop_password: str | None = Header(default=None, alias="X-Drop-Password"),
     range_header: str | None = Header(None, alias="Range"),
+    disposition: str = Query(default="attachment"),
 ):
     try:
         detail, storage_key = await get_drop_stream_source_use_case.execute(
@@ -199,8 +210,16 @@ async def drop_stream(
     except Exception as exc:
         raise map_drop_read_exception(exc)
 
+    disposition_type = (
+        "inline"
+        if disposition == "inline" and detail.mime_type in INLINE_PREVIEW_MIME_TYPES
+        else "attachment"
+    )
+
     headers = {
-        "Content-Disposition": f"attachment; filename*=UTF-8''{parse.quote(detail.file_name)}",
+        "Content-Disposition": (
+            f"{disposition_type}; filename*=UTF-8''{parse.quote(detail.file_name)}"
+        ),
         "content-type": detail.mime_type,
         "x-content-type-options": "nosniff",
         "accept-ranges": "bytes",

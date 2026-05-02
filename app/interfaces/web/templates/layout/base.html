@@ -4,8 +4,8 @@
 {% set og_description = og_description if og_description is defined else none %}
 {% set og_type = og_type if og_type is defined else none %}
 {% set include_htmx = include_htmx if include_htmx is defined else true %}
-{% set main_classes = main_classes if main_classes is defined else "mx-auto flex min-h-screen w-full max-w-[50rem] flex-col px-4 pb-5 pt-3" %}
-{% set page_content_classes = page_content_classes if page_content_classes is defined else "flex flex-1 flex-col gap-4 pb-4 pt-3" %}
+{% set main_classes = main_classes if main_classes is defined else "mx-auto flex min-h-screen min-w-0 max-w-[50rem] flex-col px-4 pb-5 pt-3" %}
+{% set page_content_classes = page_content_classes if page_content_classes is defined else "flex min-w-0 flex-1 flex-col gap-4 pb-4 pt-3" %}
 {% set theme_color_light = theme_color_light if theme_color_light is defined else web_theme.light.theme_color %}
 {% set theme_color_dark = theme_color_dark if theme_color_dark is defined else web_theme.dark.theme_color %}
 {% set theme_surface_light = theme_surface_light if theme_surface_light is defined else web_theme.light.surface_color %}

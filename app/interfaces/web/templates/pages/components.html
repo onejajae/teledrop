@@ -1,8 +1,9 @@
 {% extends "layout/base.html" %}
+{% from "macros/api_keys.html" import api_key_card, created_api_key_alert %}
 {% from "macros/drop_detail.html" import detail_action_bar, locked_prompt, metadata_card, modal_form, owner_action_group %}
 {% from "macros/drop_listing.html" import drop_list_card, sort_toolbar %}
 {% from "macros/icons.html" import icon_cloud_arrow_up, icon_document_duplicate, icon_lock_closed %}
-{% from "macros/ui.html" import alert, badge, button, code_block, empty_state, field, icon_button, icon_shell, inset_surface, page_section, section_header, select_input, surface_card, text_input, textarea_input %}
+{% from "macros/ui.html" import alert, badge, button, empty_state, field, icon_button, icon_shell, inset_surface, page_section, section_header, select_input, surface_card, text_input, textarea_input %}
 {% from "macros/upload.html" import upload_dropzone %}
 {% set page_title = "teledrop - Components" %}
 {% set page_description = "teledrop 내부용 웹 컴포넌트 카탈로그" %}
@@ -88,15 +89,7 @@
               {{ alert("업로드가 완료되었습니다.", tone="success") }}
               {{ alert("비밀번호가 올바르지 않습니다.", tone="error") }}
               {{ alert("로그인 후 사용할 수 있습니다.", tone="info") }}
-              {% call alert(tone="warning") %}
-                <div class="flex w-full flex-col items-start gap-3">
-                  <div class="space-y-1">
-                    <span class="font-semibold">새 API key가 발급되었습니다.</span>
-                    <p class="text-sm">이 값은 다시 볼 수 없습니다. 지금 복사해 주세요.</p>
-                  </div>
-                  {{ code_block(catalog_created_api_key.key, classes="w-full overflow-x-auto") }}
-                </div>
-              {% endcall %}
+              {{ created_api_key_alert(catalog_created_api_key) }}
             </div>
           {% endcall %}
           {% call surface_card(body_classes="space-y-1") %}
@@ -208,24 +201,9 @@
           {% call surface_card(body_classes="space-y-1") %}
             <p class="text-base font-semibold">API key card</p>
             <p class="text-xs uppercase tracking-[0.16em] opacity-50">Used in: api_keys</p>
-            {% call surface_card(classes="mt-4") %}
-              <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div class="min-w-0 space-y-2">
-                  <div class="flex flex-wrap items-center gap-2">
-                    <h3 class="font-semibold">{{ catalog_api_key.name }}</h3>
-                    {{ badge("active", tone="success", appearance="outline") }}
-                  </div>
-                  <p class="break-all text-sm opacity-75">
-                    <span class="mr-1 font-medium text-base-content">Public ID</span>
-                    <code>{{ catalog_api_key.public_id }}</code>
-                  </p>
-                </div>
-                <div class="join self-start sm:self-auto">
-                  {{ button("revoke", kind="ghost", size="sm", classes="join-item") }}
-                  {{ button("delete", kind="ghost", size="sm", classes="join-item text-error") }}
-                </div>
-              </div>
-            {% endcall %}
+            <div class="mt-4">
+              {{ api_key_card(catalog_api_key, interactive=false) }}
+            </div>
           {% endcall %}
           {% call surface_card(body_classes="space-y-1") %}
             <p class="text-base font-semibold">Modal form</p>

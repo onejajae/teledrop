@@ -1,0 +1,15 @@
+{% from "macros/icons.html" import icon_moon, icon_sun %}
+{% from "macros/ui.html" import button %}
+
+{% macro theme_toggle() -%}
+{% call button(kind="ghost", size="sm", square=true, classes="swap swap-rotate rounded-xl", attrs='id="theme-toggle" aria-label="테마 전환" aria-pressed="false"') %}
+  {{ icon_sun(class="swap-off h-4 w-4") }}
+  {{ icon_moon(class="swap-on h-4 w-4") }}
+{% endcall %}
+{%- endmacro %}
+
+{% macro brand_link() -%}
+<a href="/" class="block" aria-label="teledrop">
+  <span class="td-logo-wordmark block h-12 w-[15rem]" aria-hidden="true"></span>
+</a>
+{%- endmacro %}

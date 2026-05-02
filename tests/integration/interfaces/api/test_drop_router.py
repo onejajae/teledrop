@@ -87,6 +87,8 @@ def _detail_dto(
     *,
     slug: str,
     title: str | None = "original",
+    file_name: str | None = None,
+    mime_type: str = "text/plain",
     payload_size: int = 11,
     access_scope: AccessScope = AccessScope.PUBLIC,
     requires_password: bool = False,
@@ -97,8 +99,8 @@ def _detail_dto(
         slug=slug,
         title=title,
         description="desc",
-        file_name=f"{slug}.txt",
-        mime_type="text/plain",
+        file_name=file_name or f"{slug}.txt",
+        mime_type=mime_type,
         size_bytes=payload_size,
         access_scope=access_scope,
         is_favorite=False,
@@ -130,8 +132,16 @@ class _FakeDropUseCases:
         *,
         payload: bytes = b"hello world",
         title: str | None = "original",
+        file_name: str | None = None,
+        mime_type: str = "text/plain",
     ) -> None:
-        self.items[slug] = _detail_dto(slug=slug, title=title, payload_size=len(payload))
+        self.items[slug] = _detail_dto(
+            slug=slug,
+            title=title,
+            file_name=file_name,
+            mime_type=mime_type,
+            payload_size=len(payload),
+        )
         self.payloads[slug] = payload
 
     class _NotUsedUseCase:
@@ -281,6 +291,37 @@ class TestDropRouterIntegration:
         client = _client(fake_use_cases)
 
         response = client.get("/api/drop/k1")
+
+        assert response.status_code == 200
+        assert response.headers["content-disposition"].startswith("attachment;")
+
+    def test_drop_stream_allows_inline_disposition_for_safe_image_preview(self):
+        fake_use_cases = _FakeDropUseCases()
+        fake_use_cases.add_drop(
+            "photo",
+            payload=b"fake-png",
+            file_name="photo.png",
+            mime_type="image/png",
+        )
+        client = _client(fake_use_cases)
+
+        response = client.get("/api/drop/photo?disposition=inline")
+
+        assert response.status_code == 200
+        assert response.headers["content-disposition"].startswith("inline;")
+        assert response.headers["content-type"].startswith("image/png")
+
+    def test_drop_stream_keeps_unsafe_inline_preview_requests_as_attachment(self):
+        fake_use_cases = _FakeDropUseCases()
+        fake_use_cases.add_drop(
+            "html",
+            payload=b"<script>alert(1)</script>",
+            file_name="index.html",
+            mime_type="text/html",
+        )
+        client = _client(fake_use_cases)
+
+        response = client.get("/api/drop/html?disposition=inline")
 
         assert response.status_code == 200
         assert response.headers["content-disposition"].startswith("attachment;")

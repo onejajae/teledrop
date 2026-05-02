@@ -2,11 +2,11 @@
 
 {% macro _shell_classes(kind, classes="", tone="base") -%}
   {% if kind == "page_section" %}
-    {% set base_classes = "card overflow-hidden rounded-[1.75rem] border border-base-300/70 bg-gradient-to-b from-base-100 to-base-200/45 shadow-sm" %}
+    {% set base_classes = "card w-full min-w-0 overflow-hidden rounded-[1.75rem] border border-base-300/70 bg-gradient-to-b from-base-100 to-base-200/45 shadow-sm" %}
   {% elif kind == "surface_card" %}
-    {% set base_classes = "card overflow-hidden rounded-[1.35rem] border border-base-300/70 bg-base-100/85 shadow-sm" %}
+    {% set base_classes = "card w-full max-w-full min-w-0 overflow-hidden rounded-[1.35rem] border border-base-300/70 bg-base-100/85 shadow-sm" %}
   {% elif kind == "inset_surface" %}
-    {% set base_classes = "rounded-[1.25rem] border border-base-300/70 bg-base-100/75 shadow-sm" %}
+    {% set base_classes = "max-w-full min-w-0 rounded-[1.25rem] border border-base-300/70 bg-base-100/75 shadow-sm" %}
   {% elif kind == "icon_shell" and tone == "error" %}
     {% set base_classes = "flex items-center justify-center rounded-[1rem] border border-error/20 bg-error/10 text-error shadow-sm" %}
   {% elif kind == "icon_shell" %}
@@ -27,8 +27,9 @@
   {% endif %}
 {%- endmacro %}
 
-{% macro page_section(tag="section", classes="", body_classes="", attrs="") -%}
-<{{ tag }} class="{{ _shell_classes('page_section', classes) }}"{% if attrs %} {{ attrs | safe }}{% endif %}>
+{% macro page_section(tag="section", classes="", body_classes="", attrs="", viewport_cap=true) -%}
+{% set should_cap_viewport = viewport_cap and ("modal-box" not in classes) %}
+<{{ tag }} class="{{ _shell_classes('page_section', classes) }}"{% if should_cap_viewport %} style="max-width: calc(100vw - 2rem);"{% endif %}{% if attrs %} {{ attrs | safe }}{% endif %}>
   <div class="card-body gap-4 p-5{{ ' ' ~ body_classes if body_classes }}">
     {% if caller is defined %}{{ caller() }}{% endif %}
   </div>
@@ -36,15 +37,15 @@
 {%- endmacro %}
 
 {% macro section_header(title, description=None, level="h2", centered=false, classes="", action_classes="") -%}
-<div class="{% if centered %}flex flex-col items-center gap-4 text-center{% else %}flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between{% endif %}{{ ' ' ~ classes if classes }}">
-  <div class="space-y-1.5">
+<div class="min-w-0 {% if centered %}flex flex-col items-center gap-4 text-center{% else %}flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between{% endif %}{{ ' ' ~ classes if classes }}">
+  <div class="min-w-0 space-y-1.5">
     <{{ level }} class="text-lg font-semibold leading-tight tracking-tight sm:text-xl">{{ title }}</{{ level }}>
     {% if description %}
     <p class="max-w-2xl text-sm leading-6 text-base-content/70">{{ description }}</p>
     {% endif %}
   </div>
   {% if caller is defined %}
-  <div class="{% if centered %}flex flex-wrap items-center justify-center gap-2{% else %}flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end{% endif %}{{ ' ' ~ action_classes if action_classes }}">
+  <div class="min-w-0 {% if centered %}flex flex-wrap items-center justify-center gap-2{% else %}flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end{% endif %}{{ ' ' ~ action_classes if action_classes }}">
     {{ caller() }}
   </div>
   {% endif %}
@@ -52,7 +53,7 @@
 {%- endmacro %}
 
 {% macro alert(message=None, tone="info", title=None, classes="", attrs="") -%}
-<div role="alert" class="alert alert-{{ tone }}{{ ' ' ~ classes if classes }}"{% if attrs %} {{ attrs | safe }}{% endif %}>
+<div role="alert" class="alert alert-{{ tone }} min-w-0{{ ' ' ~ classes if classes }}"{% if attrs %} {{ attrs | safe }}{% endif %}>
   {% if caller is defined %}
     {{ caller() }}
   {% else %}

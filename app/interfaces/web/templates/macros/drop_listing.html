@@ -15,7 +15,7 @@
   {% endif %}
 {%- endmacro %}
 
-{% macro sort_toolbar(action, current_order="desc", current_sort="created_at", orderby_name="orderby", orderby_id="drop-orderby", sortby_name="sortby", sortby_id="drop-sortby", form_classes="join w-full sm:w-auto", form_attrs="", wrapper_classes="", show_refresh=false, refresh_wrapper_classes="tooltip tooltip-bottom", refresh_tip="새로고침") -%}
+{% macro sort_toolbar(action, current_order="desc", current_sort="created_at", orderby_name="orderby", orderby_id="drop-orderby", sortby_name="sortby", sortby_id="drop-sortby", form_classes="join w-full min-w-0 sm:w-auto", form_attrs="", wrapper_classes="", show_refresh=false, refresh_wrapper_classes="tooltip tooltip-bottom", refresh_tip="새로고침") -%}
 {% set sort_options = [
   {"value": "created_at", "label": "날짜"},
   {"value": "title", "label": "제목"},
@@ -33,9 +33,9 @@
   {% endif %}
   <form method="get" action="{{ action }}"{% if form_attrs %} {{ form_attrs | safe }}{% endif %} class="{{ form_classes }}">
     <input type="hidden" name="{{ orderby_name }}" id="{{ orderby_id }}" value="{{ current_order or 'desc' }}" />
-    {{ button("오름차순" if current_order == 'asc' else "내림차순", kind="ghost", size="sm", type="button", classes="join-item flex-1 whitespace-nowrap sm:flex-none", attrs='data-td-action="toggle-sort" data-td-sort-target="' ~ orderby_id ~ '" title="' ~ ('오름차순' if current_order == 'asc' else '내림차순') ~ '" aria-label="정렬 순서 변경"') }}
+    {{ button("오름차순" if current_order == 'asc' else "내림차순", kind="ghost", size="sm", type="button", classes="join-item min-w-0 basis-0 flex-1 whitespace-nowrap sm:flex-none sm:basis-auto", attrs='data-td-action="toggle-sort" data-td-sort-target="' ~ orderby_id ~ '" title="' ~ ('오름차순' if current_order == 'asc' else '내림차순') ~ '" aria-label="정렬 순서 변경"') }}
     <label for="{{ sortby_id }}" class="sr-only">정렬 기준</label>
-    {{ select_input(sortby_name, sort_options, input_id=sortby_id, selected=current_sort, classes="join-item select-sm flex-1 sm:w-auto", attrs='data-td-action="submit-form"') }}
+    {{ select_input(sortby_name, sort_options, input_id=sortby_id, selected=current_sort, classes="join-item select-sm min-w-0 basis-0 flex-1 sm:w-auto sm:basis-auto", attrs='data-td-action="submit-form"') }}
   </form>
 {% if show_refresh or wrapper_classes %}
 </div>

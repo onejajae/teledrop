@@ -333,6 +333,9 @@ class TestWebTemplateSmoke:
         assert 'aria-label="img.png 다운로드"' in selected
         assert 'aria-label="링크 복사"' in selected
         assert '카드 클릭 시 다운로드' in selected
+        assert '<img src="/api/drop/img1?disposition=inline"' in selected
+        assert 'alt="img.png"' in selected
+        assert 'pointer-events-auto absolute inset-0 z-0' in selected
         assert '파일 다운로드' in selected
         assert '<video' not in selected
         assert '<audio' not in selected
@@ -343,11 +346,12 @@ class TestWebTemplateSmoke:
         assert 'data-td-controller="drop-detail"' in selected
         assert 'data-td-detail-key' not in selected
         assert 'rounded-[1.75rem] border border-base-300/70 bg-gradient-to-b from-base-100 to-base-200/45 shadow-sm' in selected
-        assert 'card overflow-hidden rounded-[1.35rem] border border-base-300/70 bg-base-100/85 shadow-sm group relative transition-colors duration-200' in selected
+        assert 'card w-full max-w-full min-w-0 overflow-hidden rounded-[1.35rem] border border-base-300/70 bg-base-100/85 shadow-sm group relative transition-colors duration-200' in selected
         assert 'id="detail-edit-modal"' in selected
         assert 'id="detail-password-modal"' in selected
         assert 'data-td-dialog="detail-edit-modal"' in selected
         assert 'data-td-dialog="detail-password-modal"' in selected
+        assert 'modal-box p-0 shadow-xl" style="max-width: calc(100vw - 2rem);' not in selected
         assert 'aria-labelledby="detail-edit-modal-title"' in selected
         assert 'aria-describedby="detail-edit-modal-description"' in selected
         assert 'id="detail-edit-modal-title"' in selected
@@ -422,7 +426,8 @@ class TestWebTemplateSmoke:
         assert 'aria-label="전체 공개"' in html
         assert 'flex w-full items-center gap-3' not in html
         assert 'badge badge-warning badge-soft self-start sm:mr-auto' in html
-        assert 'flex flex-wrap items-center justify-start gap-2 sm:justify-end w-full sm:w-auto' in html
+        assert 'grid grid-cols-5 items-center gap-1.5 sm:flex sm:flex-wrap sm:justify-end sm:gap-2 w-full sm:w-auto' in html
+        assert 'style="max-width: calc(100vw - 4.5rem);"' in html
         assert 'sm:btn-square' in html
         assert '>즐겨</span>' in html
         assert '>공개</span>' in html
@@ -501,7 +506,7 @@ class TestWebUiContract:
         theme = load_web_theme_payload()
         for template_name, context, include_htmx in _full_page_cases():
             html = _render(template_name, **context)
-            assert 'flex min-h-screen w-full max-w-[50rem] flex-col' in html
+            assert 'flex min-h-screen min-w-0 max-w-[50rem] flex-col' in html
             assert 'localStorage.getItem("color-theme")' in html
             assert 'prefers-color-scheme: dark' in html
             assert f'data-theme-color-light="{theme["light"]["theme_color"]}"' in html
@@ -512,9 +517,9 @@ class TestWebUiContract:
             assert 'root.style.colorScheme' in html
             assert 'meta[name="theme-color"]' in html
             if template_name == 'pages/home.html':
-                assert 'flex flex-1 pb-4 pt-3' in html
+                assert 'flex min-w-0 flex-1 pb-4 pt-3' in html
             else:
-                assert 'flex flex-1 flex-col gap-4 pb-4 pt-3' in html
+                assert 'flex min-w-0 flex-1 flex-col gap-4 pb-4 pt-3' in html
             assert html.index('localStorage.getItem("color-theme")') < html.index('/static/gen/output.css')
             assert html.index('/static/gen/output.css') < html.index('/static/js/ui-actions.js')
             assert html.index('/static/js/ui-actions.js') < html.index('/static/js/theme.js')
