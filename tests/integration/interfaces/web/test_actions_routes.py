@@ -13,6 +13,7 @@ from app.bootstrap.providers.auth import (
     get_delete_api_key_use_case,
     get_list_api_keys_use_case,
     get_password_login_use_case,
+    get_register_user_use_case,
     get_revoke_api_key_use_case,
     get_revoke_session_use_case,
     get_verify_session_use_case,
@@ -25,7 +26,7 @@ from app.bootstrap.providers.drop import (
     get_update_drop_use_case,
 )
 from app.domain.auth.errors import ApiKeyNotFound
-from app.domain.auth.errors import LoginInvalid
+from app.domain.auth.errors import LoginInvalid, UsernameInvalid, UsernameUnavailable
 from app.domain.drop.errors import DropAccessDeniedError, DropNotFoundError
 from app.domain.drop.value_objects import AccessScope
 from app.interfaces.deps.auth import get_optional_session_auth
@@ -137,6 +138,25 @@ class _FakePasswordLoginUseCase:
         raise LoginInvalid()
 
 
+class _FakeRegisterUserUseCase:
+    def __init__(self, exception: Exception | None = None):
+        self.exception = exception
+        self.calls = []
+
+    async def execute(self, command):
+        self.calls.append(command)
+        if self.exception is not None:
+            raise self.exception
+        return SimpleNamespace(
+            sid="registered-sid",
+            user_id="user-registered",
+            username=command.username,
+            created_at=datetime.now(timezone.utc),
+            expires_at=datetime.now(timezone.utc),
+            revoked_at=None,
+        )
+
+
 def _auth_identity() -> AuthIdentity:
     return AuthIdentity(user_id="user-1", username="tester")
 
@@ -225,6 +245,8 @@ def _client(
     api_key_use_cases: _FakeApiKeyUseCases,
     csrf_service: _FakeCsrfService,
     revoke_use_case: _FakeRevokeSessionUseCase,
+    register_use_case: _FakeRegisterUserUseCase | None = None,
+    enable_registration: bool = False,
 ) -> TestClient:
     app = FastAPI()
     app.include_router(web_router)
@@ -238,6 +260,7 @@ def _client(
         DEFAULT_PAGE_SIZE=10,
         MAX_PAGE_SIZE=200,
         MAX_UPLOAD_BYTES=10_000_000,
+        ENABLE_REGISTRATION=enable_registration,
     )
 
     app.dependency_overrides[get_app_settings] = lambda: fake_settings
@@ -263,6 +286,9 @@ def _client(
         lambda: api_key_use_cases.delete_api_key_use_case
     )
     app.dependency_overrides[get_password_login_use_case] = lambda: _FakePasswordLoginUseCase()
+    app.dependency_overrides[get_register_user_use_case] = (
+        lambda: register_use_case or _FakeRegisterUserUseCase()
+    )
     return TestClient(app)
 
 
@@ -340,7 +366,7 @@ class TestWebActionRoutesIntegration:
 
         response = client.post(
             "/actions/drop/upload",
-            data={"csrf_token": "csrf", "slug": "upload-1", "user_only": "true"},
+            data={"csrf_token": "csrf", "slug": "upload-1", "access_scope": "private"},
             files={"file": ("hello.txt", io.BytesIO(b"hello"), "text/plain")},
             follow_redirects=False,
         )
@@ -375,7 +401,6 @@ class TestWebActionRoutesIntegration:
         assert "드롭 비밀번호가 해제되었습니다." in response.text
         assert len(drop_use_cases.update_calls) == 1
         assert drop_use_cases.update_calls[0].slug == "k1"
-        assert drop_use_cases.update_calls[0].current_password is None
         assert drop_use_cases.update_calls[0].new_password is None
         assert drop_use_cases.update_calls[0].auth.user_id == "user-1"
 
@@ -470,7 +495,6 @@ class TestWebActionRoutesIntegration:
         assert response.status_code == 303
         assert response.headers["location"] == "/drops"
         assert delete_drop_use_case.command is not None
-        assert delete_drop_use_case.command.current_password is None
         assert delete_drop_use_case.command.auth.user_id == "user-1"
 
     def test_logout_csrf_failure_redirects_without_revoke_call(self):
@@ -695,6 +719,98 @@ class TestWebActionRoutesIntegration:
 
         assert response.status_code == 302
         assert response.headers["location"] == "/?auth_error=login_invalid"
+
+    def test_registration_direct_post_returns_404_when_disabled(self):
+        client = _client(
+            drop_use_cases=_FakeDropUseCases(),
+            api_key_use_cases=_FakeApiKeyUseCases(),
+            csrf_service=_FakeCsrfService(verify_result=True),
+            revoke_use_case=_FakeRevokeSessionUseCase(),
+        )
+
+        response = client.post(
+            "/actions/auth/register",
+            data={
+                "username": "tester",
+                "password": "password123",
+                "confirm_password": "password123",
+            },
+        )
+
+        assert response.status_code == 404
+
+    def test_hx_registration_validation_failure_renders_register_panel(self):
+        client = _client(
+            drop_use_cases=_FakeDropUseCases(),
+            api_key_use_cases=_FakeApiKeyUseCases(),
+            csrf_service=_FakeCsrfService(verify_result=True),
+            revoke_use_case=_FakeRevokeSessionUseCase(),
+            register_use_case=_FakeRegisterUserUseCase(UsernameInvalid()),
+            enable_registration=True,
+        )
+
+        response = client.post(
+            "/actions/auth/register",
+            headers={"HX-Request": "true"},
+            data={
+                "username": "Invalid",
+                "password": "password123",
+                "confirm_password": "password123",
+            },
+        )
+
+        assert response.status_code == 400
+        assert "사용자 ID는 3~64자의" in response.text
+        assert 'action="/actions/auth/register"' in response.text
+
+    def test_non_hx_registration_failure_redirects_to_register_mode(self):
+        client = _client(
+            drop_use_cases=_FakeDropUseCases(),
+            api_key_use_cases=_FakeApiKeyUseCases(),
+            csrf_service=_FakeCsrfService(verify_result=True),
+            revoke_use_case=_FakeRevokeSessionUseCase(),
+            register_use_case=_FakeRegisterUserUseCase(UsernameUnavailable()),
+            enable_registration=True,
+        )
+
+        response = client.post(
+            "/actions/auth/register",
+            data={
+                "username": "tester",
+                "password": "password123",
+                "confirm_password": "password123",
+            },
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.headers["location"] == "/register?auth_error=username_unavailable"
+
+    def test_registration_success_sets_session_cookie_and_redirects_home(self):
+        register_use_case = _FakeRegisterUserUseCase()
+        client = _client(
+            drop_use_cases=_FakeDropUseCases(),
+            api_key_use_cases=_FakeApiKeyUseCases(),
+            csrf_service=_FakeCsrfService(verify_result=True),
+            revoke_use_case=_FakeRevokeSessionUseCase(),
+            register_use_case=register_use_case,
+            enable_registration=True,
+        )
+
+        response = client.post(
+            "/actions/auth/register",
+            data={
+                "username": "tester",
+                "password": "password123",
+                "confirm_password": "password123",
+            },
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.headers["location"] == "/"
+        assert "session_id=registered-sid" in response.headers.get("set-cookie", "")
+        assert register_use_case.calls[0].username == "tester"
 
     def test_password_route_renders_404_for_stale_slug(self):
         class _MissingGetDropMetaUseCase:

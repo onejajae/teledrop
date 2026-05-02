@@ -9,6 +9,13 @@ class PasswordLoginCommand:
 
 
 @dataclass(slots=True)
+class RegisterUserCommand:
+    username: str
+    password: str
+    confirm_password: str
+
+
+@dataclass(slots=True)
 class VerifySessionQuery:
     sid: str
 
@@ -76,6 +83,7 @@ __all__ = [
     "DeleteApiKeyCommand",
     "ListApiKeysQuery",
     "PasswordLoginCommand",
+    "RegisterUserCommand",
     "RevokeApiKeyCommand",
     "VerifyApiKeyQuery",
     "VerifySessionQuery",

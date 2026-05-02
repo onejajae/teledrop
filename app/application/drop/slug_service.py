@@ -12,12 +12,11 @@ DEFAULT_RESERVED_SLUGS = {
     "actions",
     "dev",
     "drops",
+    "login",
+    "logout",
+    "register",
     "settings",
     "static",
-    "auth-panel",
-    "drop-panel",
-    "drop-detail",
-    "upload-panel",
 }
 
 

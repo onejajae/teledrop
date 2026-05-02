@@ -248,12 +248,10 @@ def _build_use_cases(repo: _InMemoryRepository, temp_dir: str) -> _UseCases:
         ),
         update_drop_use_case=UpdateDropUseCase(
             uow_factory=uow_factory,
-            grant_service=grant_service,
         ),
         delete_drop_use_case=DeleteDropUseCase(
             storage=storage,
             uow_factory=uow_factory,
-            grant_service=grant_service,
         ),
         availability_use_case=CheckSlugAvailabilityUseCase(slug_service=slug_service),
     )
@@ -336,7 +334,6 @@ class TestDropUseCases:
                 UpdateDropCommand(
                     slug="k1",
                     auth=_auth("user-1", "tester"),
-                    current_password=None,
                     title="t2",
                     is_favorite=True,
                 )
@@ -364,7 +361,6 @@ class TestDropUseCases:
                 DeleteDropCommand(
                     slug="k1",
                     auth=_auth("user-1", "tester"),
-                    current_password=None,
                 )
             )
             assert (
@@ -634,7 +630,6 @@ class TestDropUseCases:
                 UpdateDropCommand(
                     slug="k-update",
                     auth=_auth("user-1", "tester"),
-                    current_password=None,
                     description=None,
                 )
             )
@@ -645,13 +640,12 @@ class TestDropUseCases:
                 UpdateDropCommand(
                     slug="k-update",
                     auth=_auth("user-1", "tester"),
-                    current_password=None,
                     title=None,
                 )
             )
             assert explicit_null_title.title is None
 
-    async def test_owner_can_clear_password_without_current_password(self):
+    async def test_owner_can_clear_password(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             repo = _InMemoryRepository()
             use_cases = _build_use_cases(repo, temp_dir)
@@ -675,7 +669,6 @@ class TestDropUseCases:
                 UpdateDropCommand(
                     slug="k-clear",
                     auth=_auth("user-1", "tester"),
-                    current_password=None,
                     new_password=None,
                 )
             )
@@ -699,7 +692,6 @@ class TestDropUseCases:
                     UpdateDropCommand(
                         slug="owned",
                         auth=_auth("user-2", "other"),
-                        current_password=None,
                         title="nope",
                     )
                 )
@@ -709,7 +701,6 @@ class TestDropUseCases:
                     DeleteDropCommand(
                         slug="owned",
                         auth=_auth("user-2", "other"),
-                        current_password=None,
                     )
                 )
 
@@ -720,14 +711,12 @@ class TestDropUseCases:
         use_case = DeleteDropUseCase(
             storage=storage,
             uow_factory=lambda: _InMemoryDropUow(repo),
-            grant_service=DropPasswordGrantService(secret_key="test-secret", ttl_seconds=3600),
         )
 
         await use_case.execute(
             DeleteDropCommand(
                 slug="k-delete",
                 auth=_auth("user-1", "tester"),
-                current_password=None,
             )
         )
 
@@ -742,7 +731,6 @@ class TestDropUseCases:
         use_case = DeleteDropUseCase(
             storage=storage,
             uow_factory=lambda: _CommitFailingDropUow(repo),
-            grant_service=DropPasswordGrantService(secret_key="test-secret", ttl_seconds=3600),
         )
 
         with pytest.raises(RuntimeError, match="forced commit failure"):
@@ -750,7 +738,6 @@ class TestDropUseCases:
                 DeleteDropCommand(
                     slug="k-rollback",
                     auth=_auth("user-1", "tester"),
-                    current_password=None,
                 )
             )
 

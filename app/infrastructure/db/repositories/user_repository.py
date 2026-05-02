@@ -4,8 +4,17 @@ import uuid
 import anyio.to_thread
 from sqlmodel import Session, select
 
-from app.application.auth.ports import UserReadRepositoryPort, UserRecord
+from app.application.auth.ports import (
+    UserCreateInput,
+    UserMutationRepositoryPort,
+    UserReadRepositoryPort,
+    UserRecord,
+)
 from app.infrastructure.db.models.user import UserRecord as UserModel
+from app.infrastructure.db.repositories.session_bound import SessionBoundMutationRepository
+
+
+USER_MUTATION_REPOSITORY_INACTIVE_SESSION_ERROR = "User UnitOfWork session is not active."
 
 
 def _find_by_id(session: Session, user_id: str) -> UserModel | None:
@@ -31,6 +40,16 @@ def _to_record(row: UserModel) -> UserRecord:
         created_at=row.created_at,
         updated_at=row.updated_at,
         disabled_at=row.disabled_at,
+    )
+
+
+def _build_row(data: UserCreateInput) -> UserModel:
+    return UserModel(
+        username=data.username,
+        password_hash=data.password_hash,
+        created_at=data.created_at,
+        updated_at=data.updated_at,
+        disabled_at=data.disabled_at,
     )
 
 
@@ -63,4 +82,33 @@ class SQLModelUserReadRepository(UserReadRepositoryPort):
         return self._with_new_session(operation)
 
 
-__all__ = ["SQLModelUserReadRepository"]
+class SQLModelUserMutationRepository(
+    SessionBoundMutationRepository,
+    UserMutationRepositoryPort,
+):
+    def __init__(
+        self,
+        session: Session,
+        *,
+        inactive_session_error: str = USER_MUTATION_REPOSITORY_INACTIVE_SESSION_ERROR,
+    ):
+        super().__init__(session, inactive_session_error=inactive_session_error)
+
+    async def create(self, data: UserCreateInput) -> UserRecord:
+        session = self._require_session()
+        row = _build_row(data)
+        session.add(row)
+        session.flush()
+        session.refresh(row)
+        return _to_record(row)
+
+    async def get_by_username(self, username: str) -> UserRecord | None:
+        row = _find_by_username(self._require_session(), username)
+        return _to_record(row) if row else None
+
+
+__all__ = [
+    "SQLModelUserMutationRepository",
+    "SQLModelUserReadRepository",
+    "USER_MUTATION_REPOSITORY_INACTIVE_SESSION_ERROR",
+]

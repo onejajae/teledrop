@@ -10,6 +10,7 @@ from app.application.auth.models import (
     DeleteApiKeyCommand,
     ListApiKeysQuery,
     PasswordLoginCommand,
+    RegisterUserCommand,
     RevokeApiKeyCommand,
     VerifyApiKeyQuery,
     VerifySessionQuery,
@@ -19,6 +20,7 @@ from app.application.auth.ports import (
     AuthApiKeyRecord,
     AuthSessionCreateInput,
     AuthSessionRecord,
+    UserCreateInput,
     UserRecord,
 )
 from app.application.auth.use_cases.api_key import (
@@ -32,9 +34,20 @@ from app.application.auth.use_cases.api_key import (
 )
 from app.application.auth.use_cases.csrf import CsrfTokenService
 from app.application.auth.use_cases.password_login import PasswordLoginUseCase
+from app.application.auth.use_cases.register import RegisterUserUseCase
 from app.application.auth.use_cases.session import CreateSessionUseCase, VerifySessionUseCase
 from app.core.config import Settings
-from app.domain.auth.errors import ApiKeyInvalid, LoginInvalid, SessionExpired, SessionInvalid
+from app.domain.auth.errors import (
+    ApiKeyInvalid,
+    LoginInvalid,
+    PasswordConfirmationMismatch,
+    PasswordTooShort,
+    RegistrationDisabled,
+    SessionExpired,
+    SessionInvalid,
+    UsernameInvalid,
+    UsernameUnavailable,
+)
 
 
 class _InMemoryUserRepository:
@@ -53,6 +66,20 @@ class _InMemoryUserRepository:
 
     async def get_by_username(self, username: str) -> UserRecord | None:
         return self._by_username.get(username)
+
+    async def create(self, data: UserCreateInput) -> UserRecord:
+        if data.username in self._by_username:
+            raise UsernameUnavailable()
+        record = UserRecord(
+            id=f"user-{len(self._by_id) + 1}",
+            username=data.username,
+            password_hash=data.password_hash,
+            created_at=data.created_at,
+            updated_at=data.updated_at,
+            disabled_at=data.disabled_at,
+        )
+        self.add(record)
+        return record
 
 
 class _InMemorySessionRepository:
@@ -85,6 +112,28 @@ class _InMemorySessionRepository:
 
 class _TrackingAuthUow:
     def __init__(self, repository: _InMemorySessionRepository):
+        self.repository = repository
+        self.entered = False
+        self.exited = False
+        self.commit_calls = 0
+
+    async def __aenter__(self):
+        self.entered = True
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        self.exited = True
+        return None
+
+    async def commit(self):
+        self.commit_calls += 1
+
+    async def rollback(self):
+        return None
+
+
+class _TrackingUserUow:
+    def __init__(self, repository: _InMemoryUserRepository):
         self.repository = repository
         self.entered = False
         self.exited = False
@@ -269,6 +318,10 @@ def _session_uow_factory(repository: _InMemorySessionRepository):
     return lambda: _TrackingAuthUow(repository)
 
 
+def _user_uow_factory(repository: _InMemoryUserRepository):
+    return lambda: _TrackingUserUow(repository)
+
+
 def _api_key_uow_factory(repository: _InMemoryApiKeyRepository):
     return lambda: _TrackingApiKeyUow(repository)
 
@@ -346,6 +399,124 @@ class TestAuthUseCase:
 
         with pytest.raises(LoginInvalid):
             await use_case.execute(PasswordLoginCommand(username="disabled", password="password"))
+
+    async def test_register_user_creates_user_and_session(self):
+        user_repository = _InMemoryUserRepository()
+        session_repo = _InMemorySessionRepository()
+        create_session = CreateSessionUseCase(
+            session_ttl_seconds=_settings().SESSION_TTL_SECONDS,
+            uow_factory=_session_uow_factory(session_repo),
+        )
+        use_case = RegisterUserUseCase(
+            uow_factory=_user_uow_factory(user_repository),
+            create_session_use_case=create_session,
+            registration_enabled=True,
+        )
+
+        session = await use_case.execute(
+            RegisterUserCommand(
+                username="tester_1",
+                password="password123",
+                confirm_password="password123",
+            )
+        )
+
+        user = await user_repository.get_by_username("tester_1")
+        assert user is not None
+        assert PasswordHasher().verify(user.password_hash, "password123")
+        assert session.user_id == user.id
+        assert session.username == "tester_1"
+        assert session.sid in session_repo.records
+
+    @pytest.mark.parametrize(
+        "username",
+        ["ab", "Tester", "-tester", "tester!", "a" * 65],
+    )
+    async def test_register_user_rejects_invalid_username(self, username: str):
+        use_case = RegisterUserUseCase(
+            uow_factory=_user_uow_factory(_InMemoryUserRepository()),
+            create_session_use_case=CreateSessionUseCase(
+                session_ttl_seconds=_settings().SESSION_TTL_SECONDS,
+                uow_factory=_session_uow_factory(_InMemorySessionRepository()),
+            ),
+            registration_enabled=True,
+        )
+
+        with pytest.raises(UsernameInvalid):
+            await use_case.execute(
+                RegisterUserCommand(
+                    username=username,
+                    password="password123",
+                    confirm_password="password123",
+                )
+            )
+
+    async def test_register_user_rejects_short_or_mismatched_password(self):
+        use_case = RegisterUserUseCase(
+            uow_factory=_user_uow_factory(_InMemoryUserRepository()),
+            create_session_use_case=CreateSessionUseCase(
+                session_ttl_seconds=_settings().SESSION_TTL_SECONDS,
+                uow_factory=_session_uow_factory(_InMemorySessionRepository()),
+            ),
+            registration_enabled=True,
+        )
+
+        with pytest.raises(PasswordTooShort):
+            await use_case.execute(
+                RegisterUserCommand(
+                    username="tester",
+                    password="short",
+                    confirm_password="short",
+                )
+            )
+
+        with pytest.raises(PasswordConfirmationMismatch):
+            await use_case.execute(
+                RegisterUserCommand(
+                    username="tester",
+                    password="password123",
+                    confirm_password="password124",
+                )
+            )
+
+    async def test_register_user_rejects_duplicate_username(self):
+        user_repository = _InMemoryUserRepository([_user(username="tester")])
+        use_case = RegisterUserUseCase(
+            uow_factory=_user_uow_factory(user_repository),
+            create_session_use_case=CreateSessionUseCase(
+                session_ttl_seconds=_settings().SESSION_TTL_SECONDS,
+                uow_factory=_session_uow_factory(_InMemorySessionRepository()),
+            ),
+            registration_enabled=True,
+        )
+
+        with pytest.raises(UsernameUnavailable):
+            await use_case.execute(
+                RegisterUserCommand(
+                    username="tester",
+                    password="password123",
+                    confirm_password="password123",
+                )
+            )
+
+    async def test_register_user_rejects_when_registration_disabled(self):
+        use_case = RegisterUserUseCase(
+            uow_factory=_user_uow_factory(_InMemoryUserRepository()),
+            create_session_use_case=CreateSessionUseCase(
+                session_ttl_seconds=_settings().SESSION_TTL_SECONDS,
+                uow_factory=_session_uow_factory(_InMemorySessionRepository()),
+            ),
+            registration_enabled=False,
+        )
+
+        with pytest.raises(RegistrationDisabled):
+            await use_case.execute(
+                RegisterUserCommand(
+                    username="tester",
+                    password="password123",
+                    confirm_password="password123",
+                )
+            )
 
     async def test_verify_session_returns_structured_identity(self):
         user = _user(user_id="user-1", username="tester")

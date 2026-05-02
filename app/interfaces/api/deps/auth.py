@@ -30,36 +30,6 @@ def _clear_stale_session_cookie_if_needed(
         clear_session_cookie(response, settings)
 
 
-class SessionOnlyAuthenticator:
-    def __init__(self, auto_error: bool = True):
-        self.auto_error = auto_error
-
-    async def __call__(
-        self,
-        request: Request,
-        response: Response,
-        settings: Settings = Depends(get_app_settings),
-        verify_session_use_case: VerifySessionUseCase = Depends(get_verify_session_use_case),
-    ) -> AuthIdentity:
-        identity = await authenticate_with_session(
-            request=request,
-            settings=settings,
-            verify_session_use_case=verify_session_use_case,
-        )
-        _clear_stale_session_cookie_if_needed(request, response, settings)
-        if identity.is_authenticated:
-            return identity
-
-        if self.auto_error:
-            clear_session_cookie(response, settings)
-            raise api_auth_unauthorized_exception(
-                detail="Authentication credentials were not provided or are invalid.",
-                set_cookie=response_set_cookie_header(response),
-            )
-
-        return identity
-
-
 class SessionOrApiKeyAuthenticator:
     def __init__(self, auto_error: bool = True):
         self.auto_error = auto_error
@@ -128,12 +98,6 @@ class ApiKeyOnlyAuthenticator:
         return AuthIdentity(user_id=None, username=None)
 
 
-async def get_required_session_auth(
-    auth_data: AuthIdentity = Depends(SessionOnlyAuthenticator(auto_error=True)),
-) -> AuthIdentity:
-    return auth_data
-
-
 async def get_required_api_auth(
     auth_data: AuthIdentity = Depends(SessionOrApiKeyAuthenticator(auto_error=True)),
 ) -> AuthIdentity:
@@ -147,9 +111,7 @@ async def get_required_api_key_auth(
 
 __all__ = [
     "ApiKeyOnlyAuthenticator",
-    "SessionOnlyAuthenticator",
     "SessionOrApiKeyAuthenticator",
     "get_required_api_key_auth",
     "get_required_api_auth",
-    "get_required_session_auth",
 ]

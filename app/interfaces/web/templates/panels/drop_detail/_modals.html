@@ -1,6 +1,6 @@
 {% from "macros/drop_detail.html" import modal_form %}
 {% from "macros/ui.html" import field, text_input, textarea_input %}
-{% call modal_form("detail-edit-modal", "메타데이터 수정", "/actions/drop/" ~ detail.key ~ "/detail", "저장") %}
+{% call modal_form("detail-edit-modal", "메타데이터 수정", "/actions/drop/" ~ detail.slug ~ "/detail", "저장") %}
   <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
   {% call field("제목", "detail-edit-title") %}
     {{ text_input("title", input_id="detail-edit-title", value=detail.drop.title or '') }}
@@ -11,7 +11,7 @@
 {% endcall %}
 
 {% if not detail.drop.requires_password %}
-{% call modal_form("detail-password-modal", "비밀번호 설정", "/actions/drop/" ~ detail.key ~ "/password", "설정", description="새 비밀번호를 설정합니다.", form_attrs='data-td-role="password-form"', submit_attrs='data-td-role="password-submit"') %}
+{% call modal_form("detail-password-modal", "비밀번호 설정", "/actions/drop/" ~ detail.slug ~ "/password", "설정", description="새 비밀번호를 설정합니다.", form_attrs='data-td-role="password-form"', submit_attrs='data-td-role="password-submit"') %}
   <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
   {% call field("새 비밀번호", "detail-password-new") %}
     {{ text_input("new_password", input_id="detail-password-new", input_type="password", placeholder="새 비밀번호 입력", attrs='data-td-role="password-input"') }}

@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     CORS_ALLOW_ALL: bool = False
     MAX_UPLOAD_BYTES: int = 1024 * 1024 * 1024
     BOOTSTRAP_ALLOW_INSECURE_DEFAULTS: bool = True
+    ENABLE_REGISTRATION: bool = False
 
     def validate_auth_configuration(self):
         if not self.CSRF_SECRET_KEY:

@@ -106,23 +106,17 @@ def get_get_drop_stream_source_use_case(
 
 def get_update_drop_use_case(
     uow_factory: DropUnitOfWorkFactory = Depends(get_drop_uow_factory),
-    grant_service: DropPasswordGrantService = Depends(get_drop_password_grant_service),
 ) -> UpdateDropUseCase:
-    return UpdateDropUseCase(
-        uow_factory=uow_factory,
-        grant_service=grant_service,
-    )
+    return UpdateDropUseCase(uow_factory=uow_factory)
 
 
 def get_delete_drop_use_case(
     storage: LocalFileStorage = Depends(get_file_storage),
     uow_factory: DropUnitOfWorkFactory = Depends(get_drop_uow_factory),
-    grant_service: DropPasswordGrantService = Depends(get_drop_password_grant_service),
 ) -> DeleteDropUseCase:
     return DeleteDropUseCase(
         storage=storage,
         uow_factory=uow_factory,
-        grant_service=grant_service,
     )
 
 

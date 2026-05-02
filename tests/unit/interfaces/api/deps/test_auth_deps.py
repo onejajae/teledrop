@@ -5,7 +5,7 @@ from fastapi import HTTPException, Request, Response
 
 from app.application.auth.types import AuthIdentity
 from app.domain.auth.errors import ApiKeyInvalid, SessionExpired, SessionInvalid
-from app.interfaces.api.deps.auth import SessionOnlyAuthenticator, SessionOrApiKeyAuthenticator
+from app.interfaces.api.deps.auth import SessionOrApiKeyAuthenticator
 
 
 class _FakeVerifySessionUseCase:
@@ -60,32 +60,15 @@ def _settings():
     return SimpleNamespace(SESSION_COOKIE_NAME="session_id", SESSION_COOKIE_PATH="/")
 
 
-class TestSessionOnlyAuthenticator:
-    async def test_auto_error_true_without_session_raises_401_with_cookie_header(self):
-        authenticator = SessionOnlyAuthenticator(auto_error=True)
-        request = _request()
-        response = Response()
-
-        with pytest.raises(HTTPException) as exc_info:
-            await authenticator(
-                request=request,
-                response=response,
-                settings=_settings(),
-                verify_session_use_case=_FakeVerifySessionUseCase(),
-            )
-
-        headers = {key.lower(): value for key, value in (exc_info.value.headers or {}).items()}
-        assert exc_info.value.status_code == 401
-        assert headers.get("www-authenticate") == "Session, ApiKey"
-        assert "session_id=" in headers.get("set-cookie", "")
-
-    async def test_auto_error_false_without_session_returns_anonymous(self):
-        authenticator = SessionOnlyAuthenticator(auto_error=False)
+class TestSessionOrApiKeyAuthenticator:
+    async def test_auto_error_false_without_credentials_returns_anonymous(self):
+        authenticator = SessionOrApiKeyAuthenticator(auto_error=False)
         identity = await authenticator(
             request=_request(),
             response=Response(),
             settings=_settings(),
             verify_session_use_case=_FakeVerifySessionUseCase(),
+            verify_api_key_use_case=_FakeVerifyApiKeyUseCase(),
         )
 
         assert identity.username is None
@@ -93,7 +76,7 @@ class TestSessionOnlyAuthenticator:
 
     @pytest.mark.parametrize("raised", [SessionExpired(), SessionInvalid()])
     async def test_invalid_or_expired_session_clears_cookie_and_raises_401(self, raised: Exception):
-        authenticator = SessionOnlyAuthenticator(auto_error=True)
+        authenticator = SessionOrApiKeyAuthenticator(auto_error=True)
         request = _request({"session_id": "sid-1"})
         response = Response()
         verify_use_case = _FakeVerifySessionUseCase(exc=raised)
@@ -104,6 +87,7 @@ class TestSessionOnlyAuthenticator:
                 response=response,
                 settings=_settings(),
                 verify_session_use_case=verify_use_case,
+                verify_api_key_use_case=_FakeVerifyApiKeyUseCase(),
             )
 
         headers = {key.lower(): value for key, value in (exc_info.value.headers or {}).items()}
@@ -111,8 +95,6 @@ class TestSessionOnlyAuthenticator:
         assert verify_use_case.queries[0].sid == "sid-1"
         assert "session_id=" in headers.get("set-cookie", "")
 
-
-class TestSessionOrApiKeyAuthenticator:
     async def test_valid_api_key_without_session_returns_identity(self):
         authenticator = SessionOrApiKeyAuthenticator(auto_error=True)
         identity = await authenticator(

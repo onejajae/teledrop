@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, Form, Request, Response, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
 
 from app.application.auth.models import (
@@ -8,6 +8,7 @@ from app.application.auth.models import (
     DeleteApiKeyCommand,
     ListApiKeysQuery,
     PasswordLoginCommand,
+    RegisterUserCommand,
     RevokeApiKeyCommand,
 )
 from app.application.auth.types import AuthIdentity
@@ -17,6 +18,7 @@ from app.application.auth.use_cases import (
     DeleteApiKeyUseCase,
     ListApiKeysUseCase,
     PasswordLoginUseCase,
+    RegisterUserUseCase,
     RevokeApiKeyUseCase,
     RevokeSessionUseCase,
 )
@@ -26,13 +28,23 @@ from app.bootstrap.providers.auth import (
     get_delete_api_key_use_case,
     get_list_api_keys_use_case,
     get_password_login_use_case,
+    get_register_user_use_case,
     get_revoke_api_key_use_case,
     get_revoke_session_use_case,
 )
 from app.core.auth import clear_session_cookie, get_session_id_from_request, set_session_cookie
 from app.core.config import Settings
 from app.core.drop_grants import clear_drop_grant_cookies
-from app.domain.auth.errors import ApiKeyNotFound, LoginInvalid
+from app.domain.auth.errors import (
+    ApiKeyNotFound,
+    LoginInvalid,
+    PasswordConfirmationMismatch,
+    PasswordTooShort,
+    RegistrationDisabled,
+    RegistrationInvalid,
+    UsernameInvalid,
+    UsernameUnavailable,
+)
 from app.interfaces.deps.auth import get_optional_session_auth
 from app.interfaces.web.action_support import (
     is_hx_request,
@@ -45,6 +57,27 @@ from app.interfaces.web.presenters.auth_panel import render_auth_panel
 
 
 router = APIRouter(prefix="/actions/auth")
+
+_REGISTRATION_ERROR_CODES = {
+    UsernameInvalid: "username_invalid",
+    PasswordTooShort: "password_short",
+    PasswordConfirmationMismatch: "password_mismatch",
+    UsernameUnavailable: "username_unavailable",
+}
+_REGISTRATION_ERROR_MESSAGES = {
+    "username_invalid": "사용자 ID는 3~64자의 영문 소문자, 숫자, 점, 밑줄, 하이픈만 사용할 수 있으며 영문/숫자로 시작해야 합니다.",
+    "password_short": "비밀번호는 8자 이상이어야 합니다.",
+    "password_mismatch": "비밀번호 확인이 일치하지 않습니다.",
+    "username_unavailable": "사용할 수 없는 사용자 ID입니다.",
+}
+
+
+def _registration_enabled(settings: Settings) -> bool:
+    return bool(getattr(settings, "ENABLE_REGISTRATION", False))
+
+
+def _registration_error_code(exc: RegistrationInvalid) -> str:
+    return _REGISTRATION_ERROR_CODES.get(type(exc), "username_invalid")
 
 
 async def _list_visible_api_keys(
@@ -83,6 +116,66 @@ async def ui_login(
             request,
             RedirectResponse(
                 url=build_query_url("/", auth_error="login_invalid"),
+                status_code=status.HTTP_302_FOUND,
+            ),
+            settings,
+        )
+
+    if is_hx_request(request):
+        response = Response(status_code=status.HTTP_204_NO_CONTENT)
+        response.headers["HX-Redirect"] = "/"
+    else:
+        response = redirect_home()
+
+    set_session_cookie(response, settings, auth_session.sid)
+    return response
+
+
+@router.post("/register")
+async def ui_register(
+    request: Request,
+    settings: Settings = Depends(get_app_settings),
+    register_user_use_case: RegisterUserUseCase = Depends(get_register_user_use_case),
+    csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
+    username: str = Form(),
+    password: str = Form(),
+    confirm_password: str = Form(),
+):
+    if not _registration_enabled(settings):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+
+    username_value = (username or "").strip()
+    try:
+        auth_session = await register_user_use_case.execute(
+            RegisterUserCommand(
+                username=username,
+                password=password,
+                confirm_password=confirm_password,
+            )
+        )
+    except RegistrationDisabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND) from None
+    except RegistrationInvalid as exc:
+        error_code = _registration_error_code(exc)
+        error_message = _REGISTRATION_ERROR_MESSAGES[error_code]
+        if is_hx_request(request):
+            return render_auth_panel(
+                request=request,
+                auth_data=AuthIdentity(user_id=None, username=None),
+                csrf_service=csrf_service,
+                settings=settings,
+                status_code=status.HTTP_400_BAD_REQUEST,
+                auth_error_message=error_message,
+                auth_mode="register",
+                username_value=username_value,
+            )
+        return finalize_ui_response(
+            request,
+            RedirectResponse(
+                url=build_query_url(
+                    "/register",
+                    auth_error=error_code,
+                ),
                 status_code=status.HTTP_302_FOUND,
             ),
             settings,

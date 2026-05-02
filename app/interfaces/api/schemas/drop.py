@@ -73,4 +73,3 @@ class DropPatchRequest(BaseModel):
     access_scope: AccessScope | None = None
     is_favorite: bool | None = None
     new_password: str | None = None
-    current_password: str | None = None

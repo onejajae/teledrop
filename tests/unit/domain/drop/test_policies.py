@@ -139,7 +139,7 @@ class TestDropPolicies:
                 self._grant_service,
             )
 
-    def test_assert_drop_password_matches_rejects_legacy_plaintext_storage(self):
+    def test_assert_drop_password_matches_rejects_non_hash_storage(self):
         with pytest.raises(DropPasswordInvalidError):
             assert_drop_password_matches(
                 _drop(drop_password="secret"),

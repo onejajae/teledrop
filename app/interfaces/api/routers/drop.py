@@ -33,14 +33,10 @@ from app.bootstrap.providers.drop import (
     get_update_drop_use_case,
 )
 from app.core.config import Settings
-from app.core.drop_grants import (
-    build_drop_password_credential,
-    request_drop_password_credential,
-)
+from app.core.drop_grants import request_drop_password_credential
 from app.core.exceptions import InvalidRangeHeader, RangeNotSatisfiable
 from app.core.utils import parse_range_header
 from app.domain.drop.errors import DropAccessDeniedError, DropSlugUnavailableError
-from app.domain.drop.policies import normalize_drop_password
 from app.domain.drop.value_objects import AccessScope, DropSortField
 from app.interfaces.api.deps.auth import get_required_api_auth, get_required_api_key_auth
 from app.interfaces.api.errors import (
@@ -184,7 +180,6 @@ async def drop_stream(
     get_drop_stream_source_use_case: GetDropStreamSourceUseCase = Depends(
         get_get_drop_stream_source_use_case
     ),
-    disposition: str = Query(default="attachment"),
     drop_password: str | None = Header(default=None, alias="X-Drop-Password"),
     range_header: str | None = Header(None, alias="Range"),
 ):
@@ -268,9 +263,6 @@ async def patch_drop(
             UpdateDropCommand(
                 slug=slug,
                 auth=auth_data,
-                current_password=build_drop_password_credential(
-                    password=normalize_drop_password(payload.current_password)
-                ),
                 title=title,
                 description=description,
                 access_scope=access_scope,
@@ -289,16 +281,12 @@ async def delete_drop(
     slug: str,
     auth_data: AuthIdentity = Depends(get_required_api_key_auth),
     delete_drop_use_case: DeleteDropUseCase = Depends(get_delete_drop_use_case),
-    current_password: str | None = Header(default=None, alias="X-Drop-Password"),
 ):
     try:
         await delete_drop_use_case.execute(
             DeleteDropCommand(
                 slug=slug,
                 auth=auth_data,
-                current_password=build_drop_password_credential(
-                    password=normalize_drop_password(current_password)
-                ),
             )
         )
     except Exception as exc:

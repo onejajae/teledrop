@@ -12,7 +12,6 @@ from app.interfaces.web.presenters.common import (
     base_template_context,
     finalize_ui_response,
     drop_manage_page_url,
-    normalize_sort_value,
     templates,
 )
 
@@ -21,7 +20,6 @@ SORT_MAP = {
     "created_at": DropSortField.CREATED_AT,
     "title": DropSortField.TITLE,
     "size_bytes": DropSortField.SIZE_BYTES,
-    "file_size": DropSortField.SIZE_BYTES,
 }
 
 
@@ -39,7 +37,7 @@ async def library_page_context(
     drops = []
 
     if auth_data.is_authenticated:
-        sort = SORT_MAP.get(normalize_sort_value(sortby), DropSortField.CREATED_AT)
+        sort = SORT_MAP.get(sortby or "created_at", DropSortField.CREATED_AT)
         try:
             items = (
                 await list_drops_use_case.execute(
@@ -63,7 +61,7 @@ async def library_page_context(
         csrf_service=csrf_service,
         active_nav="drops",
         drops=drops,
-        drop_sortby=normalize_sort_value(sortby),
+        drop_sortby=sortby or "created_at",
         drop_orderby=orderby or "desc",
         drop_error_message=drop_error_message,
         drop_status_message=drop_status_message,

@@ -203,16 +203,16 @@ class TestApiSmoke:
         assert listed.json()['total'] == 1
         assert listed.json()['items'][0]['slug'] == 'k1'
         assert 'key' not in listed.json()['items'][0]
-        patched = client.patch('/api/drop/k1', headers=headers, json={'title': 'updated', 'current_password': 'pw'})
+        patched = client.patch('/api/drop/k1', headers=headers, json={'title': 'updated'})
         assert patched.status_code == 200
         assert patched.json()['title'] == 'updated'
         assert patched.json()['slug'] == 'k1'
-        streamed = client.get('/api/drop/k1?disposition=inline', headers={'X-Drop-Password': 'pw'})
+        streamed = client.get('/api/drop/k1', headers={'X-Drop-Password': 'pw'})
         assert streamed.status_code == 200
         assert streamed.content == b'hello world'
         assert streamed.headers['content-disposition'].startswith('attachment;')
         assert streamed.headers['x-content-type-options'] == 'nosniff'
-        deleted = client.delete('/api/drop/k1', headers={**headers, 'X-Drop-Password': 'pw'})
+        deleted = client.delete('/api/drop/k1', headers=headers)
         assert deleted.status_code == 200
 
     def test_auth_unauthorized_response_includes_session_headers(self):
@@ -283,7 +283,7 @@ class TestApiSmoke:
         assert upload.status_code == 200
 
         meta = client.get('/api/drop/k-auth/meta')
-        streamed = client.get('/api/drop/k-auth?disposition=inline')
+        streamed = client.get('/api/drop/k-auth')
 
         assert meta.status_code == 200
         assert streamed.status_code == 200
@@ -314,10 +314,10 @@ class TestApiSmoke:
         assert listed.status_code == 200
         assert listed.json()['total'] == 1
 
-        patched = client.patch('/api/drop/k2', headers=headers, json={'title': 'updated', 'current_password': 'pw'})
+        patched = client.patch('/api/drop/k2', headers=headers, json={'title': 'updated'})
         assert patched.status_code == 200
 
-        deleted = client.delete('/api/drop/k2', headers={**headers, 'X-Drop-Password': 'pw'})
+        deleted = client.delete('/api/drop/k2', headers=headers)
         assert deleted.status_code == 200
 
     def test_auth_me_accepts_api_key(self):

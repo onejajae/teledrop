@@ -106,21 +106,12 @@ def base_template_context(
     return context
 
 
-def normalize_sort_value(sortby: str | None) -> str:
-    if sortby == "file_size":
-        return "size_bytes"
-    return sortby or "created_at"
-
-
-def drop_file_urls(slug: str) -> tuple[str, str | None]:
+def drop_file_url(slug: str) -> str:
     encoded_slug = quote(slug, safe="")
-    return (
-        f"/api/drop/{encoded_slug}",
-        None,
-    )
+    return f"/api/drop/{encoded_slug}"
 
 
-def drop_preview_page_url(slug: str) -> str:
+def drop_page_url(slug: str) -> str:
     encoded_slug = quote(slug, safe="")
     return f"/{encoded_slug}"
 

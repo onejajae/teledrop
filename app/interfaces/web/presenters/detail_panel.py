@@ -6,10 +6,7 @@ from app.application.drop.models import DropMetaQuery
 from app.application.drop.use_cases import GetDropMetaUseCase
 from app.core.config import Settings
 from app.core.drop_unlock_tokens import issue_drop_unlock_token
-from app.core.drop_grants import (
-    build_drop_password_credential,
-    request_drop_password_credential,
-)
+from app.core.drop_grants import request_drop_password_credential
 from app.domain.drop.grants import DropPasswordCredential
 from app.domain.drop.errors import (
     DropAccessDeniedError,
@@ -19,8 +16,8 @@ from app.domain.drop.errors import (
 from app.interfaces.web.presenters.common import (
     as_drop_vm,
     base_template_context,
-    drop_file_urls,
-    drop_preview_page_url,
+    drop_file_url,
+    drop_page_url,
     drop_unlock_action_url,
 )
 from app.interfaces.web.presenters.view_models import (
@@ -37,8 +34,7 @@ async def detail_panel_context(
     csrf_service: CsrfTokenService,
     get_drop_meta_use_case: GetDropMetaUseCase,
     settings: Settings,
-    selected_key: str | None = None,
-    selected_password: str | None = None,
+    selected_slug: str | None = None,
     credential: DropPasswordCredential | None = None,
     use_request_grant: bool = True,
     detail_error_message: str | None = None,
@@ -48,34 +44,31 @@ async def detail_panel_context(
     selected_drop = None
     selected_requires_password = False
     selected_download_url = None
-    selected_preview_url = None
     access_granted = False
     invalid_grant = False
-    selected_page_preview_url = (
-        drop_preview_page_url(selected_key)
-        if selected_key
+    selected_page_url = (
+        drop_page_url(selected_slug)
+        if selected_slug
         else None
     )
     selected_prompt_action = (
-        drop_unlock_action_url(selected_key)
-        if selected_key
+        drop_unlock_action_url(selected_slug)
+        if selected_slug
         else None
     )
 
-    if selected_key:
+    if selected_slug:
         effective_credential = credential
-        if effective_credential is None and selected_password is not None:
-            effective_credential = build_drop_password_credential(password=selected_password)
         if effective_credential is None and use_request_grant:
             effective_credential = request_drop_password_credential(
                 request,
                 settings,
-                selected_key,
+                selected_slug,
             )
 
         try:
             drop_meta = await get_drop_meta_use_case.execute_for_display(
-                slug=selected_key,
+                slug=selected_slug,
                 auth=auth_data,
             )
         except DropAccessDeniedError:
@@ -89,7 +82,7 @@ async def detail_panel_context(
             try:
                 selected = await get_drop_meta_use_case.execute(
                     DropMetaQuery(
-                        slug=selected_key,
+                        slug=selected_slug,
                         drop_password=effective_credential,
                         auth=auth_data,
                     )
@@ -114,11 +107,11 @@ async def detail_panel_context(
                 detail_error_code = detail_error_code or "not_found"
             else:
                 selected_drop = as_drop_vm(selected)
-                selected_download_url, selected_preview_url = drop_file_urls(selected_key)
+                selected_download_url = drop_file_url(selected_slug)
                 access_granted = True
 
     detail = DetailVM(
-        key=selected_key,
+        slug=selected_slug,
         drop=selected_drop,
         requires_password=selected_requires_password,
         access_granted=access_granted,
@@ -130,14 +123,13 @@ async def detail_panel_context(
         ),
         urls=DetailUrlsVM(
             download=selected_download_url,
-            preview=selected_preview_url,
-            page=selected_page_preview_url,
+            page=selected_page_url,
         ),
         forms=DetailFormsVM(
             locked_prompt_action=selected_prompt_action,
             unlock_token=(
-                issue_drop_unlock_token(settings, selected_key, "shared")
-                if selected_key
+                issue_drop_unlock_token(settings, selected_slug, "shared")
+                if selected_slug
                 else None
             ),
         ),

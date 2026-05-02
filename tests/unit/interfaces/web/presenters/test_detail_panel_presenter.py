@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from app.application.auth.types import AuthIdentity
 from app.domain.drop.errors import DropAccessDeniedError, DropNotFoundError, DropPasswordInvalidError
+from app.domain.drop.grants import DropPasswordCredential
 from app.interfaces.web.presenters.detail_panel import detail_panel_context
 
 class _FakeCsrfService:
@@ -63,13 +64,13 @@ class TestDetailPanelPresenter:
         self.drop_use_cases = _FakeDropUseCasesPasswordProtected()
 
     async def test_first_password_prompt_does_not_show_error_message(self):
-        context = await detail_panel_context(request=self.request, auth_data=self.auth_data, csrf_service=self.csrf_service, get_drop_meta_use_case=self.drop_use_cases.get_drop_meta_use_case, settings=self.settings, selected_key='locked', selected_password=None)
+        context = await detail_panel_context(request=self.request, auth_data=self.auth_data, csrf_service=self.csrf_service, get_drop_meta_use_case=self.drop_use_cases.get_drop_meta_use_case, settings=self.settings, selected_slug='locked')
         assert context['detail'].requires_password
         assert context['detail'].error.message is None
         assert context['detail'].drop is not None
 
     async def test_wrong_password_shows_invalid_password_message(self):
-        context = await detail_panel_context(request=self.request, auth_data=self.auth_data, csrf_service=self.csrf_service, get_drop_meta_use_case=self.drop_use_cases.get_drop_meta_use_case, settings=self.settings, selected_key='locked', selected_password='bad-password')
+        context = await detail_panel_context(request=self.request, auth_data=self.auth_data, csrf_service=self.csrf_service, get_drop_meta_use_case=self.drop_use_cases.get_drop_meta_use_case, settings=self.settings, selected_slug='locked', credential=DropPasswordCredential(password='bad-password'))
         assert context['detail'].error.message == '비밀번호가 올바르지 않습니다.'
         assert context['detail'].requires_password
         assert context['detail'].drop is not None
@@ -87,8 +88,7 @@ class TestDetailPanelPresenter:
             csrf_service=self.csrf_service,
             get_drop_meta_use_case=_MetaUseCaseAuthenticated(),
             settings=self.settings,
-            selected_key='locked',
-            selected_password=None,
+            selected_slug='locked',
         )
 
         assert context['detail'].access_granted is True
@@ -96,13 +96,13 @@ class TestDetailPanelPresenter:
         assert context['detail'].drop is not None
 
     async def test_access_denied_sets_forbidden_error_code(self):
-        context = await detail_panel_context(request=self.request, auth_data=self.auth_data, csrf_service=self.csrf_service, get_drop_meta_use_case=_FakeDropUseCasesForbidden().get_drop_meta_use_case, settings=self.settings, selected_key='locked')
+        context = await detail_panel_context(request=self.request, auth_data=self.auth_data, csrf_service=self.csrf_service, get_drop_meta_use_case=_FakeDropUseCasesForbidden().get_drop_meta_use_case, settings=self.settings, selected_slug='locked')
         assert context['detail'].error.code == 'not_found'
         assert '파일이 존재하지 않습니다.' == context['detail'].error.message
         assert context['detail'].drop is None
 
     async def test_not_found_sets_not_found_error_code(self):
-        context = await detail_panel_context(request=self.request, auth_data=self.auth_data, csrf_service=self.csrf_service, get_drop_meta_use_case=_FakeDropUseCasesNotFound().get_drop_meta_use_case, settings=self.settings, selected_key='missing')
+        context = await detail_panel_context(request=self.request, auth_data=self.auth_data, csrf_service=self.csrf_service, get_drop_meta_use_case=_FakeDropUseCasesNotFound().get_drop_meta_use_case, settings=self.settings, selected_slug='missing')
         assert context['detail'].error.code == 'not_found'
         assert '존재하지 않습니다' in context['detail'].error.message
         assert context['detail'].drop is None

@@ -116,8 +116,8 @@ docker run --detach \
 
 * Upload and download security
 > `MAX_UPLOAD_BYTES` defaults to 1073741824 bytes (1 GiB) and is enforced before and during file writes.
-> File downloads always use `Content-Disposition: attachment`; `disposition=inline` is accepted only for compatibility and is ignored.
-> Drop link passwords are stored as Argon2id hashes. Legacy plaintext protected drops are incompatible; back up and recreate the database before using this version.
+> File downloads always use `Content-Disposition: attachment`.
+> Drop link passwords are stored as Argon2id hashes. Plaintext protected drops from older releases are incompatible; back up and recreate the database before using this version.
 
 * Running multiple worker processes
 > To improve performance, specify the number of worker processes using the `--workers` option:
@@ -134,7 +134,7 @@ docker run --detach \
 
 * Direct app startup outside the Docker entrypoint
 > teledrop creates the current database schema automatically at startup when the database is empty.
-> Existing Alembic/legacy databases are not migrated automatically; back up and remove `share/database.db` before starting this version.
+> Existing Alembic databases are not migrated automatically; back up and remove `share/database.db` before starting this version.
 
 ## Documentation
 * [Authentication and API](docs/en/auth-and-api.md)

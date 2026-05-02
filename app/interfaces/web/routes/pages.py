@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.application.auth.types import AuthIdentity
 from app.application.auth.use_cases import CsrfTokenService, ListApiKeysUseCase
@@ -35,6 +35,31 @@ async def ui(
         csrf_service=csrf_service,
         settings=settings,
         auth_error_code=auth_error,
+        auth_mode="login",
+    )
+
+
+@router.get("/register", response_class=HTMLResponse)
+async def ui_register(
+    request: Request,
+    settings: Settings = Depends(get_app_settings),
+    auth_data: AuthIdentity = Depends(get_optional_session_auth),
+    csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
+    auth_error: str | None = Query(default=None),
+):
+    if not getattr(settings, "ENABLE_REGISTRATION", False):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+
+    if auth_data.is_authenticated:
+        return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
+
+    return render_home_page(
+        request=request,
+        auth_data=auth_data,
+        csrf_service=csrf_service,
+        settings=settings,
+        auth_error_code=auth_error,
+        auth_mode="register",
     )
 
 
@@ -120,7 +145,7 @@ async def ui_component_catalog(
 
 
 @router.get("/{slug}", response_class=HTMLResponse)
-async def ui_preview(
+async def ui_shared_drop(
     request: Request,
     slug: str,
     settings: Settings = Depends(get_app_settings),

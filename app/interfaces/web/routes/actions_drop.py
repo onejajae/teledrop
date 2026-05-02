@@ -48,7 +48,7 @@ from app.interfaces.web.action_support import (
 )
 from app.interfaces.web.presenters.common import (
     drop_manage_page_url,
-    drop_preview_page_url,
+    drop_page_url,
     finalize_ui_response,
     unauthorized_ui_response,
 )
@@ -304,7 +304,7 @@ async def ui_upload(
     title: str | None = Form(default=None),
     description: str | None = Form(default=None),
     password: str | None = Form(default=None),
-    user_only: bool = Form(default=True),
+    access_scope: AccessScope = Form(default=AccessScope.PRIVATE),
     csrf_token: str = Form(default=""),
 ):
     guard_response = await _guard_upload_mutation(
@@ -333,8 +333,6 @@ async def ui_upload(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             upload_error_message="업로드 가능한 파일 크기를 초과했습니다.",
         )
-
-    access_scope = AccessScope.PRIVATE if user_only else AccessScope.PUBLIC
 
     try:
         created = await create_drop_use_case.execute(
@@ -436,7 +434,7 @@ async def ui_unlock_drop(
         redirect_url = (
             drop_manage_page_url(slug)
             if normalized_target_view == "manage"
-            else drop_preview_page_url(slug)
+            else drop_page_url(slug)
         )
         response = _redirect_to(redirect_url, hx_request=is_hx_request(request))
         if issued_grant is not None:
@@ -487,7 +485,6 @@ async def ui_update_drop_detail(
             UpdateDropCommand(
                 slug=slug,
                 auth=auth_data,
-                current_password=None,
                 title=title,
                 description=description,
             )
@@ -520,7 +517,6 @@ async def ui_update_drop_favorite(
             UpdateDropCommand(
                 slug=slug,
                 auth=auth_data,
-                current_password=None,
                 is_favorite=favorite,
             )
         ),
@@ -536,14 +532,14 @@ async def ui_update_drop_access(
     csrf_service: CsrfTokenService = Depends(get_csrf_token_service),
     get_drop_meta_use_case: GetDropMetaUseCase = Depends(get_get_drop_meta_use_case),
     update_drop_use_case: UpdateDropUseCase = Depends(get_update_drop_use_case),
-    user_only: bool = Form(),
+    access_scope: AccessScope = Form(),
     csrf_token: str = Form(default=""),
 ):
-    access_scope = AccessScope.PRIVATE if user_only else AccessScope.PUBLIC
+    private_scope = access_scope == AccessScope.PRIVATE
     return await _handle_drop_mutation(
         request=request,
         slug=slug,
-        status_message="공유가 중단되었습니다." if user_only else "공유가 시작되었습니다.",
+        status_message="공유가 중단되었습니다." if private_scope else "공유가 시작되었습니다.",
         csrf_token=csrf_token,
         auth_data=auth_data,
         csrf_service=csrf_service,
@@ -553,7 +549,6 @@ async def ui_update_drop_access(
             UpdateDropCommand(
                 slug=slug,
                 auth=auth_data,
-                current_password=None,
                 access_scope=access_scope,
             )
         ),
@@ -616,7 +611,6 @@ async def ui_update_drop_password(
             UpdateDropCommand(
                 slug=slug,
                 auth=auth_data,
-                current_password=None,
                 new_password=normalized_new_password,
             )
         )
@@ -677,7 +671,6 @@ async def ui_delete_drop(
             DeleteDropCommand(
                 slug=slug,
                 auth=auth_data,
-                current_password=None,
             )
         ),
     )

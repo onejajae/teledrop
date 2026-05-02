@@ -82,6 +82,12 @@ class TestDropSlugService:
             await service.resolve('api')
         with pytest.raises(DropSlugUnavailableError):
             await service.resolve('drops')
+        with pytest.raises(DropSlugUnavailableError):
+            await service.resolve('register')
+        with pytest.raises(DropSlugUnavailableError):
+            await service.resolve('login')
+        with pytest.raises(DropSlugUnavailableError):
+            await service.resolve('logout')
 
     async def test_manual_slug_duplicate_raises(self):
         repo = _Repo()
@@ -114,5 +120,6 @@ class TestDropSlugService:
         service = DropSlugService(repository=repo, candidate_generator=_CandidateGenerator(['x']))
         assert not await service.is_available('')
         assert not await service.is_available('api')
+        assert not await service.is_available('register')
         assert not await service.is_available('used')
         assert await service.is_available('free')

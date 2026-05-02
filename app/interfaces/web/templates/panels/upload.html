@@ -12,7 +12,7 @@
       hx-encoding="multipart/form-data" hx-post="/actions/drop/upload" hx-target="closest [data-td-swap-root]" hx-swap="innerHTML"
       data-td-controller="upload-panel" class="flex flex-1 flex-col gap-5 px-6 py-6">
       <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
-      <input type="hidden" name="user_only" value="true" />
+      <input type="hidden" name="access_scope" value="private" />
 
       <div class="flex flex-1">
         {{ upload_dropzone(prefix="upload") }}

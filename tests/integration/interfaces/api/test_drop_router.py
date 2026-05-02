@@ -275,12 +275,12 @@ class TestDropRouterIntegration:
 
         assert response.status_code == 416
 
-    def test_drop_stream_invalid_disposition_falls_back_to_attachment(self):
+    def test_drop_stream_uses_attachment_content_disposition(self):
         fake_use_cases = _FakeDropUseCases()
         fake_use_cases.add_drop("k1")
         client = _client(fake_use_cases)
 
-        response = client.get("/api/drop/k1?disposition=unexpected")
+        response = client.get("/api/drop/k1")
 
         assert response.status_code == 200
         assert response.headers["content-disposition"].startswith("attachment;")
@@ -535,11 +535,9 @@ class TestDropRouterIntegration:
 
         assert response.status_code == 200
         assert delete_drop_use_case.command is not None
-        assert delete_drop_use_case.command.current_password is None
         assert delete_drop_use_case.command.auth.user_id == "user-1"
 
-    @pytest.mark.parametrize("method", ["GET", "POST"])
-    def test_logout_clears_session_and_drop_grant_cookies(self, method: str):
+    def test_logout_clears_session_and_drop_grant_cookies(self):
         fake_use_cases = _FakeDropUseCases()
         revoke_use_case = _FakeRevokeSessionUseCase()
         client = _client(fake_use_cases, revoke_use_case=revoke_use_case)
@@ -548,7 +546,7 @@ class TestDropRouterIntegration:
         client.cookies.set("tdg_drop_2", "grant-2")
         client.cookies.set("unrelated", "keep")
 
-        response = client.request(method, "/api/auth/logout")
+        response = client.post("/api/auth/logout")
         set_cookie_headers = response.headers.get_list("set-cookie")
 
         assert response.status_code == 200
@@ -557,3 +555,10 @@ class TestDropRouterIntegration:
         assert any(header.startswith("tdg_drop_1=") for header in set_cookie_headers)
         assert any(header.startswith("tdg_drop_2=") for header in set_cookie_headers)
         assert not any(header.startswith("unrelated=") for header in set_cookie_headers)
+
+    def test_get_logout_is_not_supported(self):
+        client = _client(_FakeDropUseCases(), revoke_use_case=_FakeRevokeSessionUseCase())
+
+        response = client.get("/api/auth/logout")
+
+        assert response.status_code == 405

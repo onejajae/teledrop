@@ -71,7 +71,7 @@
 {% endcall %}
 {%- endmacro %}
 
-{% macro locked_prompt(detail_key, form_action="#", error_message=None, detail_mode="panel", is_login=false, target_view="shared", unlock_token=None) -%}
+{% macro locked_prompt(detail_slug, form_action="#", error_message=None, detail_mode="panel", is_login=false, target_view="shared", unlock_token=None) -%}
 <div class="mx-auto w-full max-w-sm space-y-5 text-center">
   <div class="space-y-4">
     {% call icon_shell(classes="mx-auto h-16 w-16") %}
@@ -102,12 +102,12 @@
 </div>
 {%- endmacro %}
 
-{% macro owner_action_group(selected_drop, selected_key, csrf_token=None, interactive=true, wrapper_classes="", chromed=true) -%}
+{% macro owner_action_group(selected_drop, selected_slug, csrf_token=None, interactive=true, wrapper_classes="", chromed=true) -%}
 {% set button_classes = "btn btn-ghost btn-sm min-w-16 rounded-xl px-3 text-base-content/70 sm:btn-square sm:min-w-0 sm:px-0" %}
 {% set danger_button_classes = "btn btn-error btn-sm min-w-16 rounded-xl px-3 sm:btn-square sm:min-w-0 sm:px-0" %}
 <div class="flex flex-wrap items-center justify-start gap-2 sm:justify-end{% if chromed %} rounded-[1rem] border border-base-300/70 bg-base-100/80 p-1 shadow-sm{% endif %}{% if wrapper_classes %} {{ wrapper_classes }}{% endif %}" aria-label="상세 관리 액션">
   {% if interactive %}
-  <form method="post" action="/actions/drop/{{ selected_key }}/favorite" class="flex">
+  <form method="post" action="/actions/drop/{{ selected_slug }}/favorite" class="flex">
     <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
     <input type="hidden" name="favorite" value="{{ 'false' if selected_drop.is_favorite else 'true' }}" />
     <button type="submit" class="{{ button_classes }}" aria-label="{% if selected_drop.is_favorite %}즐겨찾기 해제{% else %}즐겨찾기{% endif %}" title="{% if selected_drop.is_favorite %}즐겨찾기 해제{% else %}즐겨찾기{% endif %}">
@@ -116,9 +116,9 @@
     </button>
   </form>
 
-  <form method="post" action="/actions/drop/{{ selected_key }}/access" class="flex">
+  <form method="post" action="/actions/drop/{{ selected_slug }}/access" class="flex">
     <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
-    <input type="hidden" name="user_only" value="{{ 'false' if selected_drop.access_scope == 'private' else 'true' }}" />
+    <input type="hidden" name="access_scope" value="{{ 'public' if selected_drop.access_scope == 'private' else 'private' }}" />
     <button type="submit" class="{{ button_classes }}" aria-label="{% if selected_drop.access_scope == 'private' %}전체 공개{% else %}나만 보기{% endif %}" title="{% if selected_drop.access_scope == 'private' %}전체 공개{% else %}나만 보기{% endif %}">
       {% if selected_drop.access_scope == "private" %}
       {{ icon_eye() }}
@@ -151,7 +151,7 @@
   </button>
 
   {% if selected_drop.requires_password and interactive %}
-  <form method="post" action="/actions/drop/{{ selected_key }}/password" class="flex" data-td-action="confirm-submit" data-td-confirm="드롭 비밀번호를 해제하시겠습니까?">
+  <form method="post" action="/actions/drop/{{ selected_slug }}/password" class="flex" data-td-action="confirm-submit" data-td-confirm="드롭 비밀번호를 해제하시겠습니까?">
     <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
     <input type="hidden" name="new_password" value="" />
     <input type="hidden" name="confirm_password" value="" />
@@ -168,7 +168,7 @@
   {% endif %}
 
   {% if interactive %}
-  <form method="post" action="/actions/drop/{{ selected_key }}/delete" class="flex" data-td-action="confirm-submit" data-td-confirm="정말 삭제하시겠습니까?">
+  <form method="post" action="/actions/drop/{{ selected_slug }}/delete" class="flex" data-td-action="confirm-submit" data-td-confirm="정말 삭제하시겠습니까?">
     <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
     <button type="submit" class="{{ danger_button_classes }}" aria-label="삭제" title="삭제">
       {{ icon_trash() }}

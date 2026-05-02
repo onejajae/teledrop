@@ -48,7 +48,7 @@ _CURRENT_REQUIRED_COLUMNS = {
         "revoked_at",
     },
 }
-_LEGACY_TABLES = {"alembic_version", "content", "contents"}
+_INCOMPATIBLE_TABLES = {"alembic_version", "content", "contents"}
 
 
 class DatabaseSchemaIncompatibleError(RuntimeError):
@@ -69,9 +69,11 @@ def _assert_database_compatible(db_engine: Engine) -> None:
     inspector = inspect(db_engine)
     table_names = set(inspector.get_table_names())
 
-    legacy_tables = table_names & _LEGACY_TABLES
-    if legacy_tables:
-        _raise_incompatible(f"legacy table(s) found: {', '.join(sorted(legacy_tables))}")
+    incompatible_tables = table_names & _INCOMPATIBLE_TABLES
+    if incompatible_tables:
+        _raise_incompatible(
+            f"unsupported table(s) found: {', '.join(sorted(incompatible_tables))}"
+        )
 
     for table_name, required_columns in _CURRENT_REQUIRED_COLUMNS.items():
         if table_name not in table_names:

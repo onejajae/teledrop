@@ -26,7 +26,6 @@ class CreateDropCommand:
 class UpdateDropCommand:
     slug: str
     auth: AuthIdentity
-    current_password: DropPasswordCredential | None
     title: str | None | object = UNSET
     description: str | None | object = UNSET
     access_scope: AccessScope | object = UNSET
@@ -38,7 +37,6 @@ class UpdateDropCommand:
 class DeleteDropCommand:
     slug: str
     auth: AuthIdentity
-    current_password: DropPasswordCredential | None
 
 
 @dataclass(slots=True)

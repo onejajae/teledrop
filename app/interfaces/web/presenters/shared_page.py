@@ -37,7 +37,7 @@ async def shared_page_context(
         csrf_service=csrf_service,
         get_drop_meta_use_case=get_drop_meta_use_case,
         settings=settings,
-        selected_key=slug,
+        selected_slug=slug,
         credential=credential,
         use_request_grant=use_request_grant,
         detail_error_message=detail_error_message,

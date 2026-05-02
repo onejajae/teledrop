@@ -16,7 +16,7 @@
           {{ badge(detail.badge.label, tone=detail.badge.tone, appearance=detail.badge.appearance, classes="self-start sm:mr-auto") }}
           {% endif %}
           {% if detail.actions.show_owner_actions %}
-          {{ owner_action_group(detail.drop, detail.key, csrf_token=csrf_token, wrapper_classes="w-full sm:w-auto" if detail.badge.label else "w-full sm:ml-auto sm:w-auto", chromed=false) }}
+          {{ owner_action_group(detail.drop, detail.slug, csrf_token=csrf_token, wrapper_classes="w-full sm:w-auto" if detail.badge.label else "w-full sm:ml-auto sm:w-auto", chromed=false) }}
           {% endif %}
         </div>
       {% endcall %}

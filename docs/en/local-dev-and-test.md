@@ -47,7 +47,7 @@ CORS_ALLOW_ALL=true
    uv run uvicorn main:app --host 0.0.0.0 --port 8000
    ```
 
-App startup creates the current database schema automatically when the database is empty. Existing Alembic/legacy databases are rejected; back up and remove `share/database.db` before starting this version.
+App startup creates the current database schema automatically when the database is empty. Existing Alembic databases are rejected; back up and remove `share/database.db` before starting this version.
 
 ## Run Tests
 Test suites are organized by scope:

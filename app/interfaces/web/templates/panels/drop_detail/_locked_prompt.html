@@ -1,2 +1,2 @@
 {% from "macros/drop_detail.html" import locked_prompt %}
-{{ locked_prompt(detail.key, form_action=detail.forms.locked_prompt_action, error_message=detail.error.message, detail_mode=detail.mode, is_login=is_login, target_view=detail.forms.unlock_target_view, unlock_token=detail.forms.unlock_token) }}
+{{ locked_prompt(detail.slug, form_action=detail.forms.locked_prompt_action, error_message=detail.error.message, detail_mode=detail.mode, is_login=is_login, target_view=detail.forms.unlock_target_view, unlock_token=detail.forms.unlock_token) }}

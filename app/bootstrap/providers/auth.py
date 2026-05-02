@@ -8,6 +8,7 @@ from app.application.auth.ports import (
     AuthApiKeyUnitOfWorkFactory,
     AuthSessionUnitOfWorkFactory,
     UserReadRepositoryPort,
+    UserUnitOfWorkFactory,
 )
 from app.application.auth.use_cases import (
     CreateApiKeyUseCase,
@@ -15,6 +16,7 @@ from app.application.auth.use_cases import (
     DeleteApiKeyUseCase,
     ListApiKeysUseCase,
     PasswordLoginUseCase,
+    RegisterUserUseCase,
     RevokeApiKeyUseCase,
     RevokeSessionUseCase,
     VerifyApiKeyUseCase,
@@ -28,6 +30,7 @@ from app.infrastructure.db.repositories import (
 )
 from app.infrastructure.db.uow_api_key import SQLModelApiKeyUnitOfWork
 from app.infrastructure.db.uow_auth import SQLModelAuthSessionUnitOfWork
+from app.infrastructure.db.uow_user import SQLModelUserUnitOfWork
 
 
 def get_user_read_repository(
@@ -40,6 +43,12 @@ def get_auth_session_uow_factory(
     db_session_factory: sessionmaker[Session] = Depends(get_db_session_factory),
 ) -> AuthSessionUnitOfWorkFactory:
     return lambda: SQLModelAuthSessionUnitOfWork(db_session_factory)
+
+
+def get_user_uow_factory(
+    db_session_factory: sessionmaker[Session] = Depends(get_db_session_factory),
+) -> UserUnitOfWorkFactory:
+    return lambda: SQLModelUserUnitOfWork(db_session_factory)
 
 
 def get_auth_api_key_read_repository(
@@ -90,6 +99,18 @@ def get_password_login_use_case(
     )
 
 
+def get_register_user_use_case(
+    settings: Settings = Depends(get_app_settings),
+    user_uow_factory: UserUnitOfWorkFactory = Depends(get_user_uow_factory),
+    create_session_use_case: CreateSessionUseCase = Depends(get_create_session_use_case),
+) -> RegisterUserUseCase:
+    return RegisterUserUseCase(
+        uow_factory=user_uow_factory,
+        create_session_use_case=create_session_use_case,
+        registration_enabled=getattr(settings, "ENABLE_REGISTRATION", False),
+    )
+
+
 def get_create_api_key_use_case(
     api_key_uow_factory: AuthApiKeyUnitOfWorkFactory = Depends(get_auth_api_key_uow_factory),
 ) -> CreateApiKeyUseCase:
@@ -133,8 +154,10 @@ __all__ = [
     "get_delete_api_key_use_case",
     "get_list_api_keys_use_case",
     "get_password_login_use_case",
+    "get_register_user_use_case",
     "get_revoke_api_key_use_case",
     "get_revoke_session_use_case",
+    "get_user_uow_factory",
     "get_user_read_repository",
     "get_verify_api_key_use_case",
     "get_verify_session_use_case",

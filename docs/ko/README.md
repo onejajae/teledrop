@@ -117,8 +117,8 @@ docker run --detach \
 
 * 업로드 및 다운로드 보안
 > `MAX_UPLOAD_BYTES` 기본값은 1073741824 bytes(1 GiB)이며 업로드 시작 전과 실제 파일 쓰기 중 모두 적용됩니다.
-> 파일 다운로드는 항상 `Content-Disposition: attachment`를 사용합니다. `disposition=inline`은 호환성 때문에 받지만 무시됩니다.
-> 드롭 링크 비밀번호는 Argon2id 해시로 저장됩니다. 기존 평문 protected drop은 호환하지 않으므로 이 버전 사용 전 데이터베이스를 백업하고 재생성하세요.
+> 파일 다운로드는 항상 `Content-Disposition: attachment`를 사용합니다.
+> 드롭 링크 비밀번호는 Argon2id 해시로 저장됩니다. 이전 릴리스의 평문 protected drop은 호환하지 않으므로 이 버전 사용 전 데이터베이스를 백업하고 재생성하세요.
 
 * 여러 개의 워커 프로세스 실행
 > 성능 향상을 위해 `--workers` 옵션을 사용하여 워커 프로세스 개수를 지정할 수 있습니다.

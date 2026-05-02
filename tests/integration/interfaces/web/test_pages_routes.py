@@ -54,7 +54,11 @@ async def _fake_optional_session_auth(request: Request) -> AuthIdentity:
     return _anonymous_identity()
 
 
-def _client(list_api_keys_use_case: _FakeListApiKeysUseCase | None = None) -> TestClient:
+def _client(
+    list_api_keys_use_case: _FakeListApiKeysUseCase | None = None,
+    *,
+    enable_registration: bool = False,
+) -> TestClient:
     app = FastAPI()
     app.include_router(web_router)
     fake_settings = SimpleNamespace(
@@ -66,6 +70,7 @@ def _client(list_api_keys_use_case: _FakeListApiKeysUseCase | None = None) -> Te
         CSRF_SECRET_KEY="csrf-secret",
         DEFAULT_PAGE_SIZE=10,
         MAX_PAGE_SIZE=200,
+        ENABLE_REGISTRATION=enable_registration,
     )
     app.dependency_overrides[get_app_settings] = lambda: fake_settings
     app.dependency_overrides[get_verify_session_use_case] = lambda: _FakeVerifySessionUseCase()
@@ -161,6 +166,41 @@ class TestWebPagesRoutes:
 
         assert response.status_code == 200
         assert "아이디 또는 비밀번호가 올바르지 않습니다." in response.text
+
+    def test_home_hides_registration_when_disabled(self):
+        client = _client()
+
+        response = client.get("/")
+
+        assert response.status_code == 200
+        assert 'action="/actions/auth/register"' not in response.text
+        assert "회원가입" not in response.text
+
+    def test_register_route_returns_404_when_registration_disabled(self):
+        client = _client()
+
+        response = client.get("/register")
+
+        assert response.status_code == 404
+
+    def test_register_route_renders_registration_form_when_enabled(self):
+        client = _client(enable_registration=True)
+
+        response = client.get("/register")
+
+        assert response.status_code == 200
+        assert "회원가입" in response.text
+        assert 'action="/actions/auth/register"' in response.text
+        assert 'name="confirm_password"' in response.text
+
+    def test_register_route_redirects_authenticated_user_home(self):
+        client = _client(enable_registration=True)
+        client.cookies.set("session_id", "sid")
+
+        response = client.get("/register", follow_redirects=False)
+
+        assert response.status_code == 302
+        assert response.headers["location"] == "/"
 
     def test_home_clears_stale_session_cookie(self):
         app = FastAPI()

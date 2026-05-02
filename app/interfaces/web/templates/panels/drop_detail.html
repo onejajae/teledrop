@@ -1,5 +1,5 @@
 {% from "macros/ui.html" import page_section %}
-{% if not detail or not detail.key %}
+{% if not detail or not detail.slug %}
 {% include "panels/drop_detail/_empty_state.html" %}
 {% else %}
 
@@ -9,7 +9,7 @@
     {% if not (detail.requires_password and not detail.urls.download) %}
     <div class="min-w-0">
       <h2 class="text-lg font-semibold tracking-tight sm:text-xl">{{ detail.drop.title if detail.drop and detail.drop.title else
-        (detail.drop.file_name if detail.drop else detail.key) }}</h2>
+        (detail.drop.file_name if detail.drop else detail.slug) }}</h2>
     </div>
 
     <div class="border-t border-base-200/80"></div>

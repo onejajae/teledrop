@@ -187,7 +187,7 @@ class TestWebActionsSmoke:
         client = TestClient(app)
         headers = {'HX-Request': 'true'}
         client.cookies.set('session_id', 'sid')
-        upload = client.post('/actions/drop/upload', headers=headers, data={'csrf_token': 'csrf', 'slug': 'kweb', 'user_only': 'true'}, files={'file': ('hello.txt', io.BytesIO(b'hello'), 'text/plain')})
+        upload = client.post('/actions/drop/upload', headers=headers, data={'csrf_token': 'csrf', 'slug': 'kweb', 'access_scope': 'private'}, files={'file': ('hello.txt', io.BytesIO(b'hello'), 'text/plain')})
         assert upload.status_code == 204
         assert upload.headers.get('HX-Redirect') == '/drops/kweb'
         assert fake_use_cases.items['kweb']['dto'].owner_user_id == 'user-1'
@@ -201,7 +201,7 @@ class TestWebActionsSmoke:
         assert logout.status_code == 204
         assert logout.headers.get('HX-Redirect') == '/'
 
-    def test_manage_password_clear_allows_logged_in_user_without_current_password(self):
+    def test_manage_password_clear_allows_logged_in_user(self):
         app = FastAPI()
         app.include_router(web_router)
         fake_use_cases = _FakeDropUseCases()
@@ -268,7 +268,6 @@ class TestWebActionsSmoke:
         assert fake_use_cases.items['fresh']['password'] == 'newpw'
         assert fake_use_cases.items['fresh']['dto'].requires_password is True
         assert '비밀번호 입력' not in updated.text
-        assert 'name="current_password" value=' not in updated.text
         assert 'password=newpw' not in updated.text
         assert 'set-cookie' in {k.lower(): v for k, v in updated.headers.items()}
 

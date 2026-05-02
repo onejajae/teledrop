@@ -3,6 +3,7 @@
 ## Authentication
 * Password login is required for web UI access
 * `WEB_USERNAME` and `WEB_PASSWORD` are used only to bootstrap the first database-backed web user on an empty database
+* Web registration is available only when `ENABLE_REGISTRATION=true`; the default is `false`
 * REST API read endpoints accept:
   * session cookie authentication
   * `X-API-Key: tdpk_<public_id>_<secret>`
@@ -20,6 +21,7 @@ Runtime defaults and scaling notes:
 * `API_DOCS_ENABLED` defaults to `false` (enable in local/dev only)
 * `CORS_ALLOW_ALL` defaults to `false` (enable in local/dev only)
 * `MAX_UPLOAD_BYTES` defaults to `1073741824` (1 GiB) and is enforced before and during upload writes
+* `ENABLE_REGISTRATION` defaults to `false`. When disabled, the registration UI is hidden and direct registration requests return `404`
 * `BOOTSTRAP_ALLOW_INSECURE_DEFAULTS` defaults to `true` for local development
 * Production deployments should set `BOOTSTRAP_ALLOW_INSECURE_DEFAULTS=false`; with an empty database, startup then fails if `WEB_USERNAME`/`WEB_PASSWORD` are missing, `WEB_PASSWORD` is not a valid Argon2 hash, or the credentials still resolve to `admin/password`
 * `CSRF_SECRET_KEY` defaults to a per-process random value
@@ -32,21 +34,20 @@ Drop link password policy:
 * Do not reuse account passwords as drop passwords.
 * Web UI no longer carries drop passwords in the URL. A successful unlock sets a signed HttpOnly grant cookie instead.
 * Grant cookies are signed from the stored password hash material, not the raw password.
-* Legacy plaintext protected drops are intentionally incompatible; back up and recreate the database before using this version.
+* Plaintext protected drops from older releases are intentionally incompatible; back up and recreate the database before using this version.
 
 Useful auth endpoints:
 * `POST /api/auth/login`
 * `GET /api/auth/me` (session or API key)
-* `POST /api/auth/logout` (recommended)
-* `GET /api/auth/logout` (compatible)
+* `POST /api/auth/logout`
 
 ## Breaking Drop API (Reworked)
 * `GET /api/drop?page=1&page_size=50&sort=created_at|title|size_bytes&order=asc|desc`
 * `POST /api/drop` (API key only, multipart: `file`, `slug?`, `title?`, `description?`, `access_scope`, `drop_password?`)
 * `GET /api/drop/{slug}/meta` (`X-Drop-Password` header for protected drops)
-* `GET /api/drop/{slug}?disposition=attachment|inline` (`disposition=inline` is accepted for compatibility but always returns `Content-Disposition: attachment`; protected drops use `X-Drop-Password`, Range supported)
-* `PATCH /api/drop/{slug}` (API key only, JSON body: `title?`, `description?`, `access_scope?`, `is_favorite?`, `new_password?`, `current_password?`)
-* `DELETE /api/drop/{slug}` (API key only, `X-Drop-Password` header for protected drops)
+* `GET /api/drop/{slug}` (`X-Drop-Password` header for protected drops, Range supported)
+* `PATCH /api/drop/{slug}` (API key only, JSON body: `title?`, `description?`, `access_scope?`, `is_favorite?`, `new_password?`)
+* `DELETE /api/drop/{slug}` (API key only)
 * `GET /api/drop/availability/{slug}`
 
 Ownership and masking rules:
@@ -59,12 +60,12 @@ Known residual risk:
 
 ## Web Action Paths (HTMX Forms)
 * `POST /actions/auth/login`
+* `POST /actions/auth/register` (only when `ENABLE_REGISTRATION=true`)
 * `POST /actions/auth/logout`
 * `POST /actions/auth/api-keys/create`
 * `POST /actions/auth/api-keys/{public_id}/revoke`
 * `POST /actions/auth/api-keys/{public_id}/delete`
 * `POST /actions/drop/upload`
-* `POST /actions/drop/{slug}/open`
 * `POST /actions/drop/{slug}/detail`
 * `POST /actions/drop/{slug}/unlock`
 * `POST /actions/drop/{slug}/favorite`
@@ -73,7 +74,10 @@ Known residual risk:
 * `POST /actions/drop/{slug}/delete`
 
 ## HTMX SSR Web UI
-* `GET /` (login + upload/list/detail management panel)
+* `GET /` (login or upload entry page)
+* `GET /register` (registration page, only when `ENABLE_REGISTRATION=true`)
+* `GET /drops` (owned drop library)
+* `GET /drops/{slug}` (owned drop management page)
 * `GET /<FILE_SLUG>` (shared download view)
 * `GET /settings/api-keys` (web API key management page; login required; shows only the current user's keys)
 * UI write actions use CSRF-protected form submissions.

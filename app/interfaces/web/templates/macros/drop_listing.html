@@ -42,14 +42,12 @@
 {% endif %}
 {%- endmacro %}
 
-{% macro drop_list_card(item, href, title="상세 보기", hx_get=None, hx_target=None, hx_swap=None, hx_push_url=None, data_drop_key=None, data_select_key=None, public_label="전체 공개", private_label="나만 보기", attrs="") -%}
+{% macro drop_list_card(item, href, title="상세 보기", hx_get=None, hx_target=None, hx_swap=None, hx_push_url=None, public_label="전체 공개", private_label="나만 보기", attrs="") -%}
 {% set card_attrs = 'href="' ~ href ~ '" title="' ~ title ~ '"' %}
 {% if hx_get %}{% set card_attrs = card_attrs ~ ' hx-get="' ~ hx_get ~ '"' %}{% endif %}
 {% if hx_target %}{% set card_attrs = card_attrs ~ ' hx-target="' ~ hx_target ~ '"' %}{% endif %}
 {% if hx_swap %}{% set card_attrs = card_attrs ~ ' hx-swap="' ~ hx_swap ~ '"' %}{% endif %}
 {% if hx_push_url %}{% set card_attrs = card_attrs ~ ' hx-push-url="' ~ hx_push_url ~ '"' %}{% endif %}
-{% if data_drop_key %}{% set card_attrs = card_attrs ~ ' data-drop-key="' ~ data_drop_key ~ '"' %}{% endif %}
-{% if data_select_key %}{% set card_attrs = card_attrs ~ ' data-select-key="' ~ data_select_key ~ '"' %}{% endif %}
 {% if attrs %}{% set card_attrs = card_attrs ~ ' ' ~ attrs %}{% endif %}
 {% call surface_card(tag="a", classes="card-sm transition-all duration-200 hover:border-base-300 hover:bg-base-100 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-base-100", attrs=card_attrs) %}
   <div class="flex items-start gap-3.5">

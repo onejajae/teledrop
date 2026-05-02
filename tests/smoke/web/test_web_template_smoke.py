@@ -86,8 +86,7 @@ def _api_key_vm(
 
 def _detail_context(
     *,
-    key=None,
-    password=None,
+    slug=None,
     mode='panel',
     drop=None,
     requires_password=False,
@@ -95,7 +94,6 @@ def _detail_context(
     error_message=None,
     error_code=None,
     download_url=None,
-    preview_url=None,
     page_url=None,
     manage_url=None,
     badge_label=None,
@@ -114,8 +112,7 @@ def _detail_context(
     if access_granted is None:
         access_granted = bool(download_url) or bool(drop and not requires_password)
     return DetailVM(
-        key=key,
-        password=password,
+        slug=slug,
         mode=mode,
         drop=drop,
         requires_password=requires_password,
@@ -125,7 +122,6 @@ def _detail_context(
         error=DetailErrorVM(message=error_message, code=error_code),
         urls=DetailUrlsVM(
             download=download_url,
-            preview=preview_url,
             page=page_url,
             manage=manage_url,
         ),
@@ -205,11 +201,10 @@ def _full_page_cases():
                 active_nav='drops',
                 csrf_token='csrf',
                 detail=_detail_context(
-                    key='img1',
+                    slug='img1',
                     mode='manage',
                     drop=selected_drop,
                     download_url='/api/drop/img1',
-                    preview_url='/api/drop/img1?disposition=inline',
                     page_url='/img1',
                     manage_url='/drops/img1',
                     badge_label='비공개',
@@ -226,11 +221,10 @@ def _full_page_cases():
                 is_login=False,
                 csrf_token=None,
                 detail=_detail_context(
-                    key='img1',
+                    slug='img1',
                     mode='shared',
                     drop=selected_drop,
                     download_url='/api/drop/img1',
-                    preview_url='/api/drop/img1?disposition=inline',
                     page_url='/img1',
                 ),
             ),
@@ -262,7 +256,6 @@ class TestWebTemplateSmoke:
         assert '로그인' in html
         assert 'id="main-panel"' in html
         assert 'data-td-swap-root' in html
-        assert 'id="drop-panel"' not in html
 
     def test_home_page_renders_logged_in_upload_only(self):
         html = _render('pages/home.html', is_login=True, csrf_token='csrf', upload_error_message=None)
@@ -277,13 +270,28 @@ class TestWebTemplateSmoke:
         assert '로그인 실패' in html
         assert 'action="/actions/auth/login"' in html
         assert 'hx-target="closest [data-td-swap-root]"' in html
+        assert 'action="/actions/auth/register"' not in html
+
+    def test_auth_panel_renders_registration_mode_when_enabled(self):
+        html = _render(
+            'panels/auth.html',
+            auth_error_message=None,
+            registration_enabled=True,
+            auth_mode='register',
+            username_value='tester',
+        )
+        assert '회원가입' in html
+        assert 'action="/actions/auth/register"' in html
+        assert 'name="confirm_password"' in html
+        assert 'value="tester"' in html
+        assert 'href="/register"' in html
 
     def test_upload_panel_renders_logged_out_and_simplified_form(self):
         logged_out = _render('panels/upload.html', is_login=False)
         assert '로그인 후 사용할 수 있습니다' in logged_out
         form_html = _render('panels/upload.html', is_login=True, csrf_token='csrf', upload_error_message=None)
         assert 'private 상태로 생성' in form_html
-        assert 'name="user_only" value="true"' in form_html
+        assert 'name="access_scope" value="private"' in form_html
         assert '업로드 후 관리로 이동' in form_html
         assert 'data-td-controller="upload-panel"' in form_html
         assert 'data-td-role="file-input"' in form_html
@@ -294,8 +302,6 @@ class TestWebTemplateSmoke:
         assert 'aria-describedby="upload-dropzone-help upload-selected-file"' in form_html
         assert 'focus-visible:ring-2' in form_html
         assert 'data-td-role="selection"' in form_html
-        assert 'data-td-role="preview"' not in form_html
-        assert '업로드 미리보기' not in form_html
         assert 'data-td-role="submit"' in form_html
         assert 'td-logo-wordmark' not in form_html
         assert '파일을 선택하거나 끌어서 놓기' in form_html
@@ -303,12 +309,12 @@ class TestWebTemplateSmoke:
         assert '공유 링크 주소' not in form_html
         assert 'name="slug"' not in form_html
 
-    def test_detail_panel_renders_unselected_password_prompt_wrong_password_and_selected_states(self):
+    def test_detail_panel_renders_empty_prompt_wrong_password_and_selected_states(self):
         unselected = _render('panels/drop_detail.html', detail=_detail_context())
-        password_prompt = _render('panels/drop_detail.html', is_login=False, detail=_detail_context(key='locked', requires_password=True, page_url='/locked', locked_prompt_action='/actions/drop/locked/unlock'))
-        wrong_password = _render('panels/drop_detail.html', is_login=False, detail=_detail_context(key='locked', password='bad', requires_password=True, page_url='/locked', error_message='비밀번호가 올바르지 않습니다.', locked_prompt_action='/actions/drop/locked/unlock'))
+        password_prompt = _render('panels/drop_detail.html', is_login=False, detail=_detail_context(slug='locked', requires_password=True, page_url='/locked', locked_prompt_action='/actions/drop/locked/unlock'))
+        wrong_password = _render('panels/drop_detail.html', is_login=False, detail=_detail_context(slug='locked', requires_password=True, page_url='/locked', error_message='비밀번호가 올바르지 않습니다.', locked_prompt_action='/actions/drop/locked/unlock'))
         selected_drop = _drop_vm('img1', '이미지', 'img.png', 'image/png', 'public', False, False, None, size_human='123 B', size_bytes=123, created_at='2026-02-22T00:00:00Z', updated_at=None, created_at_label=None, updated_at_label=None)
-        selected = _render('panels/drop_detail.html', is_login=True, csrf_token='csrf', detail=_detail_context(key='img1', drop=selected_drop, download_url='/api/drop/img1', preview_url='/api/drop/img1?disposition=inline', page_url='/img1', status_message='저장됨'))
+        selected = _render('panels/drop_detail.html', is_login=True, csrf_token='csrf', detail=_detail_context(slug='img1', drop=selected_drop, download_url='/api/drop/img1', page_url='/img1', status_message='저장됨'))
         assert '파일을 선택하면 상세 정보를 볼 수 있습니다.' in unselected
         assert '파일을 선택해 주세요' in unselected
         assert 'rounded-[1.35rem] border border-dashed border-base-300/80 bg-base-100/70' in unselected
@@ -328,11 +334,9 @@ class TestWebTemplateSmoke:
         assert 'aria-label="링크 복사"' in selected
         assert '카드 클릭 시 다운로드' in selected
         assert '파일 다운로드' in selected
-        assert 'src="/api/drop/img1?disposition=inline"' not in selected
         assert '<video' not in selected
         assert '<audio' not in selected
         assert '<object' not in selected
-        assert '미리보기' not in selected
         assert 'join join-vertical w-full sm:w-auto sm:join-horizontal' not in selected
         assert 'data-td-action="copy-link"' in selected
         assert 'data-td-copy-url="/img1"' in selected
@@ -376,9 +380,9 @@ class TestWebTemplateSmoke:
         assert '상세 관리 액션' not in selected
 
     def test_detail_panel_renders_forbidden_and_not_found_variants(self):
-        forbidden = _render('panels/drop_detail.html', is_login=False, detail=_detail_context(key='k1', mode='shared', page_url='/k1', error_message='이 파일을 보려면 로그인이 필요합니다.', error_code='forbidden'))
-        not_found = _render('panels/drop_detail.html', is_login=False, detail=_detail_context(key='missing', page_url='/missing', error_message='파일이 존재하지 않습니다.', error_code='not_found'))
-        manage_not_found = _render('panels/drop_detail.html', is_login=True, detail=_detail_context(key='missing', mode='manage', page_url='/missing', error_message='파일이 존재하지 않습니다.', error_code='not_found'))
+        forbidden = _render('panels/drop_detail.html', is_login=False, detail=_detail_context(slug='k1', mode='shared', page_url='/k1', error_message='이 파일을 보려면 로그인이 필요합니다.', error_code='forbidden'))
+        not_found = _render('panels/drop_detail.html', is_login=False, detail=_detail_context(slug='missing', page_url='/missing', error_message='파일이 존재하지 않습니다.', error_code='not_found'))
+        manage_not_found = _render('panels/drop_detail.html', is_login=True, detail=_detail_context(slug='missing', mode='manage', page_url='/missing', error_message='파일이 존재하지 않습니다.', error_code='not_found'))
         assert '링크를 사용할 수 없습니다.' in forbidden
         assert '돌아가기' in forbidden
         assert 'alert-error' not in forbidden
@@ -401,7 +405,7 @@ class TestWebTemplateSmoke:
 
     def test_manage_page_renders_compact_management_panel(self):
         selected_drop = _drop_vm('img1', '이미지', 'img.png', 'image/png', 'private', False, False, None, size_human='123 B', size_bytes=123, created_at='2026-02-22T00:00:00Z', updated_at=None, created_at_label=None, updated_at_label=None)
-        html = _render('pages/manage_drop.html', is_login=True, active_nav='drops', csrf_token='csrf', detail=_detail_context(key='img1', mode='manage', drop=selected_drop, download_url='/api/drop/img1', preview_url='/api/drop/img1?disposition=inline', page_url='/img1', manage_url='/drops/img1', badge_label='비공개', badge_tone='warning', badge_appearance='soft', show_owner_actions=True))
+        html = _render('pages/manage_drop.html', is_login=True, active_nav='drops', csrf_token='csrf', detail=_detail_context(slug='img1', mode='manage', drop=selected_drop, download_url='/api/drop/img1', page_url='/img1', manage_url='/drops/img1', badge_label='비공개', badge_tone='warning', badge_appearance='soft', show_owner_actions=True))
         assert '목록으로' not in html
         assert '로그인된 관리자만 접근할 수 있습니다.' not in html
         assert '공유 시작' not in html
@@ -430,10 +434,9 @@ class TestWebTemplateSmoke:
 
     def test_manage_page_renders_password_clear_action_for_passworded_drop(self):
         selected_drop = _drop_vm('locked1', '잠긴 파일', 'locked.png', 'image/png', 'private', False, True, None, description=None, size_human='123 B', size_bytes=123, created_at='2026-02-22T00:00:00Z', updated_at=None, created_at_label=None, updated_at_label=None)
-        html = _render('pages/manage_drop.html', is_login=True, active_nav='drops', csrf_token='csrf', detail=_detail_context(key='locked1', mode='manage', drop=selected_drop, requires_password=True, download_url='/api/drop/locked1', preview_url='/api/drop/locked1?disposition=inline', page_url='/locked1', manage_url='/drops/locked1', badge_label='비공개', badge_tone='warning', badge_appearance='soft', show_owner_actions=True, access_granted=True, locked_prompt_action='/drops/locked1'))
+        html = _render('pages/manage_drop.html', is_login=True, active_nav='drops', csrf_token='csrf', detail=_detail_context(slug='locked1', mode='manage', drop=selected_drop, requires_password=True, download_url='/api/drop/locked1', page_url='/locked1', manage_url='/drops/locked1', badge_label='비공개', badge_tone='warning', badge_appearance='soft', show_owner_actions=True, access_granted=True, locked_prompt_action='/drops/locked1'))
         assert '목록으로' not in html
         assert '외부 공유는 꺼져 있으며 비밀번호가 설정되어 있습니다.' not in html
-        assert '현재 비밀번호를 입력하면 관리와 미리보기를 계속할 수 있습니다.' not in html
         assert 'badge badge-warning badge-soft self-start sm:mr-auto' in html
         assert 'aria-label="메타데이터 수정"' in html
         assert 'aria-label="비밀번호 해제"' in html
@@ -441,9 +444,6 @@ class TestWebTemplateSmoke:
         assert 'aria-label="즐겨찾기"' in html
         assert '>해제</span>' in html
         assert 'name="password" value=' not in html
-        assert 'name="current_password" value=' not in html
-        assert 'drop_password=' not in html
-        assert '?password=' not in html
         assert 'data-td-confirm="드롭 비밀번호를 해제하시겠습니까?"' in html
         assert 'id="detail-password-modal"' not in html
         assert '관리 패널' not in html
@@ -451,17 +451,15 @@ class TestWebTemplateSmoke:
 
     def test_manage_page_keeps_shared_badge_for_password_protected_public_drop(self):
         selected_drop = _drop_vm('shared1', '공유 파일', 'shared.png', 'image/png', 'public', False, True, None, description=None, size_human='123 B', size_bytes=123, created_at='2026-02-22T00:00:00Z', updated_at=None, created_at_label=None, updated_at_label=None)
-        html = _render('pages/manage_drop.html', is_login=True, active_nav='drops', csrf_token='csrf', detail=_detail_context(key='shared1', mode='manage', drop=selected_drop, requires_password=True, download_url='/api/drop/shared1', preview_url='/api/drop/shared1?disposition=inline', page_url='/shared1', manage_url='/drops/shared1', badge_label='공유 중', badge_tone='success', badge_appearance='soft', can_copy_link=True, show_owner_actions=True, access_granted=True, locked_prompt_action='/drops/shared1'))
+        html = _render('pages/manage_drop.html', is_login=True, active_nav='drops', csrf_token='csrf', detail=_detail_context(slug='shared1', mode='manage', drop=selected_drop, requires_password=True, download_url='/api/drop/shared1', page_url='/shared1', manage_url='/drops/shared1', badge_label='공유 중', badge_tone='success', badge_appearance='soft', can_copy_link=True, show_owner_actions=True, access_granted=True, locked_prompt_action='/drops/shared1'))
         assert '공유 중' in html
         assert 'badge badge-success badge-soft self-start sm:mr-auto' in html
         assert 'aria-label="메타데이터 수정"' in html
         assert '>비공개</span>' in html
-        assert 'drop_password=' not in html
-        assert '?password=' not in html
 
     def test_shared_page_renders_admin_bar_without_full_owner_actions(self):
         selected_drop = _drop_vm('img1', '이미지', 'img.png', 'image/png', 'public', False, False, None, size_human='123 B', size_bytes=123, created_at='2026-02-22T00:00:00Z', updated_at=None, created_at_label=None, updated_at_label=None)
-        html = _render('pages/shared_drop.html', is_login=True, csrf_token='csrf', detail=_detail_context(key='img1', mode='shared', drop=selected_drop, download_url='/api/drop/img1', preview_url='/api/drop/img1?disposition=inline', page_url='/img1', manage_url='/drops/img1', badge_label='공유 중', badge_tone='success', badge_appearance='soft', show_shared_admin_bar=True))
+        html = _render('pages/shared_drop.html', is_login=True, csrf_token='csrf', detail=_detail_context(slug='img1', mode='shared', drop=selected_drop, download_url='/api/drop/img1', page_url='/img1', manage_url='/drops/img1', badge_label='공유 중', badge_tone='success', badge_appearance='soft', show_shared_admin_bar=True))
         assert '관리자 보기' in html
         assert '관리하기' in html
         assert 'badge badge-success badge-soft' in html
@@ -582,7 +580,6 @@ class TestWebUiContract:
         assert 'dragDepth' in source
         assert 'createObjectURL' not in source
         assert 'revokeObjectURL' not in source
-        assert 'preview-image' not in source
         assert '공유 링크 주소 확인 중...' not in source
 
     def test_drop_detail_js_handles_password_modal_validation_only(self):
@@ -596,7 +593,6 @@ class TestWebUiContract:
         assert 'confirm.setAttribute("aria-describedby", describedByIds.join(" "))' in source
         assert 'submit.disabled = showMismatch;' in source
         assert '__teledropRefreshPanels' not in source
-        assert '/upload-panel' not in source
 
     def test_ui_actions_js_handles_copy_dialog_sort_and_confirm_actions(self):
         source = (static_files_dir() / 'js' / 'ui-actions.js').read_text(encoding='utf-8')

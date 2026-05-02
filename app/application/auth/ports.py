@@ -16,6 +16,15 @@ class UserRecord:
 
 
 @dataclass(slots=True)
+class UserCreateInput:
+    username: str
+    password_hash: str
+    created_at: datetime
+    updated_at: datetime
+    disabled_at: datetime | None = None
+
+
+@dataclass(slots=True)
 class AuthSessionCreateInput:
     sid: str
     user_id: str
@@ -56,6 +65,12 @@ class AuthApiKeyRecord:
 
 class UserReadRepositoryPort(Protocol):
     async def get_by_id(self, user_id: str) -> UserRecord | None: ...
+
+    async def get_by_username(self, username: str) -> UserRecord | None: ...
+
+
+class UserMutationRepositoryPort(Protocol):
+    async def create(self, data: UserCreateInput) -> UserRecord: ...
 
     async def get_by_username(self, username: str) -> UserRecord | None: ...
 
@@ -108,6 +123,23 @@ class AuthSessionUnitOfWorkPort(Protocol):
     async def rollback(self) -> None: ...
 
 
+class UserUnitOfWorkPort(Protocol):
+    repository: UserMutationRepositoryPort
+
+    async def __aenter__(self) -> "UserUnitOfWorkPort": ...
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> bool | None: ...
+
+    async def commit(self) -> None: ...
+
+    async def rollback(self) -> None: ...
+
+
 class AuthApiKeyUnitOfWorkPort(Protocol):
     repository: AuthApiKeyRepositoryPort
 
@@ -126,6 +158,7 @@ class AuthApiKeyUnitOfWorkPort(Protocol):
 
 
 AuthSessionUnitOfWorkFactory = Callable[[], AuthSessionUnitOfWorkPort]
+UserUnitOfWorkFactory = Callable[[], UserUnitOfWorkPort]
 AuthApiKeyUnitOfWorkFactory = Callable[[], AuthApiKeyUnitOfWorkPort]
 
 
@@ -140,6 +173,10 @@ __all__ = [
     "AuthSessionRecord",
     "AuthSessionUnitOfWorkFactory",
     "AuthSessionUnitOfWorkPort",
+    "UserCreateInput",
+    "UserMutationRepositoryPort",
     "UserReadRepositoryPort",
     "UserRecord",
+    "UserUnitOfWorkFactory",
+    "UserUnitOfWorkPort",
 ]

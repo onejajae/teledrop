@@ -3,6 +3,7 @@
 ## 인증
 * 웹 UI 접근은 비밀번호 로그인이 필요
 * `WEB_USERNAME`, `WEB_PASSWORD`는 빈 데이터베이스에서 첫 웹 사용자를 만드는 부트스트랩 값으로만 사용됩니다
+* 웹 회원가입은 `ENABLE_REGISTRATION=true`일 때만 사용할 수 있으며 기본값은 `false`입니다
 * REST API 읽기 엔드포인트는 다음 인증을 허용:
   * 세션 쿠키 인증
   * `X-API-Key: tdpk_<public_id>_<secret>`
@@ -20,6 +21,7 @@
 * `API_DOCS_ENABLED` 기본값은 `false` (로컬/개발 환경에서만 활성화 권장)
 * `CORS_ALLOW_ALL` 기본값은 `false` (로컬/개발 환경에서만 활성화 권장)
 * `MAX_UPLOAD_BYTES` 기본값은 `1073741824`(1 GiB)이며 업로드 시작 전과 실제 파일 쓰기 중 모두 적용됩니다
+* `ENABLE_REGISTRATION` 기본값은 `false`입니다. 꺼져 있으면 회원가입 UI가 숨겨지고 직접 가입 요청도 `404`로 처리됩니다
 * `BOOTSTRAP_ALLOW_INSECURE_DEFAULTS` 기본값은 로컬 개발 편의를 위해 `true`
 * 운영 배포는 `BOOTSTRAP_ALLOW_INSECURE_DEFAULTS=false`를 설정해야 합니다. 이때 빈 데이터베이스에서 `WEB_USERNAME`/`WEB_PASSWORD`가 누락되었거나, `WEB_PASSWORD`가 유효한 Argon2 해시가 아니거나, 여전히 `admin/password`이면 시작이 실패합니다
 * `CSRF_SECRET_KEY` 기본값은 프로세스별 랜덤 값
@@ -37,16 +39,15 @@
 주요 인증 엔드포인트:
 * `POST /api/auth/login`
 * `GET /api/auth/me` (세션 또는 API key)
-* `POST /api/auth/logout` (권장)
-* `GET /api/auth/logout` (호환)
+* `POST /api/auth/logout`
 
 ## 개편된 드롭 API (Breaking)
 * `GET /api/drop?page=1&page_size=50&sort=created_at|title|size_bytes&order=asc|desc`
 * `POST /api/drop` (API key 전용, multipart: `file`, `slug?`, `title?`, `description?`, `access_scope`, `drop_password?`)
 * `GET /api/drop/{slug}/meta` (보호된 드롭은 `X-Drop-Password` 헤더 사용)
-* `GET /api/drop/{slug}?disposition=attachment|inline` (`disposition=inline`은 호환성 때문에 받지만 항상 `Content-Disposition: attachment`로 응답합니다. 보호된 드롭은 `X-Drop-Password` 헤더 사용, Range 지원)
-* `PATCH /api/drop/{slug}` (API key 전용, JSON: `title?`, `description?`, `access_scope?`, `is_favorite?`, `new_password?`, `current_password?`)
-* `DELETE /api/drop/{slug}` (API key 전용, 보호된 드롭은 `X-Drop-Password` 헤더 사용)
+* `GET /api/drop/{slug}` (보호된 드롭은 `X-Drop-Password` 헤더 사용, Range 지원)
+* `PATCH /api/drop/{slug}` (API key 전용, JSON: `title?`, `description?`, `access_scope?`, `is_favorite?`, `new_password?`)
+* `DELETE /api/drop/{slug}` (API key 전용)
 * `GET /api/drop/availability/{slug}`
 
 소유권 및 마스킹 규칙:
@@ -59,12 +60,12 @@
 
 ## 웹 액션 경로(HTMX 폼)
 * `POST /actions/auth/login`
+* `POST /actions/auth/register` (`ENABLE_REGISTRATION=true`일 때만)
 * `POST /actions/auth/logout`
 * `POST /actions/auth/api-keys/create`
 * `POST /actions/auth/api-keys/{public_id}/revoke`
 * `POST /actions/auth/api-keys/{public_id}/delete`
 * `POST /actions/drop/upload`
-* `POST /actions/drop/{slug}/open`
 * `POST /actions/drop/{slug}/detail`
 * `POST /actions/drop/{slug}/unlock`
 * `POST /actions/drop/{slug}/favorite`
@@ -73,7 +74,10 @@
 * `POST /actions/drop/{slug}/delete`
 
 ## HTMX SSR 웹 UI
-* `GET /` (로그인 + 업로드/목록/상세 관리 패널)
+* `GET /` (로그인 또는 업로드 진입 페이지)
+* `GET /register` (회원가입 페이지, `ENABLE_REGISTRATION=true`일 때만)
+* `GET /drops` (내 드롭 목록)
+* `GET /drops/{slug}` (내 드롭 관리 페이지)
 * `GET /<파일_SLUG>` (공유 다운로드 뷰)
 * `GET /settings/api-keys` (웹 API key 관리 페이지, 로그인 필요, 현재 사용자의 키만 표시)
 * UI의 상태 변경 요청은 CSRF 보호가 적용됩니다.

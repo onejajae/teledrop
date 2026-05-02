@@ -1,12 +1,17 @@
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 
+from app.application.auth.ports import UserCreateInput
 from app.infrastructure.db.engine import create_db_engine, create_db_session_factory
 from app.infrastructure.db.models.user import UserRecord as DbUserRecord
 from app.infrastructure.db.repositories.user_repository import SQLModelUserReadRepository
+from app.infrastructure.db.uow_user import SQLModelUserUnitOfWork
 from tests.support.db import initialize_sqlite_db
 
 
@@ -38,3 +43,39 @@ class TestUserRepository:
         assert by_id is not None
         assert by_username.id == user.id.hex
         assert by_id.username == "admin"
+
+    async def test_user_unit_of_work_creates_user(self):
+        now = datetime.now(timezone.utc)
+
+        async with SQLModelUserUnitOfWork(self.session_factory) as uow:
+            created = await uow.repository.create(
+                UserCreateInput(
+                    username="tester",
+                    password_hash="hash",
+                    created_at=now,
+                    updated_at=now,
+                    disabled_at=None,
+                )
+            )
+            await uow.commit()
+
+        by_username = await self.repository.get_by_username("tester")
+
+        assert by_username is not None
+        assert by_username.id == created.id
+        assert by_username.password_hash == "hash"
+
+    async def test_user_unit_of_work_rejects_duplicate_username(self):
+        now = datetime.now(timezone.utc)
+
+        with pytest.raises(IntegrityError):
+            async with SQLModelUserUnitOfWork(self.session_factory) as uow:
+                await uow.repository.create(
+                    UserCreateInput(
+                        username="admin",
+                        password_hash="hash",
+                        created_at=now,
+                        updated_at=now,
+                        disabled_at=None,
+                    )
+                )

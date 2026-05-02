@@ -35,7 +35,7 @@ class TestDropPasswordGrantService:
 
         assert verifying_service.verify("drop-1", "secret", token) is False
 
-    def test_verify_rejects_legacy_and_malformed_tokens(self):
+    def test_verify_rejects_wrong_version_and_malformed_tokens(self):
         now = datetime(2026, 4, 19, 12, 0, tzinfo=timezone.utc)
         service = DropPasswordGrantService(
             secret_key="test-secret",
@@ -43,7 +43,7 @@ class TestDropPasswordGrantService:
             now_fn=lambda: now,
         )
 
-        assert service.verify("drop-1", "secret", "v1.legacy-signature") is False
+        assert service.verify("drop-1", "secret", "v1.previous-signature") is False
         assert service.verify("drop-1", "secret", "v2.bad-expiry.signature") is False
         assert service.verify("drop-1", "secret", "not-a-token") is False
 

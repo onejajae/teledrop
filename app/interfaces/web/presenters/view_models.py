@@ -42,7 +42,6 @@ class DetailErrorVM:
 @dataclass(slots=True, frozen=True)
 class DetailUrlsVM:
     download: str | None = None
-    preview: str | None = None
     page: str | None = None
     manage: str | None = None
 
@@ -71,8 +70,7 @@ class DetailFormsVM:
 
 @dataclass(slots=True, frozen=True)
 class DetailVM:
-    key: str | None = None
-    password: str | None = None
+    slug: str | None = None
     mode: DetailMode = "panel"
     drop: DropVM | None = None
     requires_password: bool = False

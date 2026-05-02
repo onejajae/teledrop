@@ -273,13 +273,8 @@ class GetDropStreamSourceUseCase:
 
 
 class UpdateDropUseCase:
-    def __init__(
-        self,
-        uow_factory: DropUnitOfWorkFactory,
-        grant_service: DropPasswordGrantService,
-    ):
+    def __init__(self, uow_factory: DropUnitOfWorkFactory):
         self.uow_factory = uow_factory
-        self.grant_service = grant_service
 
     async def execute(self, command: UpdateDropCommand) -> DropDetailDTO:
         async with self.uow_factory() as uow:
@@ -310,15 +305,9 @@ class UpdateDropUseCase:
 
 
 class DeleteDropUseCase:
-    def __init__(
-        self,
-        storage: DropStoragePort,
-        uow_factory: DropUnitOfWorkFactory,
-        grant_service: DropPasswordGrantService,
-    ):
+    def __init__(self, storage: DropStoragePort, uow_factory: DropUnitOfWorkFactory):
         self.storage = storage
         self.uow_factory = uow_factory
-        self.grant_service = grant_service
 
     async def execute(self, command: DeleteDropCommand) -> None:
         source_key = ""

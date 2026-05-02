@@ -50,23 +50,8 @@ async def get_user_info(
     }
 
 
-@router.get("/logout")
-async def logout(
-    request: Request,
-    response: Response,
-    settings: Settings = Depends(get_app_settings),
-    _auth_data: AuthIdentity = Depends(get_optional_session_auth),
-    revoke_session_use_case: RevokeSessionUseCase = Depends(get_revoke_session_use_case),
-):
-    session_id = get_session_id_from_request(request, settings)
-    if session_id:
-        await revoke_session_use_case.execute(session_id)
-    clear_session_cookie(response, settings)
-    clear_drop_grant_cookies(response, request, settings)
-
-
 @router.post("/logout")
-async def logout_post(
+async def logout(
     request: Request,
     response: Response,
     settings: Settings = Depends(get_app_settings),
