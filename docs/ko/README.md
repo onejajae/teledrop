@@ -139,7 +139,6 @@ docker run --detach \
 
 ## 문서
 * [인증 및 API](auth-and-api.md)
-* [다중 사용자 전환 스펙](multi-user-spec.md)
 * [마이그레이션 안내](migration.md)
 * [로컬 개발 및 테스트](local-dev-and-test.md)
 * [테스트 실행](testing.md)
