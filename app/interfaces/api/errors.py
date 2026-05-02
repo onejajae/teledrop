@@ -57,8 +57,12 @@ def invalid_range_header_exception() -> HTTPException:
     return HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
 
 
-def range_not_satisfiable_exception() -> HTTPException:
-    return HTTPException(status_code=status.HTTP_416_RANGE_NOT_SATISFIABLE)
+def range_not_satisfiable_exception(file_size: int | None = None) -> HTTPException:
+    headers = {"Content-Range": f"bytes */{file_size}"} if file_size is not None else None
+    return HTTPException(
+        status_code=status.HTTP_416_RANGE_NOT_SATISFIABLE,
+        headers=headers,
+    )
 
 
 def upload_too_large_exception() -> HTTPException:

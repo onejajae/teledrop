@@ -5,25 +5,20 @@
 
 {% include "panels/drop_detail/_alerts.html" %}
 
-{% call page_section(attrs='data-td-controller="drop-detail"') %}
-    {% if not (detail.requires_password and not detail.urls.download) %}
-    <div class="min-w-0">
-      <h2 class="text-lg font-semibold tracking-tight sm:text-xl">{{ detail.drop.title if detail.drop and detail.drop.title else
-        (detail.drop.file_name if detail.drop else detail.slug) }}</h2>
-    </div>
-
-    <div class="border-t border-base-200/80"></div>
-    {% endif %}
-
-    {% if detail.requires_password and not detail.access_granted %}
+{% if detail.requires_password and not detail.access_granted %}
+    {% call page_section(attrs='data-td-controller="drop-detail"') %}
     {% include "panels/drop_detail/_locked_prompt.html" %}
-    {% elif detail.drop %}
+    {% endcall %}
+{% elif detail.drop %}
+    <div class="flex min-w-0 flex-col gap-4" data-td-controller="drop-detail">
     {% include "panels/drop_detail/_content.html" %}
     {% if detail.mode != 'shared' and is_login %}
     {% include "panels/drop_detail/_modals.html" %}
     {% endif %}
-    {% else %}
+    </div>
+{% else %}
+    {% call page_section(attrs='data-td-controller="drop-detail"') %}
     {% include "panels/drop_detail/_error_variants.html" %}
-    {% endif %}
-{% endcall %}
+    {% endcall %}
+{% endif %}
 {% endif %}

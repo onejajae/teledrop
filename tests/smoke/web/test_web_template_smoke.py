@@ -257,6 +257,13 @@ class TestWebTemplateSmoke:
         assert 'id="main-panel"' in html
         assert 'data-td-swap-root' in html
 
+    def test_not_found_page_renders_html_error_state(self):
+        html = _render('pages/not_found.html', is_login=False, csrf_token=None)
+        assert '존재하지 않습니다.' in html
+        assert '요청한 페이지를 찾을 수 없습니다.' in html
+        assert '돌아가기' in html
+        assert '{"detail":"Not Found"}' not in html
+
     def test_home_page_renders_logged_in_upload_only(self):
         html = _render('pages/home.html', is_login=True, csrf_token='csrf', upload_error_message=None)
         assert '업로드 후 관리로 이동' in html
@@ -268,6 +275,9 @@ class TestWebTemplateSmoke:
     def test_auth_panel_renders_error_state(self):
         html = _render('panels/auth.html', auth_error_message='로그인 실패')
         assert '로그인 실패' in html
+        assert 'class="flex min-w-0 w-full flex-1 flex-col gap-4"' in html
+        assert 'max-w-xs' not in html
+        assert 'sm:max-w-md' not in html
         assert 'action="/actions/auth/login"' in html
         assert 'hx-target="closest [data-td-swap-root]"' in html
         assert 'action="/actions/auth/register"' not in html
@@ -313,8 +323,12 @@ class TestWebTemplateSmoke:
         unselected = _render('panels/drop_detail.html', detail=_detail_context())
         password_prompt = _render('panels/drop_detail.html', is_login=False, detail=_detail_context(slug='locked', requires_password=True, page_url='/locked', locked_prompt_action='/actions/drop/locked/unlock'))
         wrong_password = _render('panels/drop_detail.html', is_login=False, detail=_detail_context(slug='locked', requires_password=True, page_url='/locked', error_message='비밀번호가 올바르지 않습니다.', locked_prompt_action='/actions/drop/locked/unlock'))
-        selected_drop = _drop_vm('img1', '이미지', 'img.png', 'image/png', 'public', False, False, None, size_human='123 B', size_bytes=123, created_at='2026-02-22T00:00:00Z', updated_at=None, created_at_label=None, updated_at_label=None)
+        selected_drop = _drop_vm('img1', '이미지', 'img.png', 'image/png', 'public', False, False, '5분 전', description='클라이언트 공유용 제품 사진입니다.', size_human='123 B', size_bytes=123, created_at='2026-02-22T00:00:00Z', updated_at='2026-02-23T00:00:00Z', created_at_label=None, updated_at_label=None)
         selected = _render('panels/drop_detail.html', is_login=True, csrf_token='csrf', detail=_detail_context(slug='img1', drop=selected_drop, download_url='/api/drop/img1', page_url='/img1', status_message='저장됨'))
+        pdf_drop = _drop_vm('guide1', '가이드', 'guide.pdf', 'application/pdf', 'public', False, False, '10분 전', description='PDF 설명입니다.', size_human='42 KB', size_bytes=43008, created_at='2026-02-22T00:00:00Z', updated_at=None, created_at_label=None, updated_at_label=None)
+        pdf_selected = _render('panels/drop_detail.html', is_login=True, csrf_token='csrf', detail=_detail_context(slug='guide1', drop=pdf_drop, download_url='/api/drop/guide1', page_url='/guide1', status_message='저장됨'))
+        video_drop = _drop_vm('clip1', '클립', 'clip.mp4', 'video/mp4', 'public', False, False, '3분 전', description='동영상 설명입니다.', size_human='9.80 MB', size_bytes=10276045, created_at='2026-02-22T00:00:00Z', updated_at=None, created_at_label=None, updated_at_label=None)
+        video_selected = _render('panels/drop_detail.html', is_login=True, csrf_token='csrf', detail=_detail_context(slug='clip1', drop=video_drop, download_url='/api/drop/clip1', page_url='/clip1', status_message='저장됨'))
         assert '파일을 선택하면 상세 정보를 볼 수 있습니다.' in unselected
         assert '파일을 선택해 주세요' in unselected
         assert 'rounded-[1.35rem] border border-dashed border-base-300/80 bg-base-100/70' in unselected
@@ -330,12 +344,43 @@ class TestWebTemplateSmoke:
         assert '링크 복사' in selected
         assert 'image/png' not in selected
         assert '(123 bytes)' not in selected
-        assert 'aria-label="img.png 다운로드"' in selected
         assert 'aria-label="링크 복사"' in selected
-        assert '카드 클릭 시 다운로드' in selected
+        assert 'aria-label="img.png 다운로드"' not in selected
+        assert '카드 클릭 시 다운로드' not in selected
         assert '<img src="/api/drop/img1?disposition=inline"' in selected
         assert 'alt="img.png"' in selected
-        assert 'pointer-events-auto absolute inset-0 z-0' in selected
+        assert 'class="h-auto w-full"' in selected
+        assert '<iframe' not in selected
+        assert '설명' in selected
+        assert '클라이언트 공유용 제품 사진입니다.' in selected
+        assert '<h2 class="max-w-full break-words text-lg font-semibold tracking-tight sm:text-xl">이미지</h2>' in selected
+        assert '<span class="text-xs font-medium text-base-content/55">5분 전</span>' in selected
+        assert 'class="tooltip tooltip-bottom" data-tip="2026-02-22T00:00:00Z" tabindex="0" aria-label="등록 시간: 2026-02-22T00:00:00Z"' in selected
+        assert 'data-tip="2026-02-22T00:00:00Z" title=' not in selected
+        assert 'data-tip="링크 복사" data-td-action="copy-link" data-td-copy-url="/img1" aria-label="링크 복사"' in selected
+        assert 'data-tip="링크 복사" title=' not in selected
+        assert 'download aria-label="다운로드" data-tip="다운로드"' in selected
+        assert 'data-tip="다운로드" title=' not in selected
+        assert selected.index('<h2 class="max-w-full break-words text-lg font-semibold tracking-tight sm:text-xl">이미지</h2>') < selected.index('data-td-copy-url="/img1"') < selected.index('<img src="/api/drop/img1?disposition=inline"')
+        assert selected.index('<h2 class="max-w-full break-words text-lg font-semibold tracking-tight sm:text-xl">이미지</h2>') < selected.index('5분 전') < selected.index('<img src="/api/drop/img1?disposition=inline"')
+        assert selected.index('<img src="/api/drop/img1?disposition=inline"') < selected.index('클라이언트 공유용 제품 사진입니다.')
+        assert selected.index('클라이언트 공유용 제품 사진입니다.') < selected.index('파일 다운로드')
+        assert 'mt-1 break-words whitespace-pre-wrap text-sm text-base-content/70' in selected
+        assert 'card-title text-base' not in selected
+        assert 'flex flex-wrap gap-x-3 gap-y-1 text-xs text-base-content/70' not in selected
+        assert 'grid gap-2 border-t border-base-200/80 pt-4 text-sm' in selected
+        assert 'sm:grid-cols-[5rem_minmax(0,1fr)]' in selected
+        assert '파일 크기' in selected
+        assert '등록 시간' in selected
+        assert '수정 시간' in selected
+        download_index = selected.index('파일 다운로드')
+        assert selected.index('data-td-copy-url="/img1"') < download_index
+        assert download_index < selected.index('파일 크기', download_index) < selected.index('123 B')
+        assert download_index < selected.index('등록 시간', download_index) < selected.index('2026-02-22T00:00:00Z', download_index)
+        assert download_index < selected.index('수정 시간', download_index) < selected.index('2026-02-23T00:00:00Z')
+        assert '2026-02-22T00:00:00Z 에 업로드' not in selected
+        assert ' 에 업로드' not in selected
+        assert 'pointer-events-auto absolute inset-0 z-0' not in selected
         assert '파일 다운로드' in selected
         assert '<video' not in selected
         assert '<audio' not in selected
@@ -345,8 +390,9 @@ class TestWebTemplateSmoke:
         assert 'data-td-copy-url="/img1"' in selected
         assert 'data-td-controller="drop-detail"' in selected
         assert 'data-td-detail-key' not in selected
-        assert 'rounded-[1.75rem] border border-base-300/70 bg-gradient-to-b from-base-100 to-base-200/45 shadow-sm' in selected
-        assert 'card w-full max-w-full min-w-0 overflow-hidden rounded-[1.35rem] border border-base-300/70 bg-base-100/85 shadow-sm group relative transition-colors duration-200' in selected
+        assert 'class="flex min-w-0 flex-col gap-4" data-td-controller="drop-detail"' in selected
+        assert 'rounded-[1.75rem] border border-base-300/70 bg-gradient-to-b from-base-100 to-base-200/45 shadow-sm" data-td-controller="drop-detail"' not in selected
+        assert 'card w-full max-w-full min-w-0 overflow-hidden rounded-[1.35rem] border border-base-300/70 bg-base-100/85 shadow-sm relative' in selected
         assert 'id="detail-edit-modal"' in selected
         assert 'id="detail-password-modal"' in selected
         assert 'data-td-dialog="detail-edit-modal"' in selected
@@ -382,6 +428,20 @@ class TestWebTemplateSmoke:
         assert 'aria-label="즐겨찾기"' not in selected
         assert 'aria-label="나만 보기"' not in selected
         assert '상세 관리 액션' not in selected
+        assert '<iframe src="/api/drop/guide1?disposition=inline"' in pdf_selected
+        assert 'title="guide.pdf 미리보기"' in pdf_selected
+        assert 'class="h-[70vh] min-h-[28rem] w-full bg-base-100"' in pdf_selected
+        assert '<img src="/api/drop/guide1?disposition=inline"' not in pdf_selected
+        assert 'PDF 설명입니다.' in pdf_selected
+        assert pdf_selected.index('<h2 class="max-w-full break-words text-lg font-semibold tracking-tight sm:text-xl">가이드</h2>') < pdf_selected.index('<iframe src="/api/drop/guide1?disposition=inline"')
+        assert pdf_selected.index('<iframe src="/api/drop/guide1?disposition=inline"') < pdf_selected.index('PDF 설명입니다.')
+        assert '<video class="max-h-[70vh] min-h-[14rem] w-full bg-black" controls preload="metadata" playsinline>' in video_selected
+        assert '<source src="/api/drop/clip1?disposition=inline#t=0.001" type="video/mp4" />' in video_selected
+        assert '<img src="/api/drop/clip1?disposition=inline"' not in video_selected
+        assert '<iframe src="/api/drop/clip1?disposition=inline"' not in video_selected
+        assert '동영상 설명입니다.' in video_selected
+        assert video_selected.index('<h2 class="max-w-full break-words text-lg font-semibold tracking-tight sm:text-xl">클립</h2>') < video_selected.index('<video class="max-h-[70vh] min-h-[14rem] w-full bg-black"')
+        assert video_selected.index('<video class="max-h-[70vh] min-h-[14rem] w-full bg-black"') < video_selected.index('동영상 설명입니다.')
 
     def test_detail_panel_renders_forbidden_and_not_found_variants(self):
         forbidden = _render('panels/drop_detail.html', is_login=False, detail=_detail_context(slug='k1', mode='shared', page_url='/k1', error_message='이 파일을 보려면 로그인이 필요합니다.', error_code='forbidden'))
@@ -419,16 +479,28 @@ class TestWebTemplateSmoke:
         assert '관리 패널' not in html
         assert 'rounded-[1.15rem] border border-base-300/70 bg-base-100/70 p-3 shadow-sm' not in html
         assert 'rounded-[1rem] border border-base-300/70 bg-base-100/80 p-1 shadow-sm' not in html
+        assert 'rounded-[1.75rem] border border-base-300/70 bg-gradient-to-b from-base-100 to-base-200/45 shadow-sm overflow-visible' in html
         assert 'aria-label="메타데이터 수정"' in html
         assert 'aria-label="비밀번호 설정"' in html
         assert 'aria-label="삭제"' in html
         assert 'aria-label="즐겨찾기"' in html
         assert 'aria-label="전체 공개"' in html
+        assert 'tooltip tooltip-bottom flex min-w-0 sm:shrink-0" data-tip="즐겨찾기"' in html
+        assert 'tooltip tooltip-bottom flex min-w-0 sm:shrink-0" data-tip="전체 공개"' in html
+        assert 'tooltip tooltip-bottom w-full" data-tip="메타데이터 수정"' in html
+        assert 'tooltip tooltip-bottom w-full" data-tip="비밀번호 설정"' in html
+        assert 'tooltip tooltip-bottom flex min-w-0 sm:shrink-0" data-tip="삭제"' in html
+        assert 'data-tip="즐겨찾기" title=' not in html
+        assert 'data-tip="전체 공개" title=' not in html
+        assert 'data-tip="메타데이터 수정" aria-label="메타데이터 수정" title=' not in html
+        assert 'data-tip="비밀번호 설정" aria-label="비밀번호 설정" title=' not in html
+        assert 'data-tip="삭제" title=' not in html
         assert 'flex w-full items-center gap-3' not in html
         assert 'badge badge-warning badge-soft self-start sm:mr-auto' in html
         assert 'grid grid-cols-5 items-center gap-1.5 sm:flex sm:flex-wrap sm:justify-end sm:gap-2 w-full sm:w-auto' in html
         assert 'style="max-width: calc(100vw - 4.5rem);"' in html
         assert 'sm:btn-square' in html
+        assert 'sm:h-9 sm:w-9 sm:min-w-9 sm:px-0' in html
         assert '>즐겨</span>' in html
         assert '>공개</span>' in html
         assert '>수정</span>' in html
@@ -488,6 +560,7 @@ class TestWebTemplateSmoke:
         assert 'Web Components' in html
         assert 'Foundation' in html
         assert 'Drop Composites' in html
+        assert 'Preview card' in html
         assert 'launch-kit.pdf' in html
         assert 'catalog-edit-modal' in html
         assert 'max-w-[50rem]' in html
@@ -501,6 +574,17 @@ class TestWebUiContract:
         assert package_json['devDependencies']['htmx.org'] == '2.0.8'
         assert 'var htmx=function()' in vendor_source
         assert 'https://cdn.jsdelivr.net/npm/htmx.org' not in vendor_source
+
+    def test_pretendard_is_fetched_and_vendored_during_ui_build(self):
+        package_json = json.loads((Path(__file__).parents[3] / 'ui-build' / 'package.json').read_text(encoding='utf-8'))
+        copy_script = (Path(__file__).parents[3] / 'ui-build' / 'scripts' / 'copy-vendor-assets.mjs').read_text(encoding='utf-8')
+
+        assert package_json['devDependencies']['pretendard'] == '1.3.9'
+        assert 'ui-build/node_modules/pretendard/dist/web/variable/pretendardvariable.css' in copy_script
+        assert 'ui-build/node_modules/pretendard/dist/web/variable/woff2' in copy_script
+        assert 'app/interfaces/web/static/vendor/pretendard/variable/pretendardvariable.css' in copy_script
+        assert 'app/interfaces/web/static/vendor/pretendard/variable/woff2' in copy_script
+        assert 'cdn.jsdelivr.net' not in copy_script
 
     def test_full_pages_bootstrap_theme_before_css(self):
         theme = load_web_theme_payload()
@@ -619,6 +703,9 @@ class TestWebUiContract:
         assert 'event.detail.isError = false' in source
         assert 'content-type' in source
         assert 'copyPreviewUrl' not in source
+        assert 'trigger.setAttribute("data-tip", "링크 복사됨")' in source
+        assert 'trigger.removeAttribute("title")' in source
+        assert 'trigger.setAttribute("title", "링크 복사됨")' not in source
 
     def test_web_templates_use_data_td_contracts_without_inline_handlers(self):
         combined = '\n'.join(
@@ -645,7 +732,12 @@ class TestWebUiContract:
 
     def test_css_keeps_theme_tokens_and_brand_logo_rules_only(self):
         source = (static_files_dir() / 'css' / 'input.css').read_text(encoding='utf-8')
+        assert '@import url("/static/vendor/pretendard/variable/pretendardvariable.css");' in source
+        assert 'cdn.jsdelivr.net/gh/orioncactus/pretendard' not in source
         assert '@import "./generated/theme-tokens.css";' in source
+        assert '--font-sans: "Pretendard Variable", "Pretendard", system-ui, sans-serif;' in source
+        assert 'font-family: var(--font-sans);' in source
+        assert 'code,\n  kbd,\n  pre,\n  samp' in source
         assert '.card,' in source
         assert '.modal-box' in source
         assert '.td-page-panel' not in source

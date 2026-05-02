@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.application.auth.types import AuthIdentity
@@ -14,11 +14,39 @@ from app.interfaces.web.presenters.component_catalog import render_component_cat
 from app.interfaces.web.presenters.home_page import render_home_page
 from app.interfaces.web.presenters.library_page import render_library_page
 from app.interfaces.web.presenters.manage_page import render_manage_page
-from app.interfaces.web.presenters.common import unauthorized_ui_response
+from app.interfaces.web.presenters.common import (
+    base_template_context,
+    finalize_ui_response,
+    templates,
+    unauthorized_ui_response,
+)
 from app.interfaces.web.presenters.shared_page import render_shared_page
 
 
 router = APIRouter()
+
+
+def render_web_not_found_page(
+    request: Request,
+    auth_data: AuthIdentity,
+    csrf_service: CsrfTokenService,
+    settings: Settings,
+):
+    return finalize_ui_response(
+        request,
+        templates().TemplateResponse(
+            request=request,
+            name="pages/not_found.html",
+            context=base_template_context(
+                request=request,
+                auth_data=auth_data,
+                settings=settings,
+                csrf_service=csrf_service,
+            ),
+            status_code=status.HTTP_404_NOT_FOUND,
+        ),
+        settings,
+    )
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -48,7 +76,12 @@ async def ui_register(
     auth_error: str | None = Query(default=None),
 ):
     if not getattr(settings, "ENABLE_REGISTRATION", False):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+        return render_web_not_found_page(
+            request=request,
+            auth_data=auth_data,
+            csrf_service=csrf_service,
+            settings=settings,
+        )
 
     if auth_data.is_authenticated:
         return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)

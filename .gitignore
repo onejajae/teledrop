@@ -18,6 +18,7 @@ ui-build/node_modules/
 # generated UI assets
 app/interfaces/web/static/gen/*
 !app/interfaces/web/static/gen/.gitkeep
+app/interfaces/web/static/vendor/pretendard/
 
 # macOS 
 .DS_Store

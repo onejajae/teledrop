@@ -2,8 +2,9 @@
 {% from "macros/icons.html" import icon_arrow_down_tray, icon_document_duplicate, icon_eye, icon_eye_slash, icon_information_circle, icon_lock_closed, icon_pencil_square, icon_star, icon_trash, icon_x_circle %}
 {% from "macros/ui.html" import alert, badge, button, field, icon_shell, inset_surface, page_section, surface_card, text_input, textarea_input %}
 
-{% macro copy_link_button(page_url, kind="outline", size="sm", classes="", label_classes="", label="링크 복사") -%}
-{% call button(kind=kind, size=size, classes=classes, attrs='data-td-action="copy-link" data-td-copy-url="' ~ page_url ~ '" aria-label="' ~ label ~ '" title="' ~ label ~ '"') %}
+{% macro copy_link_button(page_url, kind="outline", size="sm", classes="", label_classes="", label="링크 복사", tooltip_position="tooltip-bottom") -%}
+{% set resolved_classes = "tooltip " ~ tooltip_position ~ (" " ~ classes if classes else "") %}
+{% call button(kind=kind, size=size, classes=resolved_classes, attrs='data-tip="' ~ label ~ '" data-td-action="copy-link" data-td-copy-url="' ~ page_url ~ '" aria-label="' ~ label ~ '"') %}
   {{ icon_document_duplicate() }}
   <span data-td-role="copy-label"{% if label_classes %} class="{{ label_classes }}"{% endif %}>{{ label }}</span>
 {% endcall %}
@@ -11,93 +12,117 @@
 
 {% macro detail_action_bar(download_url, page_url, can_copy_link=true, detail_mode="panel") -%}
 <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-  {% call button(href=download_url, kind="primary", size="sm", classes="w-full rounded-xl sm:w-auto", attrs='download aria-label="다운로드" title="다운로드"') %}
+  {% call button(href=download_url, kind="primary", size="sm", classes="tooltip tooltip-bottom w-full rounded-xl sm:w-auto", attrs='download aria-label="다운로드" data-tip="다운로드"') %}
     {{ icon_arrow_down_tray() }}
     <span class="sm:hidden">다운로드</span>
   {% endcall %}
-  {% if can_copy_link and page_url %}
-  {{ copy_link_button(page_url, classes="w-full rounded-xl sm:w-auto", label_classes="sm:hidden") }}
-  {% elif detail_mode == "manage" %}
-  {% call button(kind="outline", size="sm", classes="w-full rounded-xl sm:w-auto", attrs='aria-label="공유 시작 후 링크 복사 가능" title="공유 시작 후 링크 복사 가능"', disabled=true) %}
-    {{ icon_document_duplicate() }}
-    <span class="sm:hidden">공유 시작 후 링크 복사 가능</span>
-  {% endcall %}
-  {% endif %}
 </div>
 {%- endmacro %}
 
-{% macro metadata_card(selected_drop, download_url=None, page_url=None, can_copy_link=false) -%}
-{% set card_classes = "group relative transition-colors duration-200" ~ (" hover:border-primary/25 hover:bg-base-100" if download_url else "") %}
+{% macro preview_card(detail=None, selected_drop=None, download_url=None, page_url=None, can_copy_link=None) -%}
+{% set selected_drop = selected_drop or detail.drop %}
+{% set download_url = download_url if download_url is not none else (detail.urls.download if detail else none) %}
+{% set page_url = page_url if page_url is not none else (detail.urls.page if detail else none) %}
+{% set can_show_copy_link = can_copy_link if can_copy_link is not none else (detail.actions.can_copy_link if detail else false) %}
+{% set preview_title = selected_drop.title if selected_drop.title else (selected_drop.file_name if selected_drop.file_name else (detail.slug if detail else "미리보기")) %}
+{% set created_at_detail = selected_drop.created_at_label or selected_drop.created_at %}
+{% set preview_mime_type = selected_drop.mime_type or "" %}
 {% set preview_mime_types = ["image/avif", "image/gif", "image/jpeg", "image/png", "image/webp"] %}
-{% set is_image_preview = download_url and selected_drop.mime_type in preview_mime_types %}
+{% set is_image_preview = download_url and preview_mime_type in preview_mime_types %}
+{% set is_pdf_preview = download_url and preview_mime_type == "application/pdf" %}
+{% set is_video_preview = download_url and preview_mime_type.startswith("video/") %}
+{% set has_preview_viewer = is_image_preview or is_pdf_preview or is_video_preview %}
 {% set preview_separator = "&" if download_url and "?" in download_url else "?" %}
-{% set image_preview_url = download_url ~ preview_separator ~ "disposition=inline" if is_image_preview else None %}
-{% call surface_card(classes=card_classes, body_classes="relative z-10 gap-4") %}
-  {% if download_url %}
-  <a href="{{ download_url }}" download
-    class="pointer-events-auto absolute inset-0 z-0 rounded-[1.35rem] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-inset"
-    aria-label="{{ (selected_drop.file_name or selected_drop.title or '파일') ~ ' 다운로드' }}">
-    <span class="sr-only">{{ selected_drop.file_name or selected_drop.title or "파일" }} 다운로드</span>
-  </a>
-  {% endif %}
-
-  <div class="{% if download_url %}pointer-events-none {% endif %}relative z-10 min-w-0 space-y-4">
-    {% if is_image_preview %}
-    <div class="overflow-hidden rounded-[1rem] border border-base-300/70 bg-base-200/55">
-      <img src="{{ image_preview_url }}" alt="{{ selected_drop.file_name or selected_drop.title or '이미지 미리보기' }}" loading="lazy" class="max-h-[22rem] w-full object-contain" />
-    </div>
-    {% endif %}
-
-    <div class="flex min-w-0 flex-row items-start gap-4">
-      {% call icon_shell(classes="h-12 w-12 shrink-0") %}
-        {{ file_icon(selected_drop.mime_type, "h-10 w-10") }}
-      {% endcall %}
-
-      <div class="min-w-0 flex-1 space-y-1 text-sm">
-        <p class="card-title text-base">
-          <span class="block max-w-full truncate">{{ selected_drop.file_name }}</span>
-        </p>
-        <p class="opacity-80">
-          {% if selected_drop.size_human %}
-          {{ selected_drop.size_human }}
-          {% else %}
-          {{ selected_drop.size_bytes }} bytes
-          {% endif %}
-        </p>
-        <p class="opacity-80">
-          {{ selected_drop.created_at_label or selected_drop.created_at }} 에 업로드
-          {% if selected_drop.created_at_relative %}
-          <span class="opacity-70">({{ selected_drop.created_at_relative }})</span>
-          {% endif %}
-        </p>
-        {% if selected_drop.updated_at %}
-        <p class="opacity-70">수정: {{ selected_drop.updated_at_label or selected_drop.updated_at }}</p>
-        {% endif %}
-        {% if download_url %}
-        <p class="text-xs font-medium uppercase tracking-[0.18em] text-base-content/45">카드 클릭 시 다운로드</p>
+{% set inline_preview_url = download_url ~ preview_separator ~ "disposition=inline" if has_preview_viewer else None %}
+{% set text_x_classes = "px-0" if has_preview_viewer else "px-5" %}
+{% set text_y_classes = "py-2" if has_preview_viewer else "py-4" %}
+{% call surface_card(classes="relative", body_classes="relative z-10 gap-0 p-0") %}
+  <div class="{{ text_x_classes }} {{ text_y_classes }}{% if has_preview_viewer or selected_drop.description %} border-b border-base-200/80{% endif %}">
+    <div class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div class="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-1">
+        <h2 class="max-w-full break-words text-lg font-semibold tracking-tight sm:text-xl">{{ preview_title }}</h2>
+        {% if selected_drop.created_at_relative %}
+        <span class="tooltip tooltip-bottom" data-tip="{{ created_at_detail }}" tabindex="0" aria-label="등록 시간: {{ created_at_detail }}">
+          <span class="text-xs font-medium text-base-content/55">{{ selected_drop.created_at_relative }}</span>
+        </span>
         {% endif %}
       </div>
+      {% if can_show_copy_link and page_url %}
+      <div class="shrink-0 self-end sm:self-start">
+        {{ copy_link_button(page_url, kind="ghost", classes="rounded-xl border border-base-300/70 bg-base-100/90 px-3 hover:bg-base-100", label_classes="sr-only") }}
+      </div>
+      {% endif %}
     </div>
   </div>
 
-  {% if can_copy_link and page_url %}
-  <div class="pointer-events-auto relative z-20 shrink-0">
-    {{ copy_link_button(page_url, kind="ghost", classes="rounded-xl border border-base-300/70 bg-base-100/90 px-3 hover:bg-base-100") }}
+  {% if is_image_preview %}
+  <div class="w-full overflow-hidden bg-base-200/55{% if selected_drop.description %} border-b border-base-300/70{% endif %}">
+    <img src="{{ inline_preview_url }}" alt="{{ selected_drop.file_name or selected_drop.title or '이미지 미리보기' }}" loading="lazy" class="h-auto w-full" />
+  </div>
+  {% elif is_pdf_preview %}
+  <div class="w-full overflow-hidden bg-base-200/55{% if selected_drop.description %} border-b border-base-300/70{% endif %}">
+    <iframe src="{{ inline_preview_url }}" title="{{ (selected_drop.file_name or selected_drop.title or 'PDF') ~ ' 미리보기' }}" loading="lazy" class="h-[70vh] min-h-[28rem] w-full bg-base-100"></iframe>
+  </div>
+  {% elif is_video_preview %}
+  <div class="w-full overflow-hidden bg-base-200/55{% if selected_drop.description %} border-b border-base-300/70{% endif %}">
+    <video class="max-h-[70vh] min-h-[14rem] w-full bg-black" controls preload="metadata" playsinline>
+      <source src="{{ inline_preview_url }}#t=0.001" type="{{ preview_mime_type }}" />
+      이 브라우저에서는 미리보기가 지원되지 않습니다.
+    </video>
+  </div>
+  {% endif %}
+
+  {% if selected_drop.description %}
+  <div class="relative z-10 min-w-0 {{ text_x_classes }} {{ text_y_classes }}">
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] opacity-50">설명</p>
+      <p class="mt-1 break-words whitespace-pre-wrap text-sm text-base-content/70">{{ selected_drop.description }}</p>
+    </div>
   </div>
   {% endif %}
 {% endcall %}
 {%- endmacro %}
 
 {% macro download_panel(detail) -%}
-{% call inset_surface(classes="rounded-[1.15rem] p-4") %}
+{% call surface_card(body_classes="gap-4") %}
   {% if detail.urls.download %}
-  <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-    <div class="min-w-0 space-y-1">
-      <p class="text-sm font-semibold">파일 다운로드</p>
-      <p class="truncate text-sm text-base-content/70">{{ detail.drop.file_name }}</p>
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div class="flex min-w-0 items-start gap-3">
+      {% call icon_shell(classes="h-12 w-12 shrink-0") %}
+        {{ file_icon(detail.drop.mime_type, "h-10 w-10") }}
+      {% endcall %}
+      <div class="min-w-0 space-y-1 text-sm">
+        <p class="font-semibold">파일 다운로드</p>
+        <p class="break-words text-base font-semibold">{{ detail.drop.file_name }}</p>
+      </div>
     </div>
     {{ detail_action_bar(detail.urls.download, detail.urls.page, can_copy_link=detail.actions.can_copy_link, detail_mode=detail.mode) }}
   </div>
+
+  <dl class="grid gap-2 border-t border-base-200/80 pt-4 text-sm">
+    <div class="grid gap-1 sm:grid-cols-[5rem_minmax(0,1fr)] sm:gap-3">
+      <dt class="text-xs font-semibold uppercase tracking-[0.16em] opacity-50">파일 크기</dt>
+      <dd class="break-words text-base-content/75">
+        {% if detail.drop.size_human %}
+        {{ detail.drop.size_human }}
+        {% else %}
+        {{ detail.drop.size_bytes }} bytes
+        {% endif %}
+      </dd>
+    </div>
+    <div class="grid gap-1 sm:grid-cols-[5rem_minmax(0,1fr)] sm:gap-3">
+      <dt class="text-xs font-semibold uppercase tracking-[0.16em] opacity-50">등록 시간</dt>
+      <dd class="break-words text-base-content/75">
+        {{ detail.drop.created_at_label or detail.drop.created_at }}
+      </dd>
+    </div>
+    {% if detail.drop.updated_at %}
+    <div class="grid gap-1 sm:grid-cols-[5rem_minmax(0,1fr)] sm:gap-3">
+      <dt class="text-xs font-semibold uppercase tracking-[0.16em] opacity-50">수정 시간</dt>
+      <dd class="break-words text-base-content/75">{{ detail.drop.updated_at_label or detail.drop.updated_at }}</dd>
+    </div>
+    {% endif %}
+  </dl>
   {% else %}
   {{ alert("파일을 다운로드할 수 없습니다.", tone="info", classes="shadow-none") }}
   {% endif %}
@@ -136,23 +161,25 @@
 {%- endmacro %}
 
 {% macro owner_action_group(selected_drop, selected_slug, csrf_token=None, interactive=true, wrapper_classes="", chromed=true) -%}
-{% set button_classes = "btn btn-ghost btn-sm w-full min-w-0 rounded-xl px-2 text-base-content/70 sm:btn-square sm:w-auto sm:px-0" %}
-{% set danger_button_classes = "btn btn-error btn-sm w-full min-w-0 rounded-xl px-2 sm:btn-square sm:w-auto sm:px-0" %}
+{% set button_classes = "btn btn-ghost btn-sm h-9 min-h-9 w-full min-w-0 rounded-xl px-2 text-base-content/70 sm:btn-square sm:h-9 sm:w-9 sm:min-w-9 sm:px-0" %}
+{% set danger_button_classes = "btn btn-error btn-sm h-9 min-h-9 w-full min-w-0 rounded-xl px-2 sm:btn-square sm:h-9 sm:w-9 sm:min-w-9 sm:px-0" %}
+{% set favorite_label = "즐겨찾기 해제" if selected_drop.is_favorite else "즐겨찾기" %}
+{% set access_label = "전체 공개" if selected_drop.access_scope == "private" else "나만 보기" %}
 <div class="grid grid-cols-5 items-center gap-1.5 sm:flex sm:flex-wrap sm:justify-end sm:gap-2{% if chromed %} rounded-[1rem] border border-base-300/70 bg-base-100/80 p-1 shadow-sm{% endif %}{% if wrapper_classes %} {{ wrapper_classes }}{% endif %}" style="max-width: calc(100vw - 4.5rem);" aria-label="상세 관리 액션">
   {% if interactive %}
-  <form method="post" action="/actions/drop/{{ selected_slug }}/favorite" class="flex min-w-0">
+  <form method="post" action="/actions/drop/{{ selected_slug }}/favorite" class="tooltip tooltip-bottom flex min-w-0 sm:shrink-0" data-tip="{{ favorite_label }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
     <input type="hidden" name="favorite" value="{{ 'false' if selected_drop.is_favorite else 'true' }}" />
-    <button type="submit" class="{{ button_classes }}" aria-label="{% if selected_drop.is_favorite %}즐겨찾기 해제{% else %}즐겨찾기{% endif %}" title="{% if selected_drop.is_favorite %}즐겨찾기 해제{% else %}즐겨찾기{% endif %}">
+    <button type="submit" class="{{ button_classes }}" aria-label="{{ favorite_label }}">
       {{ icon_star(filled=selected_drop.is_favorite) }}
       <span class="sr-only">즐겨</span>
     </button>
   </form>
 
-  <form method="post" action="/actions/drop/{{ selected_slug }}/access" class="flex min-w-0">
+  <form method="post" action="/actions/drop/{{ selected_slug }}/access" class="tooltip tooltip-bottom flex min-w-0 sm:shrink-0" data-tip="{{ access_label }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
     <input type="hidden" name="access_scope" value="{{ 'public' if selected_drop.access_scope == 'private' else 'private' }}" />
-    <button type="submit" class="{{ button_classes }}" aria-label="{% if selected_drop.access_scope == 'private' %}전체 공개{% else %}나만 보기{% endif %}" title="{% if selected_drop.access_scope == 'private' %}전체 공개{% else %}나만 보기{% endif %}">
+    <button type="submit" class="{{ button_classes }}" aria-label="{{ access_label }}">
       {% if selected_drop.access_scope == "private" %}
       {{ icon_eye() }}
       <span class="sr-only">공개</span>
@@ -163,11 +190,11 @@
     </button>
   </form>
   {% else %}
-  <button type="button" class="{{ button_classes }} w-full" aria-label="{% if selected_drop.is_favorite %}즐겨찾기 해제{% else %}즐겨찾기{% endif %}" title="{% if selected_drop.is_favorite %}즐겨찾기 해제{% else %}즐겨찾기{% endif %}">
+  <button type="button" class="{{ button_classes }} tooltip tooltip-bottom w-full" data-tip="{{ favorite_label }}" aria-label="{{ favorite_label }}">
     {{ icon_star(filled=selected_drop.is_favorite) }}
     <span class="sr-only">즐겨</span>
   </button>
-  <button type="button" class="{{ button_classes }} w-full" aria-label="{% if selected_drop.access_scope == 'private' %}전체 공개{% else %}나만 보기{% endif %}" title="{% if selected_drop.access_scope == 'private' %}전체 공개{% else %}나만 보기{% endif %}">
+  <button type="button" class="{{ button_classes }} tooltip tooltip-bottom w-full" data-tip="{{ access_label }}" aria-label="{{ access_label }}">
     {% if selected_drop.access_scope == "private" %}
     {{ icon_eye() }}
     <span class="sr-only">공개</span>
@@ -178,38 +205,38 @@
   </button>
   {% endif %}
 
-  <button type="button" class="{{ button_classes }} w-full" aria-label="메타데이터 수정" title="메타데이터 수정" data-td-action="open-dialog" data-td-dialog="detail-edit-modal">
+  <button type="button" class="{{ button_classes }} tooltip tooltip-bottom w-full" data-tip="메타데이터 수정" aria-label="메타데이터 수정" data-td-action="open-dialog" data-td-dialog="detail-edit-modal">
     {{ icon_pencil_square() }}
     <span class="sr-only">수정</span>
   </button>
 
   {% if selected_drop.requires_password and interactive %}
-  <form method="post" action="/actions/drop/{{ selected_slug }}/password" class="flex min-w-0" data-td-action="confirm-submit" data-td-confirm="드롭 비밀번호를 해제하시겠습니까?">
+  <form method="post" action="/actions/drop/{{ selected_slug }}/password" class="tooltip tooltip-bottom flex min-w-0 sm:shrink-0" data-tip="비밀번호 해제" data-td-action="confirm-submit" data-td-confirm="드롭 비밀번호를 해제하시겠습니까?">
     <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
     <input type="hidden" name="new_password" value="" />
     <input type="hidden" name="confirm_password" value="" />
-    <button type="submit" class="{{ button_classes }}" aria-label="비밀번호 해제" title="비밀번호 해제">
+    <button type="submit" class="{{ button_classes }}" aria-label="비밀번호 해제">
       {{ icon_lock_closed() }}
       <span class="sr-only">해제</span>
     </button>
   </form>
   {% else %}
-  <button type="button" class="{{ button_classes }} w-full" aria-label="비밀번호 설정" title="비밀번호 설정" data-td-action="open-dialog" data-td-dialog="detail-password-modal">
+  <button type="button" class="{{ button_classes }} tooltip tooltip-bottom w-full" data-tip="비밀번호 설정" aria-label="비밀번호 설정" data-td-action="open-dialog" data-td-dialog="detail-password-modal">
     {{ icon_lock_closed() }}
     <span class="sr-only">암호</span>
   </button>
   {% endif %}
 
   {% if interactive %}
-  <form method="post" action="/actions/drop/{{ selected_slug }}/delete" class="flex min-w-0" data-td-action="confirm-submit" data-td-confirm="정말 삭제하시겠습니까?">
+  <form method="post" action="/actions/drop/{{ selected_slug }}/delete" class="tooltip tooltip-bottom flex min-w-0 sm:shrink-0" data-tip="삭제" data-td-action="confirm-submit" data-td-confirm="정말 삭제하시겠습니까?">
     <input type="hidden" name="csrf_token" value="{{ csrf_token or '' }}" />
-    <button type="submit" class="{{ danger_button_classes }}" aria-label="삭제" title="삭제">
+    <button type="submit" class="{{ danger_button_classes }}" aria-label="삭제">
       {{ icon_trash() }}
       <span class="sr-only">삭제</span>
     </button>
   </form>
   {% else %}
-  <button type="button" class="{{ danger_button_classes }} w-full" aria-label="삭제" title="삭제">
+  <button type="button" class="{{ danger_button_classes }} tooltip tooltip-bottom w-full" data-tip="삭제" aria-label="삭제">
     {{ icon_trash() }}
     <span class="sr-only">삭제</span>
   </button>
@@ -219,7 +246,7 @@
 
 {% macro manage_detail_bar(detail, csrf_token=None) -%}
 {% if detail.drop %}
-{% call page_section() %}
+{% call page_section(classes="overflow-visible") %}
   <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     {% if detail.badge.label %}
     {{ badge(detail.badge.label, tone=detail.badge.tone, appearance=detail.badge.appearance, classes="self-start sm:mr-auto") }}

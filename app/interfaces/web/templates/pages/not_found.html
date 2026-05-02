@@ -1,0 +1,8 @@
+{% extends "layout/base.html" %}
+{% from "macros/drop_detail.html" import detail_error_state %}
+{% set page_title = "찾을 수 없습니다 · teledrop" %}
+{% set page_description = "요청한 페이지를 찾을 수 없습니다." %}
+
+{% block page_content %}
+{{ detail_error_state("존재하지 않습니다.", message="요청한 페이지를 찾을 수 없습니다.", href="/") }}
+{% endblock %}

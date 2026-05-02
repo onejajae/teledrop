@@ -14,6 +14,7 @@
     "daisyui": "^5.5.19",
     "htmx.org": "2.0.8",
     "postcss": "^8.5.6",
+    "pretendard": "1.3.9",
     "tailwindcss": "^4.2.0"
   }
 }

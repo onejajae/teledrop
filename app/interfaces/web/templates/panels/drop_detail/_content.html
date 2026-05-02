@@ -1,10 +1,4 @@
-{% from "macros/drop_detail.html" import download_panel, metadata_card %}
-{{ metadata_card(detail.drop, download_url=detail.urls.download) }}
+{% from "macros/drop_detail.html" import download_panel, preview_card %}
+{{ preview_card(detail) }}
 
 {{ download_panel(detail) }}
-
-{% if detail.drop.description %}
-<div>
-  <p class="text-sm whitespace-pre-wrap">{{ detail.drop.description }}</p>
-</div>
-{% endif %}

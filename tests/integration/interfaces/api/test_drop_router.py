@@ -284,6 +284,7 @@ class TestDropRouterIntegration:
         response = client.get("/api/drop/k1", headers={"Range": "bytes=99-120"})
 
         assert response.status_code == 416
+        assert response.headers["content-range"] == "bytes */11"
 
     def test_drop_stream_uses_attachment_content_disposition(self):
         fake_use_cases = _FakeDropUseCases()
@@ -310,6 +311,61 @@ class TestDropRouterIntegration:
         assert response.status_code == 200
         assert response.headers["content-disposition"].startswith("inline;")
         assert response.headers["content-type"].startswith("image/png")
+
+    def test_drop_stream_allows_inline_disposition_for_pdf_preview(self):
+        fake_use_cases = _FakeDropUseCases()
+        fake_use_cases.add_drop(
+            "guide",
+            payload=b"%PDF-1.7",
+            file_name="guide.pdf",
+            mime_type="application/pdf",
+        )
+        client = _client(fake_use_cases)
+
+        response = client.get("/api/drop/guide?disposition=inline")
+
+        assert response.status_code == 200
+        assert response.headers["content-disposition"].startswith("inline;")
+        assert response.headers["content-type"].startswith("application/pdf")
+
+    def test_drop_stream_allows_inline_disposition_for_video_preview(self):
+        fake_use_cases = _FakeDropUseCases()
+        fake_use_cases.add_drop(
+            "clip",
+            payload=b"fake-mp4",
+            file_name="clip.mp4",
+            mime_type="video/mp4",
+        )
+        client = _client(fake_use_cases)
+
+        response = client.get("/api/drop/clip?disposition=inline")
+
+        assert response.status_code == 200
+        assert response.headers["content-disposition"].startswith("inline;")
+        assert response.headers["content-type"].startswith("video/mp4")
+
+    def test_drop_stream_serves_video_preview_range_as_partial_content(self):
+        fake_use_cases = _FakeDropUseCases()
+        fake_use_cases.add_drop(
+            "clip",
+            payload=b"fake-mp4",
+            file_name="clip.mp4",
+            mime_type="video/mp4",
+        )
+        client = _client(fake_use_cases)
+
+        response = client.get(
+            "/api/drop/clip?disposition=inline",
+            headers={"Range": "bytes=0-3"},
+        )
+
+        assert response.status_code == 206
+        assert response.headers["content-disposition"].startswith("inline;")
+        assert response.headers["content-type"].startswith("video/mp4")
+        assert response.headers["accept-ranges"] == "bytes"
+        assert response.headers["content-range"] == "bytes 0-3/8"
+        assert response.headers["content-length"] == "4"
+        assert response.content == b"fake"
 
     def test_drop_stream_keeps_unsafe_inline_preview_requests_as_attachment(self):
         fake_use_cases = _FakeDropUseCases()

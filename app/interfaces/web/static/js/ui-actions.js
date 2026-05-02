@@ -59,14 +59,15 @@
     const label = trigger.querySelector('[data-td-role="copy-label"]');
     const original = label?.textContent ?? "";
     const originalAriaLabel = trigger.getAttribute("aria-label") ?? "";
-    const originalTitle = trigger.getAttribute("title") ?? "";
+    const originalTip = trigger.getAttribute("data-tip") ?? "";
 
     navigator.clipboard.writeText(`${window.location.origin}${relativeUrl}`).then(() => {
       if (label) {
         label.textContent = "복사됨";
       }
       trigger.setAttribute("aria-label", "링크 복사됨");
-      trigger.setAttribute("title", "링크 복사됨");
+      trigger.setAttribute("data-tip", "링크 복사됨");
+      trigger.removeAttribute("title");
       window.setTimeout(() => {
         if (label) {
           label.textContent = original;
@@ -74,9 +75,12 @@
         if (originalAriaLabel) {
           trigger.setAttribute("aria-label", originalAriaLabel);
         }
-        if (originalTitle) {
-          trigger.setAttribute("title", originalTitle);
+        if (originalTip) {
+          trigger.setAttribute("data-tip", originalTip);
+        } else {
+          trigger.removeAttribute("data-tip");
         }
+        trigger.removeAttribute("title");
       }, 1200);
     });
   };

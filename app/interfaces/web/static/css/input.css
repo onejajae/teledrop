@@ -1,10 +1,27 @@
+@import url("/static/vendor/pretendard/variable/pretendardvariable.css");
 @import "../../../../../ui-build/node_modules/tailwindcss/index.css";
 @import "./generated/theme-tokens.css";
 @source "../../templates/**/*.html";
 @source "../**/*.js";
 @source inline("btn-primary btn-outline btn-error btn-ghost btn-sm btn-square btn-block normal-case alert-info alert-success alert-error alert-warning badge-primary badge-secondary badge-accent badge-neutral badge-info badge-success badge-warning badge-error badge-outline badge-soft badge-ghost progress-primary");
 
+@theme {
+  --font-sans: "Pretendard Variable", "Pretendard", system-ui, sans-serif;
+}
+
 @layer base {
+  html {
+    font-family: var(--font-sans);
+    overflow-y: scroll;
+  }
+
+  code,
+  kbd,
+  pre,
+  samp {
+    font-family: var(--font-sans);
+  }
+
   .card,
   .hero,
   .btn,

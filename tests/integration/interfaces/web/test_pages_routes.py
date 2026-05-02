@@ -182,6 +182,11 @@ class TestWebPagesRoutes:
         response = client.get("/register")
 
         assert response.status_code == 404
+        assert response.headers["content-type"].startswith("text/html")
+        assert "존재하지 않습니다." in response.text
+        assert "요청한 페이지를 찾을 수 없습니다." in response.text
+        assert '{"detail":"Not Found"}' not in response.text
+        assert 'action="/actions/auth/register"' not in response.text
 
     def test_register_route_renders_registration_form_when_enabled(self):
         client = _client(enable_registration=True)

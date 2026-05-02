@@ -1,7 +1,7 @@
 {% from "macros/ui.html" import alert, button, field, page_section, section_header, text_input %}
 {% set selected_auth_mode = auth_mode | default("login") %}
 {% set can_register = registration_enabled | default(false) %}
-<div class="mx-auto flex min-w-0 w-full max-w-xs flex-col gap-4 sm:max-w-md">
+<div class="flex min-w-0 w-full flex-1 flex-col gap-4">
   {% if auth_error_message %}
   {{ alert(auth_error_message, tone="error") }}
   {% endif %}

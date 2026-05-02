@@ -6,6 +6,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${ROOT_DIR}"
 
 echo "Setting up Teledrop for manual execution..."
+export ENABLE_REGISTRATION=true
 
 # 1. Python Environment
 if ! command -v uv &> /dev/null; then
@@ -37,7 +38,7 @@ prepare_runtime_dirs
 
 # 3. UI assets
 echo "Building UI assets..."
-if [ ! -d "ui-build/node_modules" ]; then
+if [ ! -d "ui-build/node_modules" ] || [ ! -d "ui-build/node_modules/pretendard" ]; then
     echo "Installing Node dependencies..."
     (cd ui-build && npm ci)
 fi

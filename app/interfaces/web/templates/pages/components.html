@@ -1,6 +1,6 @@
 {% extends "layout/base.html" %}
 {% from "macros/api_keys.html" import api_key_card, created_api_key_alert %}
-{% from "macros/drop_detail.html" import detail_action_bar, locked_prompt, metadata_card, modal_form, owner_action_group %}
+{% from "macros/drop_detail.html" import detail_action_bar, locked_prompt, modal_form, owner_action_group, preview_card %}
 {% from "macros/drop_listing.html" import drop_list_card, sort_toolbar %}
 {% from "macros/icons.html" import icon_cloud_arrow_up, icon_document_duplicate, icon_lock_closed %}
 {% from "macros/ui.html" import alert, badge, button, empty_state, field, icon_button, icon_shell, inset_surface, page_section, section_header, select_input, surface_card, text_input, textarea_input %}
@@ -156,10 +156,10 @@
             </div>
           {% endcall %}
           {% call surface_card(body_classes="space-y-1") %}
-            <p class="text-base font-semibold">Metadata card</p>
-            <p class="text-xs uppercase tracking-[0.16em] opacity-50">Used in: drop detail</p>
+            <p class="text-base font-semibold">Preview card</p>
+            <p class="text-xs uppercase tracking-[0.16em] opacity-50">Used in: drop detail preview</p>
             <div class="mt-4">
-              {{ metadata_card(catalog_public_drop) }}
+              {{ preview_card(selected_drop=catalog_public_drop, page_url="/spring-launch-kit", can_copy_link=true) }}
             </div>
           {% endcall %}
         </div>

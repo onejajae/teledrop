@@ -66,8 +66,16 @@ INLINE_PREVIEW_MIME_TYPES = frozenset(
         "image/jpeg",
         "image/png",
         "image/webp",
+        "application/pdf",
     }
 )
+INLINE_PREVIEW_MIME_PREFIXES = ("video/",)
+
+
+def _is_inline_preview_mime_type(mime_type: str) -> bool:
+    return mime_type in INLINE_PREVIEW_MIME_TYPES or any(
+        mime_type.startswith(prefix) for prefix in INLINE_PREVIEW_MIME_PREFIXES
+    )
 
 
 @router.get("/availability/{slug}", response_model=SlugAvailabilityResponse)
@@ -212,7 +220,7 @@ async def drop_stream(
 
     disposition_type = (
         "inline"
-        if disposition == "inline" and detail.mime_type in INLINE_PREVIEW_MIME_TYPES
+        if disposition == "inline" and _is_inline_preview_mime_type(detail.mime_type)
         else "attachment"
     )
 
@@ -240,7 +248,7 @@ async def drop_stream(
         except InvalidRangeHeader:
             raise invalid_range_header_exception()
         except RangeNotSatisfiable:
-            raise range_not_satisfiable_exception()
+            raise range_not_satisfiable_exception(detail.size_bytes)
 
         headers["content-length"] = str(end - start + 1)
         headers["content-range"] = f"bytes {start}-{end}/{detail.size_bytes}"
