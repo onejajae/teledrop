@@ -1,21 +1,26 @@
-# common ignores (sharing gitignore and dockerignore) - pycache, envfile, etc..
-**/__pycache__/
-**/*.py[cod]
-*$py.class
+# .NET build output
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+
+# environment
 .env
 .env.*
 
-# vscode
+# editor
 .vscode
+.idea
 
-# virtual environment
-.venv
-
-# macOS 
+# macOS
 .DS_Store
 
 # WSL
 *Zone.identifier
+
+# node — Tailwind 빌드에만 쓴다. 생성된 CSS는 커밋한다 (docs/adr/0002 참고)
+node_modules/
 
 # teledrop default share directory
 share/

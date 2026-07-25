@@ -1,6 +1,0 @@
-# common ignores (sharing gitignore and dockerignore) - pycache, envfile, etc..
-**/__pycache__/
-**/*.py[cod]
-*$py.class
-.env
-.env.*
