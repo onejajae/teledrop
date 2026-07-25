@@ -59,5 +59,5 @@ _Avoid_: used, 사용됨
 _Avoid_: 토큰, 액세스 키
 
 **Session**:
-소유자가 웹 UI에 로그인한 상태. 서버 사이드에 보관하며 쿠키에는 불투명한 식별자만 담는다.
-_Avoid_: 토큰, JWT — JWT를 세션으로 쓰지 않는다
+소유자가 웹 UI에 로그인한 상태. 클라이언트 코드는 세션의 수명 관리에 관여하지 않는다.
+_Avoid_: 토큰, JWT — JWT를 세션으로 쓰지 않는다. 인증 맥락에서 "티켓"이라고도 부르지 않는다(ASP.NET의 AuthenticationTicket과 무관하게, 이 프로젝트에서 티켓은 Upload Ticket뿐이다)

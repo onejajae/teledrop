@@ -51,7 +51,7 @@ txt 파일 10개(noun/verb/adjective/abstract/direction/sound/name/date/number/p
 
 devel이 옳게 판단한 것도 있다.
 
-- **서버 사이드 세션** (`session_repository.py`, `session_http.py`). main의 JWT-as-session이 실제 문제였다. 다만 이 공은 SSR이 아니라 세션에 있다 — [ADR 0002](adr/0002-ssr-and-csharp.md) 진단 절 참고
+- **세션 진단** (`session_repository.py`, `session_http.py`) — main의 JWT-as-session이 실제 문제였다는 판단은 가져온다. 이 공이 SSR이 아니라 세션에 있다는 것도([ADR 0002](adr/0002-ssr-and-csharp.md) 진단 절). 다만 **기구는 가져오지 않는다.** devel은 세션을 DB 테이블에 뒀지만, 요구의 실체는 "클라이언트가 세션 수명을 관리하지 않는 것"이고 ASP.NET Core의 암호화 쿠키가 테이블 없이 충족한다. 폐기는 비밀번호 지문 대조로 한다 — [DESIGN.md](DESIGN.md) '인증 경로' 절 참고
 - **SSR 방향 자체** — 채택. 문제는 SSR이 아니라 그 위에 얹은 레이어였다
 - **잠긴 드롭의 메타데이터 마스킹** — 방향이 맞다. main도 이미 401로 막고 있으므로 그 동작을 보존한다
 - **`file_hash` 제거 판단** — 다만 CAS 최적화 여지로 **남기기로** 뒤집었다. 업로드 스트림을 어차피 통과시키므로 나중에 전 파일을 다시 읽는 백필보다 싸다
