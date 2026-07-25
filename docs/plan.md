@@ -26,11 +26,17 @@
 
 순서 의존: 7은 slug 생성(5) 뒤여야 한다. 6과 7은 서로 바꿔도 된다.
 
+## 모델 고정 — gpt-5.6-sol, effort max
+
+- 모든 Codex 호출에 **`--model gpt-5.6-sol`을 명시**한다. 다른 모델을 쓰지 않는다
+- **`--effort`는 절대 넘기지 않는다.** 플러그인 허용값(`none`~`xhigh`)에 `max`가 없어서, 명시하는 순간
+  `~/.codex/config.toml`의 `model_reasoning_effort = "max"`보다 낮아진다. 비워두면 config의 max가 적용된다
+
 ## 스테이지 루프
 
-1. `/codex:rescue --fresh [--background] <지시문>` — 3·5·6·8은 background 권장
+1. `/codex:rescue --fresh --model gpt-5.6-sol [--background] <지시문>` — 3·5·6·8은 background 권장
 2. 백그라운드면 `/codex:status` → `/codex:result`
 3. 검수: `dotnet build`·실행 + 설계 부합(위 공통 계약 위반 여부)
 4. 리뷰: 5·6은 `/codex:adversarial-review`(접근 제어·티켓 규칙이 보안 전부), 나머지는 `/codex:review`
-5. 수정은 같은 스레드로: `/codex:rescue --resume "<델타 지시>"`
+5. 수정은 같은 스레드로: `/codex:rescue --resume --model gpt-5.6-sol "<델타 지시>"`
 6. 커밋 후 다음 스테이지
