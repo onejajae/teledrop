@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - teledrop</title>
+
+    <link rel="icon" type="image/png" sizes="32x32" href="~/static/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="~/static/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="~/static/apple-icon-180x180.png" />
+    <link rel="manifest" href="~/static/manifest.json" />
+
+    @* Tailwind 생성 결과물. 빌드 파이프라인을 붙이면 활성화한다 (docs/adr/0002)
+    <link rel="stylesheet" href="~/css/app.css" asp-append-version="true" /> *@
+</head>
+<body>
+    <main>
+        @RenderBody()
+    </main>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
