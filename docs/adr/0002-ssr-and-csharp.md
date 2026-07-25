@@ -65,6 +65,20 @@ SSR 확정으로 UI는 어느 언어를 골라도 재작성이고, 백엔드 1,1
 - 업로드 진행률은 `htmx:xhr:progress`로 붙인다. JS 없으면 폼 POST로 동작하고 JS 있으면 진행률이 붙는 점진적 향상이다
 - SSR 쪽 개발 루프도 공짜는 아니다. devel의 `run_dev.sh`는 시작할 때마다 CSS를 새로 빌드했고 HMR이 없었다
 
+## 검토했으나 버린 것 — Blazor
+
+SSR 안에서 Razor Pages 대신 **Blazor Web App**을 쓰는 안을 검토했다. 근거는 두 가지였고 둘 다 실재한다 — 컴포넌트 + 바인딩 + code-behind 구조가 소유자가 업무에서 하는 MVVM 앱 개발과 닮아 익숙하고, htmx가 필요 없어져 JS 라이브러리가 아예 사라진다("한 언어" 논거가 오히려 강해진다).
+
+그럼에도 버린 이유는 셋이다.
+
+**1. HTML 표준에서 멀어진다.** Blazor에서 `<button @onclick>`은 버튼이 아니라 회로로 가는 RPC이고, `EditForm`은 대화형 모드에서 POST하지 않는다. JS가 없거나 회로가 안 붙으면 화면이 움직이지 않는다. 렌더 결과는 HTML이지만 작성하는 것은 HTML이 아니라 렌더 트리다. 반면 htmx는 `<form method="post">`에 `hx-post`를 얹는 방식이라 JS가 죽으면 평범한 폼 POST로 떨어진다 — 이 축에서 htmx는 타협이 아니라 가장 정렬된 선택이다. 낯선 사람이 낯선 브라우저로 여는 게스트 업로드 페이지가 있는 앱에서 이 성질은 실질적인 가치다.
+
+**2. 이 앱의 핵심 동작이 하필 Blazor가 가장 약한 지점이다.** `InputFile`은 파일 바이트를 SignalR 회로로 흘려보낸다. `maxAllowedSize`와 메시지 크기 제한을 손봐야 하고, 처리량이 평범한 multipart POST보다 떨어지며, 회로가 끊기면 업로드가 날아간다. Microsoft 문서도 큰 파일은 별도 엔드포인트를 권한다. 우회는 가능하지만 **핵심 동작을 프레임워크 밖으로 빼내는 것**이고, 그러면 진행률 때문에 결국 JS가 돌아온다.
+
+**3. MVVM이 값을 할 만큼 복잡한 앱이 아니다.** 화면이 로그인 / 업로드 / 목록 / 드롭 상세 / 티켓 관리 다섯 개고, 전부 폼과 리스트다. 상호의존적인 클라이언트 상태도 실시간도 없다. MVVM은 상태가 얽혀 수동 관리가 어려울 때 값을 하는데 여기엔 얽힐 상태가 없다. 남는 것은 익숙함뿐이고, 그것만으로 1·2를 상쇄하지 못한다.
+
+덧붙여, Razor Pages의 `PageModel`도 ViewModel과 상당히 닮았다 — `[BindProperty]`로 프로퍼티를 바인딩하고 `asp-for`로 뷰에 묶고 핸들러 메서드가 동작을 받으며 DI는 생성자 주입이다. 차이는 수명뿐이다. ViewModel은 살아 있으면서 `PropertyChanged`로 UI를 밀지만 `PageModel`은 요청 하나 동안 살고 화면은 다시 그려진다. **잃는 것은 라이브 반응성이고, 이 앱에는 라이브로 반응해야 할 것이 없다.**
+
 ## 경계 (중요)
 
 **.NET 생태계의 기본 조언이 정확히 devel을 죽인 방향이다.** Clean Architecture 템플릿, MediatR, Repository + Unit of Work, Entity/DTO 분리 — 검색해서 나오는 .NET 튜토리얼 대부분이 레이어를 권한다. devel의 `domain/application/infrastructure/interfaces` 구조는 Python보다 .NET 문화권에서 더 흔한 모양이다.
