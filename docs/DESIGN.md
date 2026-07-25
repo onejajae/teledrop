@@ -147,7 +147,22 @@ not consumed
 - **.NET + Razor Pages (SSR)**, EF Core + SQLite
 - 인증은 ASP.NET Core 쿠키 인증
 - htmx로 부분 갱신. 업로드 진행률은 `htmx:xhr:progress`
-- CSS는 Tailwind. **생성 결과물을 저장소에 커밋한다** — Docker에서 node 스테이지를 없애기 위해서다
+- CSS는 Tailwind + daisyUI. **생성 결과물을 저장소에 커밋한다** — Docker에서 node 스테이지를 없애기 위해서다
+
+### 개발 명령
+
+```
+npm install          # 최초 1회
+npm run build        # CSS 생성 + htmx 복사 → wwwroot/
+npm run watch        # CSS만 감시
+dotnet run --launch-profile http
+```
+
+`wwwroot/css/app.css`와 `wwwroot/js/htmx.min.js`는 **생성물이지만 커밋한다.** npm은 로컬 개발에만 필요하고 Docker 빌드에는 들어가지 않는다. daisyUI가 `@plugin`으로 `node_modules` 해석을 요구하므로 Tailwind standalone 바이너리로는 대체할 수 없다.
+
+CSS 소스는 `Styles/app.css`다. Tailwind 기본 탐색 경로에 `.cshtml`이 없으므로 `@source`로 `Pages/`를 명시해두었다 — 새 뷰 디렉터리를 만들면 여기에 추가해야 클래스가 방출된다.
+
+`MapStaticAssets`가 정적 자산 URL에 해시를 붙이므로 `asp-append-version`은 쓰지 않는다. 다만 해시는 빌드 시점에 계산되므로, `npm run watch`로 CSS만 갱신하면 `dotnet` 쪽 재빌드 전까지 반영되지 않는다.
 
 ### 아키텍처 원칙
 

@@ -1,0 +1,17 @@
+{
+  "name": "teledrop-ui",
+  "private": true,
+  "description": "Tailwind + daisyUI 빌드. 생성 결과물(wwwroot/css/app.css)은 저장소에 커밋한다 — docs/adr/0002 참고",
+  "scripts": {
+    "build": "npm run build:css && npm run vendor",
+    "build:css": "tailwindcss -i ./Styles/app.css -o ./wwwroot/css/app.css --minify",
+    "watch": "tailwindcss -i ./Styles/app.css -o ./wwwroot/css/app.css --watch",
+    "vendor": "cp node_modules/htmx.org/dist/htmx.min.js wwwroot/js/htmx.min.js"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "daisyui": "^5.7.4",
+    "htmx.org": "^2.0.10",
+    "tailwindcss": "^4.3.3"
+  }
+}

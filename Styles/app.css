@@ -1,0 +1,5 @@
+@import "tailwindcss";
+@plugin "daisyui";
+
+/* Razor 파일에서 클래스를 훑는다. 기본 탐색 경로에 .cshtml이 없으므로 명시한다. */
+@source "../Pages/**/*.cshtml";

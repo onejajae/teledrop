@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="ko" data-theme="light">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,13 +10,15 @@
     <link rel="apple-touch-icon" sizes="180x180" href="~/static/apple-icon-180x180.png" />
     <link rel="manifest" href="~/static/manifest.json" />
 
-    @* Tailwind 생성 결과물. 빌드 파이프라인을 붙이면 활성화한다 (docs/adr/0002)
-    <link rel="stylesheet" href="~/css/app.css" asp-append-version="true" /> *@
+    <link rel="stylesheet" href="~/css/app.css" />
 </head>
 <body>
     <main>
         @RenderBody()
     </main>
+
+    @* htmx는 defer로 둔다. 페이지는 htmx 없이도 폼 POST로 동작해야 한다 (docs/adr/0002) *@
+    <script src="~/js/htmx.min.js" defer></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
