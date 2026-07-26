@@ -1,0 +1,41 @@
+# Version control and repository-only files
+.git/
+.github/
+docs/
+README*
+LICENSE
+
+# Local settings and editor metadata
+.env
+.env.*
+.vscode/
+.idea/
+.DS_Store
+*.user
+*.suo
+*.userosscache
+
+# Build and test outputs
+**/bin/
+**/obj/
+Teledrop.Tests/
+
+# Local frontend toolchain
+node_modules/
+Styles/
+package.json
+package-lock.json
+
+# Generated frontend assets are publish inputs committed to the repository
+!wwwroot/css/app.css
+!wwwroot/js/htmx.min.js
+
+# Local application data
+share/
+
+# Development and container orchestration files
+.config/
+Properties/
+docker-compose*.yml
+Dockerfile
+.dockerignore

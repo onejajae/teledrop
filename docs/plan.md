@@ -59,7 +59,7 @@
 - [x] **5. 드롭 상세** — 메타 수정, publish(공개 전환), 드롭 비밀번호 설정/해제(argon2 + Data Protection 쿠키), 잠금 화면 메타 마스킹(401), slug 자동 생성(형용사+명사, 코드 내 배열)·커스텀 slug
 - [x] **6. 업로드 티켓** — 발급/목록/폐기 UI(코드 평문 표시, no-store), 게스트 업로드 페이지(없는 경로 404, 코드 10회 제한, 소진·만료 규칙, GET 무부작용, noindex/no-referrer, 진행률)
 - [x] **7. API 업로드** — `POST /api/upload`, `X-API-Key`(`TELEDROP_API_KEY`), private 고정, 공유 URL 반환
-- [ ] **8. Dockerfile** — 멀티스테이지 .NET 빌드, node 스테이지 없음(생성 CSS·htmx가 커밋되어 있음), 컨테이너 기동 스모크
+- [x] **8. Dockerfile** — 멀티스테이지 .NET 빌드, node 스테이지 없음(생성 CSS·htmx가 커밋되어 있음), 컨테이너 기동 스모크
 
 순서 의존: 7은 slug 생성(5) 뒤여야 한다. 6과 7은 서로 바꿔도 된다. 8은 마지막.
 
