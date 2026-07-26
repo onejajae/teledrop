@@ -17,6 +17,7 @@ namespace Teledrop.Features.Drops;
 [IgnoreAntiforgeryToken]
 public sealed class UploadModel(
     TeledropDbContext dbContext,
+    DropSlugGenerator dropSlugGenerator,
     IAntiforgery antiforgery,
     IOptions<AntiforgeryOptions> antiforgeryOptions,
     IOptions<FormOptions> formOptions,
@@ -160,10 +161,12 @@ public sealed class UploadModel(
                 return BadRequest();
             }
 
+            var slug = await dropSlugGenerator.GenerateUniqueSlugAsync(
+                requestAborted);
             var drop = new Drop
             {
                 Id = Guid.NewGuid(),
-                Slug = Guid.NewGuid().ToString("N"),
+                Slug = slug,
                 Title = title,
                 Description = description,
                 IsPrivate = true,

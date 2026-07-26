@@ -23,6 +23,11 @@
                     <p class="font-semibold">업로드했습니다.</p>
                     <p class="truncate">@Model.UploadedDrop.FileName</p>
                     <div class="mt-3 flex flex-wrap gap-2">
+                        <a asp-page="/DropDetail"
+                           asp-route-slug="@Model.UploadedDrop.Slug"
+                           class="btn btn-sm">
+                            상세
+                        </a>
                         <a asp-page="/Download"
                            asp-route-slug="@Model.UploadedDrop.Slug"
                            class="btn btn-sm btn-primary">
@@ -232,10 +237,12 @@
                                             </form>
                                         </td>
                                         <td class="max-w-64">
-                                            <span class="block truncate font-semibold"
-                                                  title="@displayTitle">
+                                            <a asp-page="/DropDetail"
+                                               asp-route-slug="@drop.Slug"
+                                               class="link link-hover block truncate font-semibold"
+                                               title="@displayTitle">
                                                 @displayTitle
-                                            </span>
+                                            </a>
                                         </td>
                                         <td class="max-w-64">
                                             <span class="block truncate"

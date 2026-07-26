@@ -1,0 +1,121 @@
+@page "/{slug}"
+@model Teledrop.Features.Drops.PublicDropModel
+@{
+    ViewData["Title"] = Model.IsLocked
+        ? "잠긴 드롭"
+        : Model.Drop?.Title ?? Model.Drop?.FileName ?? "드롭";
+}
+
+<div class="min-h-screen bg-base-200 px-4 py-10">
+    <div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
+        <header>
+            <p class="text-sm font-semibold tracking-wide text-primary">teledrop</p>
+        </header>
+
+        @if (Model.IsLocked)
+        {
+            <section class="card mx-auto w-full max-w-md bg-base-100 shadow-xl">
+                <div class="card-body">
+                    <h1 class="card-title text-2xl">잠긴 드롭</h1>
+                    <p class="text-base-content/70">
+                        드롭 비밀번호를 입력해야 열 수 있습니다.
+                    </p>
+
+                    @if (Model.UnlockError is not null)
+                    {
+                        <div class="alert alert-error" role="alert">
+                            <span>@Model.UnlockError</span>
+                        </div>
+                    }
+
+                    <form method="post"
+                          asp-page-handler="Unlock"
+                          asp-route-slug="@RouteData.Values["slug"]"
+                          class="space-y-4">
+                        <fieldset class="fieldset">
+                            <legend class="fieldset-legend">드롭 비밀번호</legend>
+                            <input asp-for="DropPassword"
+                                   type="password"
+                                   class="input w-full"
+                                   autocomplete="current-password"
+                                   autofocus
+                                   required />
+                        </fieldset>
+                        <button type="submit" class="btn btn-primary w-full">
+                            열기
+                        </button>
+                    </form>
+                </div>
+            </section>
+        }
+        else if (Model.Drop is { } drop)
+        {
+            var displayTitle = string.IsNullOrEmpty(drop.Title)
+                ? drop.FileName
+                : drop.Title;
+            var formattedSize =
+                Teledrop.Features.Drops.IndexModel.FormatFileSize(
+                    drop.FileSizeBytes);
+            var inlineUrl = Url.Page(
+                "/Download",
+                pageHandler: null,
+                values: new { slug = drop.Slug, inline = true });
+            var isImage = drop.ContentType.StartsWith(
+                "image/",
+                StringComparison.OrdinalIgnoreCase);
+            var isVideo = drop.ContentType.StartsWith(
+                "video/",
+                StringComparison.OrdinalIgnoreCase);
+
+            <section class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                    <h1 class="break-words text-3xl font-bold">@displayTitle</h1>
+                    @if (!string.IsNullOrEmpty(drop.Description))
+                    {
+                        <p class="whitespace-pre-wrap text-base-content/80">
+                            @drop.Description
+                        </p>
+                    }
+
+                    <dl class="mt-2 grid gap-2 sm:grid-cols-[6rem_1fr]">
+                        <dt class="font-semibold text-base-content/60">파일명</dt>
+                        <dd class="min-w-0 break-all">@drop.FileName</dd>
+                        <dt class="font-semibold text-base-content/60">크기</dt>
+                        <dd>@formattedSize</dd>
+                    </dl>
+
+                    <div class="card-actions mt-4">
+                        <a asp-page="/Download"
+                           asp-route-slug="@drop.Slug"
+                           class="btn btn-primary">
+                            다운로드
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+            @if (isImage)
+            {
+                <section class="card overflow-hidden bg-base-100 shadow-xl">
+                    <figure class="bg-base-300 p-4">
+                        <img src="@inlineUrl"
+                             alt="@displayTitle"
+                             class="max-h-[75vh] rounded object-contain" />
+                    </figure>
+                </section>
+            }
+            else if (isVideo)
+            {
+                <section class="card overflow-hidden bg-base-100 shadow-xl">
+                    <div class="bg-black p-4">
+                        <video src="@inlineUrl"
+                               controls
+                               preload="metadata"
+                               class="mx-auto max-h-[75vh] w-full">
+                        </video>
+                    </div>
+                </section>
+            }
+        }
+    </div>
+</div>

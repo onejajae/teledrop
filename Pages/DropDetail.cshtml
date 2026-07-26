@@ -1,0 +1,264 @@
+@page "/drops/{slug}"
+@model Teledrop.Features.Drops.DropDetailModel
+@{
+    var drop = Model.Drop!;
+    var displayTitle = string.IsNullOrEmpty(drop.Title)
+        ? drop.FileName
+        : drop.Title;
+    var formattedSize =
+        Teledrop.Features.Drops.IndexModel.FormatFileSize(drop.FileSizeBytes);
+    var shareLink = Url.Page(
+        "/PublicDrop",
+        pageHandler: null,
+        values: new { slug = drop.Slug },
+        protocol: Request.Scheme);
+    var inlineUrl = Url.Page(
+        "/Download",
+        pageHandler: null,
+        values: new { slug = drop.Slug, inline = true });
+    var isImage = drop.ContentType.StartsWith(
+        "image/",
+        StringComparison.OrdinalIgnoreCase);
+    var isVideo = drop.ContentType.StartsWith(
+        "video/",
+        StringComparison.OrdinalIgnoreCase);
+
+    ViewData["Title"] = displayTitle;
+}
+
+<div class="min-h-screen bg-base-200 px-4 py-10">
+    <div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
+        <header class="flex flex-wrap items-center justify-between gap-4">
+            <div class="min-w-0">
+                <a asp-page="/Index" class="link link-hover text-sm">← 드롭 목록</a>
+                <h1 class="mt-2 truncate text-3xl font-bold" title="@displayTitle">
+                    @displayTitle
+                </h1>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <form method="post"
+                      asp-page-handler="Favorite"
+                      asp-route-slug="@drop.Slug">
+                    <button type="submit"
+                            class="btn btn-ghost"
+                            aria-pressed="@drop.IsFavorite.ToString().ToLowerInvariant()">
+                        @(drop.IsFavorite ? "★ favorite 해제" : "☆ favorite")
+                    </button>
+                </form>
+                <a asp-page="/Download"
+                   asp-route-slug="@drop.Slug"
+                   class="btn btn-primary">
+                    다운로드
+                </a>
+            </div>
+        </header>
+
+        @if (isImage)
+        {
+            <section class="card overflow-hidden bg-base-100 shadow-xl">
+                <figure class="bg-base-300 p-4">
+                    <img src="@inlineUrl"
+                         alt="@displayTitle"
+                         class="max-h-[70vh] rounded object-contain" />
+                </figure>
+            </section>
+        }
+        else if (isVideo)
+        {
+            <section class="card overflow-hidden bg-base-100 shadow-xl">
+                <div class="bg-black p-4">
+                    <video src="@inlineUrl"
+                           controls
+                           preload="metadata"
+                           class="mx-auto max-h-[70vh] w-full">
+                    </video>
+                </div>
+            </section>
+        }
+
+        <section class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+                <div class="flex flex-wrap items-center gap-2">
+                    <h2 class="card-title">드롭 정보</h2>
+                    <span class="badge @(drop.IsPrivate ? "badge-neutral" : "badge-success")">
+                        @(drop.IsPrivate ? "private" : "public")
+                    </span>
+                    @if (drop.DropPasswordHash is not null)
+                    {
+                        <span class="badge badge-warning">드롭 비밀번호</span>
+                    }
+                </div>
+
+                <dl class="mt-3 grid gap-3 sm:grid-cols-[8rem_1fr]">
+                    <dt class="font-semibold text-base-content/60">파일명</dt>
+                    <dd class="min-w-0 break-all">@drop.FileName</dd>
+                    <dt class="font-semibold text-base-content/60">크기</dt>
+                    <dd>@formattedSize</dd>
+                    <dt class="font-semibold text-base-content/60">형식</dt>
+                    <dd class="break-all">@drop.ContentType</dd>
+                    <dt class="font-semibold text-base-content/60">slug</dt>
+                    <dd class="break-all font-mono">@drop.Slug</dd>
+                </dl>
+
+                <div class="mt-5">
+                    <label for="share-link" class="mb-2 block font-semibold">
+                        share link
+                    </label>
+                    <div class="join flex w-full">
+                        <input id="share-link"
+                               type="text"
+                               value="@shareLink"
+                               class="input join-item min-w-0 flex-1 font-mono"
+                               readonly />
+                        <button id="copy-share-link"
+                                type="button"
+                                class="btn join-item">
+                            복사
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="grid gap-6 lg:grid-cols-2">
+            <section class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title">제목과 설명</h2>
+                    <form method="post"
+                          asp-page-handler="Metadata"
+                          asp-route-slug="@drop.Slug"
+                          class="space-y-4">
+                        <fieldset class="fieldset">
+                            <legend class="fieldset-legend">제목</legend>
+                            <input asp-for="TitleInput"
+                                   class="input w-full"
+                                   autocomplete="off" />
+                        </fieldset>
+                        <fieldset class="fieldset">
+                            <legend class="fieldset-legend">설명</legend>
+                            <textarea asp-for="DescriptionInput"
+                                      class="textarea min-h-32 w-full"></textarea>
+                        </fieldset>
+                        <button type="submit" class="btn btn-primary">
+                            저장
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <section class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title">접근 설정</h2>
+                    <p class="text-sm text-base-content/70">
+                        @if (drop.IsPrivate)
+                        {
+                            <span>현재 소유자만 접근할 수 있습니다.</span>
+                        }
+                        else
+                        {
+                            <span>현재 share link로 접근할 수 있습니다.</span>
+                        }
+                    </p>
+                    <form method="post"
+                          asp-page-handler="Visibility"
+                          asp-route-slug="@drop.Slug">
+                        <button type="submit"
+                                class="btn @(drop.IsPrivate ? "btn-success" : "btn-neutral")">
+                            @(drop.IsPrivate ? "publish" : "private으로 전환")
+                        </button>
+                    </form>
+
+                    <div class="divider"></div>
+
+                    <form method="post"
+                          asp-page-handler="Password"
+                          asp-route-slug="@drop.Slug"
+                          class="space-y-3">
+                        <fieldset class="fieldset">
+                            <legend class="fieldset-legend">
+                                @(drop.DropPasswordHash is null
+                                    ? "드롭 비밀번호 설정"
+                                    : "드롭 비밀번호 변경")
+                            </legend>
+                            <input asp-for="NewDropPassword"
+                                   type="password"
+                                   class="input w-full"
+                                   autocomplete="new-password"
+                                   required />
+                            <span asp-validation-for="NewDropPassword"
+                                  class="text-sm text-error"></span>
+                        </fieldset>
+                        <button type="submit" class="btn btn-primary">
+                            @(drop.DropPasswordHash is null ? "설정" : "변경")
+                        </button>
+                    </form>
+
+                    @if (drop.DropPasswordHash is not null)
+                    {
+                        <form method="post"
+                              asp-page-handler="ClearPassword"
+                              asp-route-slug="@drop.Slug">
+                            <button type="submit" class="btn btn-ghost btn-sm">
+                                드롭 비밀번호 해제
+                            </button>
+                        </form>
+                    }
+                </div>
+            </section>
+
+            <section class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title">커스텀 slug</h2>
+                    <form method="post"
+                          asp-page-handler="Slug"
+                          asp-route-slug="@drop.Slug"
+                          class="space-y-3">
+                        <fieldset class="fieldset">
+                            <legend class="fieldset-legend">slug</legend>
+                            <input asp-for="SlugInput"
+                                   class="input w-full font-mono"
+                                   maxlength="64"
+                                   autocomplete="off"
+                                   required />
+                            <span asp-validation-for="SlugInput"
+                                  class="text-sm text-error"></span>
+                        </fieldset>
+                        <button type="submit" class="btn btn-primary">
+                            변경
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <section class="card border border-error/30 bg-base-100 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title text-error">드롭 삭제</h2>
+                    <p class="text-sm text-base-content/70">
+                        드롭과 저장된 파일을 삭제합니다. 되돌릴 수 없습니다.
+                    </p>
+                    <form method="post"
+                          asp-page-handler="Delete"
+                          asp-route-slug="@drop.Slug">
+                        <button type="submit" class="btn btn-error">
+                            삭제
+                        </button>
+                    </form>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (() => {
+            const button = document.getElementById("copy-share-link");
+            const input = document.getElementById("share-link");
+
+            button.addEventListener("click", async () => {
+                await navigator.clipboard.writeText(input.value);
+                button.textContent = "복사됨";
+            });
+        })();
+    </script>
+}

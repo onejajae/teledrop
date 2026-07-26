@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using Teledrop;
 using Teledrop.Data;
 using Teledrop.Features.Auth;
+using Teledrop.Features.Drops;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +18,9 @@ builder.WebHost.ConfigureKestrel((context, options) =>
 });
 
 builder.Services.AddRazorPages();
+builder.Services.AddDataProtection();
+builder.Services.AddSingleton<DropUnlockCookie>();
+builder.Services.AddScoped<DropSlugGenerator>();
 builder.Services
     .AddOptions<TeledropOptions>()
     .Bind(builder.Configuration)
