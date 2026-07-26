@@ -55,7 +55,7 @@
 - [x] **1. 데이터 기반** — Drop 엔티티, `TeledropDbContext`, SQLite 연결, 첫 마이그레이션, 설정 바인딩(`SHARE_DIRECTORY`, `MAX_UPLOAD_BYTES`), 기동 시 share 디렉터리 보장
 - [x] **2. 인증/세션** — 로그인/로그아웃 페이지, 쿠키 인증(프레임워크 기본, 암호화 쿠키), argon2 검증(`WEB_USERNAME`/`WEB_PASSWORD`), 슬라이딩 30일, 비밀번호 지문 대조 폐기(`OnValidatePrincipal`)
 - [x] **3. 파일 코어** — 업로드(디스크 스트리밍, sha256, private 고정 생성), 다운로드(`PhysicalFile` Range), 삭제(DB 행 먼저), htmx 업로드 진행률
-- [ ] **4. 목록** — 제목·파일명 검색, 정렬(created_at/title/size × asc·desc), 페이지네이션, favorite 토글
+- [x] **4. 목록** — 제목·파일명 검색, 정렬(created_at/title/size × asc·desc), 페이지네이션, favorite 토글
 - [ ] **5. 드롭 상세** — 메타 수정, publish(공개 전환), 드롭 비밀번호 설정/해제(argon2 + Data Protection 쿠키), 잠금 화면 메타 마스킹(401), slug 자동 생성(형용사+명사, 코드 내 배열)·커스텀 slug
 - [ ] **6. 업로드 티켓** — 발급/목록/폐기 UI(코드 평문 표시, no-store), 게스트 업로드 페이지(없는 경로 404, 코드 10회 제한, 소진·만료 규칙, GET 무부작용, noindex/no-referrer, 진행률)
 - [ ] **7. API 업로드** — `POST /api/upload`, `X-API-Key`(`TELEDROP_API_KEY`), private 고정, 공유 URL 반환
