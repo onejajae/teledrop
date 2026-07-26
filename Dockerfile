@@ -2,11 +2,12 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
 
 WORKDIR /src
 
-COPY global.json Teledrop.csproj ./
-RUN dotnet restore Teledrop.csproj
+COPY global.json ./
+COPY src/Teledrop/Teledrop.csproj src/Teledrop/
+RUN dotnet restore src/Teledrop/Teledrop.csproj
 
-COPY . .
-RUN dotnet publish Teledrop.csproj \
+COPY src/Teledrop/ src/Teledrop/
+RUN dotnet publish src/Teledrop/Teledrop.csproj \
     --configuration Release \
     --output /app/publish \
     --no-restore \

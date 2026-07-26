@@ -18,20 +18,21 @@ LICENSE
 # Build and test outputs
 **/bin/
 **/obj/
-Teledrop.Tests/
+tests/
 
 # Local frontend toolchain
-node_modules/
-Styles/
-package.json
-package-lock.json
+**/node_modules/
+src/Teledrop/Styles/
+src/Teledrop/package.json
+src/Teledrop/package-lock.json
 
 # Generated frontend assets are publish inputs committed to the repository
-!wwwroot/css/app.css
-!wwwroot/js/htmx.min.js
+!src/Teledrop/wwwroot/css/app.css
+!src/Teledrop/wwwroot/js/htmx.min.js
 
 # Local application data
 share/
+.local/
 
 # Development and container orchestration files
 .config/

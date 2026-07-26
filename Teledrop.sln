@@ -2,9 +2,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Teledrop", "Teledrop.csproj", "{18A9CDE7-F906-49CA-8CF3-4104A331DAA5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Teledrop", "src\Teledrop\Teledrop.csproj", "{18A9CDE7-F906-49CA-8CF3-4104A331DAA5}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Teledrop.Tests", "Teledrop.Tests\Teledrop.Tests.csproj", "{BA8240BE-C9F5-41AB-97DD-657C38DAC17E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Teledrop.Tests", "tests\Teledrop.Tests\Teledrop.Tests.csproj", "{BA8240BE-C9F5-41AB-97DD-657C38DAC17E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

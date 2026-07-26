@@ -18,8 +18,7 @@ REST API를 기반으로 하는 개인용 파일 공유 플랫폼
 > ```
 > 이렇게 해야 `$` 기호를 올바르게 입력할 수 있습니다.
 
-2. 사용자 계정을 설정하지 않으면 기본 계정이 `admin/password`로 설정됩니다. 
-**보안을 위해 반드시 사용자 계정을 설정하십시오.**
+2. `WEB_USERNAME`과 `WEB_PASSWORD`는 필수입니다. 둘 중 하나라도 없으면 애플리케이션이 시작되지 않습니다.
 
 ### 3. teledrop 실행
 * `docker-compose.yml` 작성 (권장)
@@ -30,13 +29,15 @@ services:
     container_name: teledrop
     restart: unless-stopped
     ports:
-      - 80:8000/tcp
+      - 80:8080/tcp
     volumes:
-      - <공유할_볼륨_또는_디렉토리>:/teledrop/share
+      - <공유할_볼륨_또는_디렉토리>:/app/share
     environment:
       - TZ=Asia/Seoul
       - WEB_USERNAME=<로그인_ID>
       - WEB_PASSWORD=<해시된_로그인_비밀번호>  # $ 대신 $$ 사용
+      - TELEDROP_API_KEY=<API_키>
+      - SHARE_DIRECTORY=/app/share
 ```
 ```bash
 docker compose up -d
@@ -46,11 +47,13 @@ docker compose up -d
 ```bash
 docker run --detach \
    --name teledrop \
-   -p 80:8000 \
+   -p 80:8080 \
    --env WEB_USERNAME=<로그인_ID> \
    --env WEB_PASSWORD=<해시된_로그인_비밀번호> \
+   --env TELEDROP_API_KEY=<API_키> \
+   --env SHARE_DIRECTORY=/app/share \
    --restart unless-stopped \
-   --volume <공유할_볼륨_또는_디렉토리>:/teledrop/share \
+   --volume <공유할_볼륨_또는_디렉토리>:/app/share \
    ghcr.io/onejajae/teledrop:latest
 ```
 

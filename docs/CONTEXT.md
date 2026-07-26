@@ -2,7 +2,7 @@
 
 자체 호스팅 서버에서 돌리는 개인 파일 공유 도구. 원래 구상은 **instant cloud** — 지금 당장 파일을 올려두고 바깥에서 꺼내 쓴다. 서버 주인 한 명이 쓰며, 시한부 티켓으로 남에게서 파일을 받는다.
 
-설계와 범위는 [docs/DESIGN.md](docs/DESIGN.md), 결정 배경은 [docs/adr/](docs/adr/).
+설계와 범위는 [DESIGN.md](DESIGN.md), 결정 배경은 [adr/](adr/).
 
 ## Language
 

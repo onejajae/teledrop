@@ -1,7 +1,7 @@
 # teledrop — 제품 정의와 범위
 
 > 2026-07-26 기획 재검토 결과. devel 브랜치의 리팩토링을 폐기하고 main을 기준점으로 다시 세운 설계다.
-> 용어는 [../CONTEXT.md](../CONTEXT.md), 개별 결정의 배경은 [adr/](adr/), 이식하지 않기로 한 것들은 [not-porting-from-devel.md](not-porting-from-devel.md) 참고.
+> 용어는 [CONTEXT.md](CONTEXT.md), 개별 결정의 배경은 [adr/](adr/), 이식하지 않기로 한 것들은 [not-porting-from-devel.md](not-porting-from-devel.md) 참고.
 
 ## 제품
 
@@ -140,7 +140,7 @@ not consumed
 
 ## 저장과 삭제
 
-파일은 `share/` 플랫 디렉터리에 두고, 파일명은 업로드마다 새로 만든 uuid다. DB의 `location`이 그것을 가리킨다. main과 같다.
+파일은 `share/` 플랫 디렉터리에 두고, 파일명은 업로드마다 새로 만든 uuid다. DB의 `location`이 그것을 가리킨다. main과 같다. 로컬 개발 데이터는 저장소 루트의 `.local/share/`, 컨테이너 데이터는 `/app/share/`에 둔다.
 
 **`location`을 불투명 포인터로 유지한다.** 나중에 CAS(content-addressable storage)로 갈 때 스키마를 바꾸지 않고 거기 들어가는 값만 바꾸면 된다. 그때 필요한 것은 두 가지뿐이다 — `location`에 해시를 넣는 것, 삭제 시 `SELECT COUNT(*) FROM drops WHERE file_hash = ?`로 다른 드롭이 같은 blob을 쓰는지 확인하는 것. 별도 refcount 테이블은 필요 없다. 지금은 uuid라 파일과 드롭이 1:1이므로 그 확인도 불필요하다.
 
@@ -158,21 +158,21 @@ not consumed
 ### 개발 명령
 
 ```
-npm install          # 최초 1회
-npm run build        # CSS 생성 + htmx 복사 → wwwroot/
-npm run watch        # CSS만 감시
-dotnet run --launch-profile http
+npm --prefix src/Teledrop ci               # 최초 1회
+npm --prefix src/Teledrop run build        # CSS 생성 + htmx 복사 → wwwroot/
+npm --prefix src/Teledrop run watch        # CSS만 감시
+dotnet run --project src/Teledrop --launch-profile http
 ```
 
-`wwwroot/css/app.css`와 `wwwroot/js/htmx.min.js`는 **생성물이지만 커밋한다.** npm은 로컬 개발에만 필요하고 Docker 빌드에는 들어가지 않는다. daisyUI가 `@plugin`으로 `node_modules` 해석을 요구하므로 Tailwind standalone 바이너리로는 대체할 수 없다.
+`src/Teledrop/wwwroot/css/app.css`와 `src/Teledrop/wwwroot/js/htmx.min.js`는 **생성물이지만 커밋한다.** npm은 로컬 개발에만 필요하고 Docker 빌드에는 들어가지 않는다. daisyUI가 `@plugin`으로 `node_modules` 해석을 요구하므로 Tailwind standalone 바이너리로는 대체할 수 없다.
 
-CSS 소스는 `Styles/app.css`다. Tailwind 기본 탐색 경로에 `.cshtml`이 없으므로 `@source`로 `Pages/`를 명시해두었다 — 새 뷰 디렉터리를 만들면 여기에 추가해야 클래스가 방출된다.
+CSS 소스는 `src/Teledrop/Styles/app.css`다. Tailwind 기본 탐색 경로에 `.cshtml`이 없으므로 `@source`로 `Pages/`를 명시해두었다 — 새 뷰 디렉터리를 만들면 여기에 추가해야 클래스가 방출된다.
 
 `MapStaticAssets`가 정적 자산 URL에 해시를 붙이므로 `asp-append-version`은 쓰지 않는다. 다만 해시는 빌드 시점에 계산되므로, `npm run watch`로 CSS만 갱신하면 `dotnet` 쪽 재빌드 전까지 반영되지 않는다.
 
 ### 아키텍처 원칙
 
-**단일 프로젝트 + 기능별 폴더(vertical slice).** `Features/Drops/`, `Features/Auth/`, `Features/UploadTickets/`.
+**단일 프로젝트 + 기능별 폴더(vertical slice).** `src/Teledrop/Features/Drops/`, `src/Teledrop/Features/Auth/`, `src/Teledrop/Features/UploadTickets/`.
 
 devel은 `domain` / `application` / `infrastructure` / `interfaces` / `core` / `bootstrap` 6계층으로 1.1k줄을 15.7k줄로 만들었고, 업로드 기능 하나가 20개 파일에 흩어졌다. **.NET 생태계의 기본 조언(Clean Architecture 템플릿, MediatR, Repository + Unit of Work, Entity/DTO 분리)이 정확히 그 방향이다.** 언어를 바꿔도 유혹은 약해지지 않는다. 프로젝트를 쪼개지 않고, MediatR을 쓰지 않는다.
 

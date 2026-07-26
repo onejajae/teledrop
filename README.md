@@ -17,8 +17,7 @@ Private file sharing platform for self-hosted servers, powered by REST API.
 > WEB_PASSWORD: $$argon2id$$v=19$$m=65536,t=3,p=4$$0123456789ABCDEF$$abcdefghijklmnopqrstuvwxyz0123456789
 > ```
 > This ensures that the `$` symbol is correctly escaped and not interpreted by Docker Compose.
-2. If a user account is not set, the default account credentials will be `admin/password`. 
-**For security reasons, it is strongly recommended to set a custom username and password before running the application.**
+2. `WEB_USERNAME` and `WEB_PASSWORD` are required. The application refuses to start when either value is missing.
 
 ### 3. Run teledrop
 * Configure `docker-compose.yml` (Recommended)
@@ -29,13 +28,15 @@ services:
     container_name: teledrop
     restart: unless-stopped
     ports:
-      - 80:8000/tcp
+      - 80:8080/tcp
     volumes:
-      - <YOUR_SHARE_DIRECTORY_OR_DOCKER_VOLUME>:/teledrop/share
+      - <YOUR_SHARE_DIRECTORY_OR_DOCKER_VOLUME>:/app/share
     environment:
       - TZ=Asia/Seoul
       - WEB_USERNAME=<YOUR_LOGIN_USERNAME>
       - WEB_PASSWORD=<YOUR_HASHED_LOGIN_PASSWORD>  # Use $$ instead of $ in docker-compose.yml
+      - TELEDROP_API_KEY=<YOUR_API_KEY>
+      - SHARE_DIRECTORY=/app/share
 ```
 ```bash
 docker compose up -d
@@ -45,11 +46,13 @@ docker compose up -d
 ```bash
 docker run --detach \
    --name teledrop \
-   -p 80:8000 \
+   -p 80:8080 \
    --env WEB_USERNAME=<YOUR_LOGIN_USERNAME> \
    --env WEB_PASSWORD=<YOUR_HASHED_LOGIN_PASSWORD> \
+   --env TELEDROP_API_KEY=<YOUR_API_KEY> \
+   --env SHARE_DIRECTORY=/app/share \
    --restart unless-stopped \
-   --volume <YOUR_SHARE_DIRECTORY_OR_DOCKER_VOLUME>:/teledrop/share \
+   --volume <YOUR_SHARE_DIRECTORY_OR_DOCKER_VOLUME>:/app/share \
    ghcr.io/onejajae/teledrop:latest
 ```
 

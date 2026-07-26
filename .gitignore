@@ -24,3 +24,4 @@ node_modules/
 
 # teledrop default share directory
 share/
+.local/

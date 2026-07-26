@@ -5,11 +5,11 @@
 
 ## 모든 스테이지 지시문에 공통으로 들어가는 계약
 
-- 시작 전에 `CONTEXT.md`(용어), `docs/DESIGN.md` 해당 절, 관련 ADR을 읽고 따른다
-- 코드 이름에 CONTEXT.md의 용어를 그대로 쓴다 (Drop, UploadTicket — Content/Post/Code가 아니다)
+- 시작 전에 `docs/CONTEXT.md`(용어), `docs/DESIGN.md` 해당 절, 관련 ADR을 읽고 따른다
+- 코드 이름에 `docs/CONTEXT.md`의 용어를 그대로 쓴다 (Drop, UploadTicket — Content/Post/Code가 아니다)
 - 단일 프로젝트 + `Features/` 폴더. 새 csproj, 레이어 디렉터리, MediatR, Repository/UoW 추상화 금지 ([ADR 0002](adr/0002-ssr-and-csharp.md) '경계')
 - 설계 문서가 답하지 않는 결정을 만나면 임의로 정하지 말고 멈춰서 질문 목록으로 보고한다
-- `docs/`, `.github/`, `README*`, `Styles/` 수정 금지. 패키지 추가는 지시문에 명시된 것만
+- `docs/`, `.github/`, `README*`, `src/Teledrop/Styles/` 수정 금지. 패키지 추가는 지시문에 명시된 것만
 - `git commit` 금지 — 커밋은 검수 후 사람이 한다
 - 완료는 아래 '완료 게이트' 세 개를 전부 통과한 상태다
 
@@ -23,7 +23,7 @@
 - 해당 스테이지의 통합 테스트 통과 (아래 표)
 
 **게이트 2 — 설계·스코프 검수.** Claude 담당. 기계가 못 잡는 두 가지.
-- 설계 부합: 용어가 CONTEXT.md대로인가, 동작이 DESIGN.md·ADR대로인가
+- 설계 부합: 용어가 `docs/CONTEXT.md`대로인가, 동작이 DESIGN.md·ADR대로인가
 - **"안 한 것" 검사**: 스코프 밖 파일, 시키지 않은 추상화·패키지·기능.
   **초과분은 미완료와 동급으로 취급하고 걷어낸다** — devel이 죽은 방식이 "요구한 것 + 혹시 몰라서"였다
 

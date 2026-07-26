@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../Teledrop.csproj" />
+    <ProjectReference Include="../../src/Teledrop/Teledrop.csproj" />
   </ItemGroup>
 
 </Project>
