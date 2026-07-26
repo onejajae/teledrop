@@ -32,14 +32,14 @@ public sealed class PublicDropModel(
             return MissingDropResult();
         }
 
-        if (drop.IsPrivate && !IsOwner())
+        var accessDecision = EvaluateAccess(drop);
+        if (accessDecision
+            == DropAccessDecision.OwnerAuthenticationRequired)
         {
             return Challenge();
         }
 
-        if (!IsOwner()
-            && drop.DropPasswordHash is not null
-            && !dropUnlockCookie.IsValid(Request, drop))
+        if (accessDecision == DropAccessDecision.DropPasswordRequired)
         {
             return LockedPage();
         }
@@ -58,12 +58,18 @@ public sealed class PublicDropModel(
             return MissingDropResult();
         }
 
-        if (drop.IsPrivate && !IsOwner())
+        var accessDecision = DropAccessPolicy.Evaluate(
+            drop,
+            IsOwner(),
+            hasValidDropPasswordGrant:
+                drop.DropPasswordHash is null);
+        if (accessDecision
+            == DropAccessDecision.OwnerAuthenticationRequired)
         {
             return Challenge();
         }
 
-        if (IsOwner() || drop.DropPasswordHash is null)
+        if (accessDecision == DropAccessDecision.Allowed)
         {
             return RedirectToPublicDrop(drop.Slug);
         }
@@ -118,5 +124,14 @@ public sealed class PublicDropModel(
     private bool IsOwner()
     {
         return User.Identity?.IsAuthenticated == true;
+    }
+
+    private DropAccessDecision EvaluateAccess(Drop drop)
+    {
+        return DropAccessPolicy.Evaluate(
+            drop,
+            IsOwner(),
+            drop.DropPasswordHash is null
+                || dropUnlockCookie.IsValid(Request, drop));
     }
 }

@@ -3,15 +3,13 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Teledrop.Data;
 
 namespace Teledrop.Features.Drops;
 
 public sealed class IndexModel(
     TeledropDbContext dbContext,
-    IOptions<TeledropOptions> options,
-    ILogger<IndexModel> logger)
+    DropUseCases dropUseCases)
     : PageModel
 {
     public const int PageSize = 20;
@@ -80,30 +78,12 @@ public sealed class IndexModel(
             return BadRequest();
         }
 
-        var drop = await dbContext.Drops.SingleOrDefaultAsync(
-            candidate => candidate.Slug == slug,
+        var result = await dropUseCases.DeleteAsync(
+            slug,
             cancellationToken);
-        if (drop is null)
+        if (result == DropCommandResult.NotFound)
         {
             return NotFound();
-        }
-
-        dbContext.Drops.Remove(drop);
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        try
-        {
-            var filePath = Path.GetFullPath(
-                Path.Combine(options.Value.ShareDirectory, drop.Location));
-            System.IO.File.Delete(filePath);
-        }
-        catch (Exception exception)
-        {
-            logger.LogWarning(
-                exception,
-                "Drop {DropId} was removed, but its file at location {Location} could not be deleted.",
-                drop.Id,
-                drop.Location);
         }
 
         return RedirectToList(
@@ -127,16 +107,13 @@ public sealed class IndexModel(
             return BadRequest();
         }
 
-        var drop = await dbContext.Drops.SingleOrDefaultAsync(
-            candidate => candidate.Slug == slug,
+        var result = await dropUseCases.ToggleFavoriteAsync(
+            slug,
             cancellationToken);
-        if (drop is null)
+        if (result == DropCommandResult.NotFound)
         {
             return NotFound();
         }
-
-        drop.IsFavorite = !drop.IsFavorite;
-        await dbContext.SaveChangesAsync(cancellationToken);
 
         return RedirectToList(
             search,

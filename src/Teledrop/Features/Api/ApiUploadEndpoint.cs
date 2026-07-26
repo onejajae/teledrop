@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
-using Teledrop.Data;
 using Teledrop.Features.Drops;
 
 namespace Teledrop.Features.Api;
@@ -25,8 +24,7 @@ public static class ApiUploadEndpoint
 
     private static async Task<IResult> HandleAsync(
         HttpContext httpContext,
-        TeledropDbContext dbContext,
-        DropSlugGenerator dropSlugGenerator,
+        CreatePrivateDrop createPrivateDrop,
         DropFileStore dropFileStore,
         IOptions<TeledropOptions> teledropOptions,
         IOptions<FormOptions> formOptions)
@@ -57,7 +55,6 @@ public static class ApiUploadEndpoint
         string? description = null;
         StoredDropFile? storedFile = null;
         var formValueCount = 0;
-        var persisted = false;
 
         try
         {
@@ -139,25 +136,13 @@ public static class ApiUploadEndpoint
                 return Results.BadRequest();
             }
 
-            var drop = new Drop
-            {
-                Id = Guid.NewGuid(),
-                Slug = await dropSlugGenerator.GenerateUniqueSlugAsync(
-                    requestAborted),
-                Title = title,
-                Description = description,
-                IsPrivate = true,
-                FileName = storedFile.FileName,
-                FileHash = storedFile.FileHash,
-                FileSizeBytes = storedFile.FileSizeBytes,
-                ContentType = storedFile.ContentType,
-                Location = storedFile.Location,
-                CreatedAt = DateTime.UtcNow,
-            };
-
-            dbContext.Drops.Add(drop);
-            await dbContext.SaveChangesAsync(requestAborted);
-            persisted = true;
+            var fileToPersist = storedFile;
+            storedFile = null;
+            var drop = await createPrivateDrop.ExecuteAsync(
+                fileToPersist,
+                title,
+                description,
+                requestAborted);
 
             return Results.Ok(new ApiUploadResponse(
                 drop.Slug,
@@ -179,7 +164,7 @@ public static class ApiUploadEndpoint
         }
         finally
         {
-            if (!persisted && storedFile is not null)
+            if (storedFile is not null)
             {
                 dropFileStore.TryDelete(storedFile);
             }

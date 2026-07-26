@@ -23,9 +23,29 @@ builder.WebHost.ConfigureKestrel((context, options) =>
 builder.Services.AddRazorPages();
 builder.Services.AddDataProtection();
 builder.Services.AddSingleton<DropUnlockCookie>();
+builder.Services.AddScoped<EfDropStore>();
+builder.Services.AddScoped<IDropCommandStore>(
+    services => services.GetRequiredService<EfDropStore>());
+builder.Services.AddScoped<IDropSlugIndex>(
+    services => services.GetRequiredService<EfDropStore>());
+builder.Services.AddScoped<IDropPasswordHasher, Argon2DropPasswordHasher>();
 builder.Services.AddScoped<DropSlugGenerator>();
 builder.Services.AddScoped<DropFileStore>();
+builder.Services.AddScoped<IStoredDropFileCleanup>(
+    services => services.GetRequiredService<DropFileStore>());
+builder.Services.AddScoped<PrivateDropFactory>();
+builder.Services.AddScoped<CreatePrivateDrop>();
+builder.Services.AddScoped<DropUseCases>();
+builder.Services.AddScoped<EfUploadTickets>();
+builder.Services.AddScoped<IUploadTicketStore>(
+    services => services.GetRequiredService<EfUploadTickets>());
+builder.Services.AddScoped<IUploadTicketPathIndex>(
+    services => services.GetRequiredService<EfUploadTickets>());
+builder.Services.AddScoped<IGuestUploadCommitter>(
+    services => services.GetRequiredService<EfUploadTickets>());
 builder.Services.AddScoped<UploadTicketCredentialGenerator>();
+builder.Services.AddScoped<UploadTicketUseCases>();
+builder.Services.AddScoped<GuestUploadUseCases>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services
     .AddOptions<TeledropOptions>()

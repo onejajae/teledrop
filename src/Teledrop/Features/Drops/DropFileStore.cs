@@ -7,6 +7,7 @@ namespace Teledrop.Features.Drops;
 public sealed class DropFileStore(
     IOptions<TeledropOptions> teledropOptions,
     ILogger<DropFileStore> logger)
+    : IStoredDropFileCleanup
 {
     private const int CopyBufferSize = 64 * 1024;
 
@@ -70,14 +71,19 @@ public sealed class DropFileStore(
         }
         catch
         {
-            TryDelete(filePath);
+            TryDeleteFile(filePath);
             throw;
         }
     }
 
     public void TryDelete(StoredDropFile storedFile)
     {
-        TryDelete(GetFilePath(storedFile.Location));
+        TryDelete(storedFile.Location);
+    }
+
+    public void TryDelete(string location)
+    {
+        TryDeleteFile(GetFilePath(location));
     }
 
     private string GetFilePath(string location)
@@ -88,7 +94,7 @@ public sealed class DropFileStore(
                 location));
     }
 
-    private void TryDelete(string filePath)
+    private void TryDeleteFile(string filePath)
     {
         try
         {
@@ -103,12 +109,5 @@ public sealed class DropFileStore(
         }
     }
 }
-
-public sealed record StoredDropFile(
-    string Location,
-    string FileName,
-    string ContentType,
-    long FileSizeBytes,
-    string FileHash);
 
 public sealed class DropUploadTooLargeException : Exception;

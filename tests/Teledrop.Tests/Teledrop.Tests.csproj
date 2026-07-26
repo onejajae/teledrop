@@ -20,6 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../../src/Teledrop.Core/Teledrop.Core.csproj" />
     <ProjectReference Include="../../src/Teledrop/Teledrop.csproj" />
   </ItemGroup>
 

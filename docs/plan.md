@@ -2,12 +2,15 @@
 
 > 스테이지 하나 = Codex 스레드 하나(`/codex:rescue --fresh`) = 검수 후 커밋 하나.
 > 완료된 항목은 체크하고, 스코프가 바뀌면 이 파일을 함께 고친다. 전부 끝나면 이 파일은 지운다.
+>
+> 2026-07-27: 스테이지 1~8 완료 뒤 [ADR 0005](adr/0005-two-project-functional-core.md)를 채택했다. 아래 완료 기록은 유지하고, 릴리스 전에 아키텍처 분리 스테이지 9~13을 수행한다.
 
 ## 모든 스테이지 지시문에 공통으로 들어가는 계약
 
 - 시작 전에 `docs/CONTEXT.md`(용어), `docs/DESIGN.md` 해당 절, 관련 ADR을 읽고 따른다
 - 코드 이름에 `docs/CONTEXT.md`의 용어를 그대로 쓴다 (Drop, UploadTicket — Content/Post/Code가 아니다)
-- 단일 프로젝트 + `Features/` 폴더. 새 csproj, 레이어 디렉터리, MediatR, Repository/UoW 추상화 금지 ([ADR 0002](adr/0002-ssr-and-csharp.md) '경계')
+- 프로덕션 프로젝트는 `Teledrop.Core`와 `Teledrop` 둘만 둔다. 양쪽 모두 기능별 폴더를 쓰고, 세 번째 프로덕션 csproj, 전역 레이어 디렉터리, MediatR, 범용 Repository/UoW, Entity/DTO 복제를 금지한다 ([ADR 0005](adr/0005-two-project-functional-core.md))
+- `Teledrop.Core`는 ASP.NET Core, EF Core, SQLite를 참조하지 않는다. use case는 concrete class로 두고 외부 능력이 필요할 때만 최소 port를 선언한다
 - 설계 문서가 답하지 않는 결정을 만나면 임의로 정하지 말고 멈춰서 질문 목록으로 보고한다
 - `docs/`, `.github/`, `README*`, `src/Teledrop/Styles/` 수정 금지. 패키지 추가는 지시문에 명시된 것만
 - `git commit` 금지 — 커밋은 검수 후 사람이 한다
@@ -63,10 +66,22 @@
 
 순서 의존: 7은 slug 생성(5) 뒤여야 한다. 6과 7은 서로 바꿔도 된다. 8은 마지막.
 
+## 아키텍처 분리 스테이지 — ADR 0005
+
+이 단계는 기능 추가나 동작 변경이 아니다. route, HTTP 응답, DB schema, 저장 파일 형식을 그대로 두고 업무 로직과 구현의 의존 경계만 옮긴다.
+
+- [x] **9. Core 경계** — `Teledrop.Core` class library와 project reference 추가, Core의 금지 참조를 빌드에서 확인, 기존 테스트 프로젝트가 Core와 Web을 모두 참조
+- [x] **10. 순수 모델과 정책** — `Drop`, `UploadTicket`, 접근 판정, 티켓 유효성·상태 전이를 Core로 이동하고 프레임워크 없는 단위 테스트 추가
+- [x] **11. 드롭 use case** — private 생성·삭제·publish 등 작업 순서를 Core의 concrete use case로 이동, 파일·DB 능력은 최소 port로 선언하고 Web에서 구현
+- [x] **12. 게스트 업로드 use case** — 코드 실패·30분 창·소진 규칙을 Core로 이동, 드롭 생성과 티켓 소진의 원자성은 특화 port의 EF 구현으로 보장
+- [x] **13. Web adapter 정리** — PageModel/API는 인증·multipart·antiforgery·응답 변환만 남기고 전체 회귀 테스트와 컨테이너 스모크 수행
+
+순서 의존: 9 → 10 → 11·12 → 13. 각 스테이지는 동작 보존을 기존 HTTP 통합 테스트로 확인한다.
+
 ## 릴리스 작업 — Codex 위임 없음 (사람 + Claude)
 
 스테이지가 아니라 릴리스 절차다. 공통 계약이 Codex의 `.github/`·`README*` 수정을 금지하므로 여기는 위임 대상이 아니다.
-시점: **스테이지 8까지 완료하고 로컬 실사용으로 확인한 뒤, main 머지 전.**
+시점: **스테이지 13까지 완료하고 로컬 실사용으로 확인한 뒤, main 머지 전.**
 
 - [ ] compose 갱신 — 이미지 참조, 환경변수(`WEB_USERNAME` `WEB_PASSWORD` `TELEDROP_API_KEY` `SHARE_DIRECTORY` `MAX_UPLOAD_BYTES`)
 - [ ] GitHub Actions 교체 — 현행 워크플로는 develop/main 트리거에 Python Dockerfile 전제. 교체 전에 main에 머지하면 깨진 빌드가 발화하고, 최악의 경우 죽은 이미지가 `ghcr.io/onejajae/teledrop:latest`를 덮는다

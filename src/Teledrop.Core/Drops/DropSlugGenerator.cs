@@ -1,11 +1,9 @@
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
-using Microsoft.EntityFrameworkCore;
-using Teledrop.Data;
 
 namespace Teledrop.Features.Drops;
 
-public sealed class DropSlugGenerator(TeledropDbContext dbContext)
+public sealed class DropSlugGenerator(IDropSlugIndex dropSlugIndex)
 {
     public const int MaximumSlugLength = 64;
 
@@ -330,24 +328,23 @@ public sealed class DropSlugGenerator(TeledropDbContext dbContext)
     public static bool TryNormalizeCustomSlug(
         string? value,
         out string normalizedSlug,
-        out string errorMessage)
+        out DropSlugValidationError validationError)
     {
         normalizedSlug = value?.Trim().ToLowerInvariant() ?? string.Empty;
 
         if (!CustomSlugPattern.IsMatch(normalizedSlug))
         {
-            errorMessage =
-                "slug는 영문 소문자 또는 숫자로 시작하고, 영문 소문자·숫자·하이픈만 사용해 64자 이하여야 합니다.";
+            validationError = DropSlugValidationError.InvalidFormat;
             return false;
         }
 
         if (ReservedSlugs.Contains(normalizedSlug))
         {
-            errorMessage = "이 slug는 teledrop 경로에 예약되어 있습니다.";
+            validationError = DropSlugValidationError.Reserved;
             return false;
         }
 
-        errorMessage = string.Empty;
+        validationError = DropSlugValidationError.None;
         return true;
     }
 
@@ -355,11 +352,10 @@ public sealed class DropSlugGenerator(TeledropDbContext dbContext)
         string slug,
         CancellationToken cancellationToken)
     {
-        return await dbContext.Drops
-            .AsNoTracking()
-            .AnyAsync(
-                drop => drop.Slug == slug,
-                cancellationToken);
+        return await dropSlugIndex.ExistsAsync(
+            slug,
+            excludingDropId: null,
+            cancellationToken);
     }
 
     private static string CreateWordCombination()
@@ -370,4 +366,11 @@ public sealed class DropSlugGenerator(TeledropDbContext dbContext)
             RandomNumberGenerator.GetInt32(Nouns.Length)];
         return $"{adjective}-{noun}";
     }
+}
+
+public enum DropSlugValidationError
+{
+    None,
+    InvalidFormat,
+    Reserved,
 }

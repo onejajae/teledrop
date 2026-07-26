@@ -7,7 +7,7 @@ namespace Teledrop.Features.UploadTickets;
 
 public sealed class TicketsModel(
     TeledropDbContext dbContext,
-    UploadTicketCredentialGenerator credentialGenerator,
+    UploadTicketUseCases uploadTicketUseCases,
     TimeProvider timeProvider)
     : PageModel
 {
@@ -31,19 +31,8 @@ public sealed class TicketsModel(
     {
         SetNoStore();
 
-        var now = timeProvider.GetUtcNow().UtcDateTime;
-        var uploadTicket = new UploadTicket
-        {
-            Id = Guid.NewGuid(),
-            Path = await credentialGenerator.GenerateUniqueTicketPathAsync(
-                cancellationToken),
-            Code = credentialGenerator.GenerateTicketCode(),
-            CreatedAt = now,
-            ExpiresAtUtc = now.AddHours(24),
-        };
-
-        dbContext.UploadTickets.Add(uploadTicket);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        var uploadTicket = await uploadTicketUseCases.IssueAsync(
+            cancellationToken);
 
         IssuedUploadTicket = uploadTicket;
         IssuedUploadTicketUrl = Url.Page(
@@ -63,20 +52,12 @@ public sealed class TicketsModel(
     {
         SetNoStore();
 
-        var uploadTicket = await dbContext.UploadTickets
-            .SingleOrDefaultAsync(
-                ticket => ticket.Id == id,
-                cancellationToken);
-        if (uploadTicket is null)
+        var result = await uploadTicketUseCases.RevokeAsync(
+            id,
+            cancellationToken);
+        if (result == UploadTicketCommandResult.NotFound)
         {
             return NotFound();
-        }
-
-        var now = timeProvider.GetUtcNow().UtcDateTime;
-        if (uploadTicket.CanAcceptUpload(now))
-        {
-            uploadTicket.RevokedAtUtc = now;
-            await dbContext.SaveChangesAsync(cancellationToken);
         }
 
         return RedirectToPage("/Tickets");

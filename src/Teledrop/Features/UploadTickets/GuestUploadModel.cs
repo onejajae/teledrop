@@ -1,5 +1,4 @@
 using System.Buffers;
-using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authorization;
@@ -7,10 +6,8 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
-using Teledrop.Data;
 using Teledrop.Features.Drops;
 
 namespace Teledrop.Features.UploadTickets;
@@ -18,8 +15,7 @@ namespace Teledrop.Features.UploadTickets;
 [AllowAnonymous]
 [IgnoreAntiforgeryToken]
 public sealed class GuestUploadModel(
-    TeledropDbContext dbContext,
-    DropSlugGenerator dropSlugGenerator,
+    GuestUploadUseCases guestUploadUseCases,
     DropFileStore dropFileStore,
     IAntiforgery antiforgery,
     IOptions<AntiforgeryOptions> antiforgeryOptions,
@@ -27,8 +23,6 @@ public sealed class GuestUploadModel(
     TimeProvider timeProvider)
     : PageModel
 {
-    private const int MaximumFailedCodeAttempts = 10;
-
     public bool IsUnavailable { get; private set; }
 
     public bool UploadSucceeded { get; private set; }
@@ -49,17 +43,16 @@ public sealed class GuestUploadModel(
             return NotFound();
         }
 
-        var uploadTicket = await FindUploadTicketAsync(
+        var availability = await guestUploadUseCases.GetAvailabilityAsync(
             path,
-            asTracking: false,
+            timeProvider.GetUtcNow().UtcDateTime,
             HttpContext.RequestAborted);
-        if (uploadTicket is null)
+        if (availability == UploadTicketAvailability.Missing)
         {
             return NotFound();
         }
 
-        if (!uploadTicket.CanAcceptUpload(
-                timeProvider.GetUtcNow().UtcDateTime))
+        if (availability == UploadTicketAvailability.Unavailable)
         {
             return ShowUnavailable();
         }
@@ -79,16 +72,16 @@ public sealed class GuestUploadModel(
 
         var cancellationToken = HttpContext.RequestAborted;
         var requestStartedAtUtc = timeProvider.GetUtcNow().UtcDateTime;
-        var uploadTicket = await FindUploadTicketAsync(
+        var availability = await guestUploadUseCases.GetAvailabilityAsync(
             path,
-            asTracking: true,
+            requestStartedAtUtc,
             cancellationToken);
-        if (uploadTicket is null)
+        if (availability == UploadTicketAvailability.Missing)
         {
             return NotFound();
         }
 
-        if (!uploadTicket.CanAcceptUpload(requestStartedAtUtc))
+        if (availability == UploadTicketAvailability.Unavailable)
         {
             return ShowUnavailable();
         }
@@ -106,12 +99,11 @@ public sealed class GuestUploadModel(
         };
 
         StoredDropFile? storedFile = null;
+        GuestUploadAuthorization? authorization = null;
         var antiforgeryValidated = false;
-        var ticketCodeValidated = false;
         var ticketCodeSeen = false;
         var sectionCount = 0;
         var formValueCount = 0;
-        var persisted = false;
 
         try
         {
@@ -145,7 +137,7 @@ public sealed class GuestUploadModel(
                 if (isFile)
                 {
                     if (!antiforgeryValidated
-                        || !ticketCodeValidated
+                        || authorization is null
                         || storedFile is not null
                         || !string.Equals(
                             fieldName,
@@ -210,20 +202,22 @@ public sealed class GuestUploadModel(
                     }
 
                     ticketCodeSeen = true;
-                    if (!TicketCodesMatch(uploadTicket.Code, value))
+                    var codeResult =
+                        await guestUploadUseCases.ValidateCodeAsync(
+                            path,
+                            value,
+                            requestStartedAtUtc,
+                            requestAborted);
+
+                    if (codeResult.Status
+                        == GuestTicketCodeStatus.Missing)
                     {
-                        var attemptRecorded =
-                            await RecordFailedCodeAttemptAsync(
-                            uploadTicket,
-                            requestStartedAtUtc);
+                        return NotFound();
+                    }
 
-                        if (!attemptRecorded
-                            || !uploadTicket.CanAcceptUpload(
-                                requestStartedAtUtc))
-                        {
-                            return ShowUnavailable();
-                        }
-
+                    if (codeResult.Status
+                        == GuestTicketCodeStatus.InvalidCode)
+                    {
                         TicketCodeError =
                             "Ticket Code가 올바르지 않습니다.";
                         Response.StatusCode =
@@ -231,16 +225,17 @@ public sealed class GuestUploadModel(
                         return Page();
                     }
 
-                    await RecordFirstPostAsync(
-                        uploadTicket,
-                        requestStartedAtUtc);
-                    if (!uploadTicket.CanAcceptUpload(
-                            requestStartedAtUtc))
+                    if (codeResult.Status
+                        == GuestTicketCodeStatus.Unavailable)
                     {
                         return ShowUnavailable();
                     }
 
-                    ticketCodeValidated = true;
+                    authorization = codeResult.Authorization;
+                    if (authorization is null)
+                    {
+                        return BadRequest();
+                    }
                 }
                 else
                 {
@@ -249,70 +244,27 @@ public sealed class GuestUploadModel(
             }
 
             if (!antiforgeryValidated
-                || !ticketCodeValidated
+                || authorization is null
                 || storedFile is null)
             {
                 return BadRequest();
             }
 
-            var dropId = Guid.NewGuid();
-            var drop = new Drop
+            var fileToPersist = storedFile;
+            storedFile = null;
+            var completion = await guestUploadUseCases.AcceptAsync(
+                authorization,
+                fileToPersist,
+                requestAborted);
+            if (completion.Status
+                == GuestUploadCompletionStatus.Unavailable)
             {
-                Id = dropId,
-                Slug = await dropSlugGenerator.GenerateUniqueSlugAsync(
-                    requestAborted),
-                IsPrivate = true,
-                FileName = storedFile.FileName,
-                FileHash = storedFile.FileHash,
-                FileSizeBytes = storedFile.FileSizeBytes,
-                ContentType = storedFile.ContentType,
-                Location = storedFile.Location,
-                CreatedAt = timeProvider.GetUtcNow().UtcDateTime,
-                UploadTicketId = uploadTicket.Id,
-            };
-
-            await using var transaction =
-                await dbContext.Database.BeginTransactionAsync(
-                    requestAborted);
-
-            dbContext.Drops.Add(drop);
-            await dbContext.SaveChangesAsync(requestAborted);
-
-            var consumedAtUtc =
-                timeProvider.GetUtcNow().UtcDateTime;
-            var activeWindowStartUtc =
-                requestStartedAtUtc.AddMinutes(-30);
-            var affectedTickets = await dbContext.UploadTickets
-                .Where(ticket =>
-                    ticket.Id == uploadTicket.Id
-                    && ticket.RevokedAtUtc == null
-                    && ticket.ConsumedAtUtc == null
-                    && requestStartedAtUtc < ticket.ExpiresAtUtc
-                    && (ticket.FirstUsedAtUtc == null
-                        || activeWindowStartUtc
-                            < ticket.FirstUsedAtUtc))
-                .ExecuteUpdateAsync(
-                    setters => setters
-                        .SetProperty(
-                            ticket => ticket.ConsumedAtUtc,
-                            consumedAtUtc)
-                        .SetProperty(
-                            ticket => ticket.CreatedDropId,
-                            dropId),
-                    requestAborted);
-
-            if (affectedTickets != 1)
-            {
-                await transaction.RollbackAsync(requestAborted);
                 return ShowUnavailable();
             }
 
-            await transaction.CommitAsync(requestAborted);
-            persisted = true;
-
             UploadSucceeded = true;
-            UploadedFileName = storedFile.FileName;
-            UploadedFileSizeBytes = storedFile.FileSizeBytes;
+            UploadedFileName = completion.FileName;
+            UploadedFileSizeBytes = completion.FileSizeBytes;
             return Page();
         }
         catch (DropUploadTooLargeException)
@@ -329,114 +281,11 @@ public sealed class GuestUploadModel(
         }
         finally
         {
-            if (!persisted && storedFile is not null)
+            if (storedFile is not null)
             {
                 dropFileStore.TryDelete(storedFile);
             }
         }
-    }
-
-    private async Task<UploadTicket?> FindUploadTicketAsync(
-        string path,
-        bool asTracking,
-        CancellationToken cancellationToken)
-    {
-        if (!UploadTicketCredentialGenerator.TryNormalizeTicketPath(
-                path,
-                out var normalizedPath))
-        {
-            return null;
-        }
-
-        IQueryable<UploadTicket> query = dbContext.UploadTickets;
-        if (!asTracking)
-        {
-            query = query.AsNoTracking();
-        }
-
-        return await query.SingleOrDefaultAsync(
-            ticket => ticket.Path == normalizedPath,
-            cancellationToken);
-    }
-
-    private async Task RecordFirstPostAsync(
-        UploadTicket uploadTicket,
-        DateTime requestStartedAtUtc)
-    {
-        await dbContext.UploadTickets
-            .Where(ticket =>
-                ticket.Id == uploadTicket.Id
-                && ticket.FirstUsedAtUtc == null
-                && ticket.RevokedAtUtc == null
-                && ticket.ConsumedAtUtc == null
-                && requestStartedAtUtc < ticket.ExpiresAtUtc)
-            .ExecuteUpdateAsync(
-                setters => setters.SetProperty(
-                    ticket => ticket.FirstUsedAtUtc,
-                    requestStartedAtUtc),
-                CancellationToken.None);
-
-        await dbContext.Entry(uploadTicket)
-            .ReloadAsync(CancellationToken.None);
-    }
-
-    private async Task<bool> RecordFailedCodeAttemptAsync(
-        UploadTicket uploadTicket,
-        DateTime requestStartedAtUtc)
-    {
-        var activeWindowStartUtc = requestStartedAtUtc.AddMinutes(-30);
-
-        var affectedTickets = await dbContext.UploadTickets
-            .Where(ticket =>
-                ticket.Id == uploadTicket.Id
-                && ticket.RevokedAtUtc == null
-                && ticket.ConsumedAtUtc == null
-                && ticket.FailedCodeAttempts
-                    < MaximumFailedCodeAttempts
-                && requestStartedAtUtc < ticket.ExpiresAtUtc
-                && (ticket.FirstUsedAtUtc == null
-                    || activeWindowStartUtc < ticket.FirstUsedAtUtc))
-            .ExecuteUpdateAsync(
-                setters => setters
-                    .SetProperty(
-                        ticket => ticket.FailedCodeAttempts,
-                        ticket => ticket.FailedCodeAttempts + 1)
-                    .SetProperty(
-                        ticket => ticket.RevokedAtUtc,
-                        ticket => ticket.FailedCodeAttempts
-                                >= MaximumFailedCodeAttempts - 1
-                            ? requestStartedAtUtc
-                            : ticket.RevokedAtUtc),
-                CancellationToken.None);
-
-        await dbContext.Entry(uploadTicket)
-            .ReloadAsync(CancellationToken.None);
-
-        return affectedTickets == 1;
-    }
-
-    private static bool TicketCodesMatch(
-        string expectedCode,
-        string providedCode)
-    {
-        Span<byte> expectedBytes =
-            stackalloc byte[UploadTicketCredentialGenerator.TicketCodeLength];
-        Span<byte> providedBytes =
-            stackalloc byte[UploadTicketCredentialGenerator.TicketCodeLength];
-
-        Encoding.ASCII.GetBytes(expectedCode, expectedBytes);
-        var isValid = UploadTicketCredentialGenerator.TryNormalizeTicketCode(
-            providedCode,
-            out var normalizedCode);
-        if (isValid)
-        {
-            Encoding.ASCII.GetBytes(normalizedCode, providedBytes);
-        }
-
-        var matches = CryptographicOperations.FixedTimeEquals(
-            expectedBytes,
-            providedBytes);
-        return isValid & matches;
     }
 
     private bool TryGetMultipartBoundary(out string boundary)

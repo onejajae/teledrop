@@ -124,6 +124,64 @@ public sealed class UploadTicketTests
     }
 
     [Fact]
+    public async Task ConcurrentCorrectUploadsCommitExactlyOneDrop()
+    {
+        using var factory = new TeledropWebApplicationFactory();
+        var uploadTicket = await AddUploadTicketAsync(
+            factory,
+            path: "bh3k",
+            code: "fghj3456");
+        using var client = CreateClient(factory);
+        var uploadPath = $"/u/{uploadTicket.Path}";
+        var verificationValue = await GetGuestAntiforgeryValueAsync(
+            client,
+            uploadPath);
+
+        var responseTasks = Enumerable.Range(0, 2)
+            .Select(attempt => PostGuestUploadAsync(
+                client,
+                uploadPath,
+                uploadTicket.Code,
+                verificationValue,
+                [(byte)attempt],
+                $"concurrent-{attempt}.bin"));
+        var responses = await Task.WhenAll(responseTasks);
+
+        try
+        {
+            Assert.Equal(
+                1,
+                responses.Count(response =>
+                    response.StatusCode == HttpStatusCode.OK));
+            Assert.Equal(
+                1,
+                responses.Count(response =>
+                    response.StatusCode == HttpStatusCode.Gone));
+        }
+        finally
+        {
+            foreach (var response in responses)
+            {
+                response.Dispose();
+            }
+        }
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider
+            .GetRequiredService<TeledropDbContext>();
+        var drop = await dbContext.Drops.AsNoTracking().SingleAsync();
+        var storedTicket = await dbContext.UploadTickets
+            .AsNoTracking()
+            .SingleAsync(ticket => ticket.Id == uploadTicket.Id);
+
+        Assert.True(drop.IsPrivate);
+        Assert.Equal(uploadTicket.Id, drop.UploadTicketId);
+        Assert.Equal(drop.Id, storedTicket.CreatedDropId);
+        Assert.NotNull(storedTicket.ConsumedAtUtc);
+        Assert.Single(Directory.GetFiles(factory.ShareDirectory));
+    }
+
+    [Fact]
     public async Task ExpiredTicketShowsNoCodeFormAndRejectsUpload()
     {
         using var factory = new TeledropWebApplicationFactory();

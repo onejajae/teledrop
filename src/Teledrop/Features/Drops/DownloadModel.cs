@@ -32,15 +32,18 @@ public sealed class DownloadModel(
                 : Challenge();
         }
 
-        var isOwner = User.Identity?.IsAuthenticated == true;
-        if (drop.IsPrivate && !isOwner)
+        var accessDecision = DropAccessPolicy.Evaluate(
+            drop,
+            User.Identity?.IsAuthenticated == true,
+            drop.DropPasswordHash is null
+                || dropUnlockCookie.IsValid(Request, drop));
+        if (accessDecision
+            == DropAccessDecision.OwnerAuthenticationRequired)
         {
             return Challenge();
         }
 
-        if (!isOwner
-            && drop.DropPasswordHash is not null
-            && !dropUnlockCookie.IsValid(Request, drop))
+        if (accessDecision == DropAccessDecision.DropPasswordRequired)
         {
             return Unauthorized();
         }

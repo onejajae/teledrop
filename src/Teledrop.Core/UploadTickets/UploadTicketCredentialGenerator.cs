@@ -1,11 +1,9 @@
 using System.Security.Cryptography;
-using Microsoft.EntityFrameworkCore;
-using Teledrop.Data;
 
 namespace Teledrop.Features.UploadTickets;
 
 public sealed class UploadTicketCredentialGenerator(
-    TeledropDbContext dbContext)
+    IUploadTicketPathIndex uploadTicketPathIndex)
 {
     public const int TicketPathLength = 4;
     public const int TicketCodeLength = 8;
@@ -19,11 +17,9 @@ public sealed class UploadTicketCredentialGenerator(
         for (var attempt = 0; attempt < PathGenerationAttempts; attempt++)
         {
             var candidate = CreateRandomValue(TicketPathLength);
-            var exists = await dbContext.UploadTickets
-                .AsNoTracking()
-                .AnyAsync(
-                    ticket => ticket.Path == candidate,
-                    cancellationToken);
+            var exists = await uploadTicketPathIndex.ExistsAsync(
+                candidate,
+                cancellationToken);
             if (!exists)
             {
                 return candidate;

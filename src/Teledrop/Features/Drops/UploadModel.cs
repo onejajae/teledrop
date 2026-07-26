@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
-using Teledrop.Data;
 
 namespace Teledrop.Features.Drops;
 
@@ -15,8 +14,7 @@ namespace Teledrop.Features.Drops;
 // This page validates the first multipart section manually before opening the file.
 [IgnoreAntiforgeryToken]
 public sealed class UploadModel(
-    TeledropDbContext dbContext,
-    DropSlugGenerator dropSlugGenerator,
+    CreatePrivateDrop createPrivateDrop,
     IAntiforgery antiforgery,
     IOptions<AntiforgeryOptions> antiforgeryOptions,
     IOptions<FormOptions> formOptions,
@@ -48,7 +46,6 @@ public sealed class UploadModel(
         var antiforgeryValidated = false;
         var sectionCount = 0;
         var formValueCount = 0;
-        var persisted = false;
 
         try
         {
@@ -148,26 +145,13 @@ public sealed class UploadModel(
                 return BadRequest();
             }
 
-            var slug = await dropSlugGenerator.GenerateUniqueSlugAsync(
+            var fileToPersist = storedFile;
+            storedFile = null;
+            var drop = await createPrivateDrop.ExecuteAsync(
+                fileToPersist,
+                title,
+                description,
                 requestAborted);
-            var drop = new Drop
-            {
-                Id = Guid.NewGuid(),
-                Slug = slug,
-                Title = title,
-                Description = description,
-                IsPrivate = true,
-                FileName = storedFile.FileName,
-                FileHash = storedFile.FileHash,
-                FileSizeBytes = storedFile.FileSizeBytes,
-                ContentType = storedFile.ContentType,
-                Location = storedFile.Location,
-                CreatedAt = DateTime.UtcNow,
-            };
-
-            dbContext.Drops.Add(drop);
-            await dbContext.SaveChangesAsync(requestAborted);
-            persisted = true;
 
             var redirectLocation = Url.Page(
                     "/Index",
@@ -199,7 +183,7 @@ public sealed class UploadModel(
         }
         finally
         {
-            if (!persisted && storedFile is not null)
+            if (storedFile is not null)
             {
                 dropFileStore.TryDelete(storedFile);
             }

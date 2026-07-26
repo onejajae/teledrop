@@ -172,9 +172,18 @@ CSS 소스는 `src/Teledrop/Styles/app.css`다. Tailwind 기본 탐색 경로에
 
 ### 아키텍처 원칙
 
-**단일 프로젝트 + 기능별 폴더(vertical slice).** `src/Teledrop/Features/Drops/`, `src/Teledrop/Features/Auth/`, `src/Teledrop/Features/UploadTickets/`.
+**프로덕션 프로젝트는 정확히 둘이다.**
 
-devel은 `domain` / `application` / `infrastructure` / `interfaces` / `core` / `bootstrap` 6계층으로 1.1k줄을 15.7k줄로 만들었고, 업로드 기능 하나가 20개 파일에 흩어졌다. **.NET 생태계의 기본 조언(Clean Architecture 템플릿, MediatR, Repository + Unit of Work, Entity/DTO 분리)이 정확히 그 방향이다.** 언어를 바꿔도 유혹은 약해지지 않는다. 프로젝트를 쪼개지 않고, MediatR을 쓰지 않는다.
+- `src/Teledrop.Core/` — 엔티티, 순수 정책, use case, 최소 port
+- `src/Teledrop/` — Razor Pages/API host, EF Core·SQLite·파일시스템·보안 구현, DI composition root
+
+의존 방향은 `Teledrop → Teledrop.Core` 하나뿐이다. Core는 ASP.NET Core, EF Core, SQLite를 참조하지 않는다. Web handler는 transport를 검증하고 use case 결과를 HTTP 응답으로 바꾸며, 제품 규칙은 Core가 판단한다.
+
+두 프로젝트 안에서는 계속 **기능별 폴더(vertical slice)** 로 모은다. Core는 `Drops/`, `UploadTickets/`, Web은 `Features/Auth/`, `Features/Drops/`, `Features/UploadTickets/`를 쓴다. 전역 `Domain/Application/Infrastructure/Interfaces` 레이어 폴더는 만들지 않는다.
+
+use case는 concrete class다. use case마다 인터페이스를 만들지 않고, Core가 외부 능력을 필요로 할 때만 최소 port를 선언한다. 범용 Repository, 별도 Unit of Work, MediatR, Entity/DTO 복제, presenter 레이어는 두지 않는다. 단순 EF 조회나 화면 formatting처럼 제품 규칙이 없는 코드는 Web에 남겨도 된다.
+
+devel은 6계층으로 1.1k줄을 15.7k줄로 만들었고 업로드 기능 하나가 20개 파일에 흩어졌다. 이번 분리는 그 구조를 되살리는 것이 아니라 **업무 로직과 구현 사이의 의존 방향 하나만 컴파일러로 강제하는 2프로젝트 구조**다. 세부 결정은 [ADR 0005](adr/0005-two-project-functional-core.md)를 따른다.
 
 ## 구현 시 주의
 

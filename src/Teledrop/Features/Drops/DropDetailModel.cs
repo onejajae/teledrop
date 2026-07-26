@@ -1,9 +1,7 @@
-using Isopoh.Cryptography.Argon2;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Teledrop.Data;
 
 namespace Teledrop.Features.Drops;
@@ -11,8 +9,7 @@ namespace Teledrop.Features.Drops;
 [Authorize]
 public sealed class DropDetailModel(
     TeledropDbContext dbContext,
-    IOptions<TeledropOptions> options,
-    ILogger<DropDetailModel> logger)
+    DropUseCases dropUseCases)
     : PageModel
 {
     public Drop? Drop { get; private set; }
@@ -47,176 +44,156 @@ public sealed class DropDetailModel(
         string slug,
         CancellationToken cancellationToken)
     {
-        var drop = await FindDropAsync(slug, cancellationToken);
-        if (drop is null)
+        var result = await dropUseCases.UpdateMetadataAsync(
+            slug,
+            TitleInput,
+            DescriptionInput,
+            cancellationToken);
+        if (result == DropCommandResult.NotFound)
         {
             return NotFound();
         }
 
-        drop.Title = NormalizeOptionalText(TitleInput);
-        drop.Description = NormalizeOptionalText(DescriptionInput);
-        drop.UpdatedAt = DateTime.UtcNow;
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        return RedirectToCurrentDrop(drop.Slug);
+        return RedirectToCurrentDrop(slug);
     }
 
     public async Task<IActionResult> OnPostVisibilityAsync(
         string slug,
         CancellationToken cancellationToken)
     {
-        var drop = await FindDropAsync(slug, cancellationToken);
-        if (drop is null)
+        var result = await dropUseCases.ToggleVisibilityAsync(
+            slug,
+            cancellationToken);
+        if (result == DropCommandResult.NotFound)
         {
             return NotFound();
         }
 
-        drop.IsPrivate = !drop.IsPrivate;
-        drop.UpdatedAt = DateTime.UtcNow;
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        return RedirectToCurrentDrop(drop.Slug);
+        return RedirectToCurrentDrop(slug);
     }
 
     public async Task<IActionResult> OnPostPasswordAsync(
         string slug,
         CancellationToken cancellationToken)
     {
-        var drop = await FindDropAsync(slug, cancellationToken);
-        if (drop is null)
+        var result = await dropUseCases.SetPasswordAsync(
+            slug,
+            NewDropPassword,
+            cancellationToken);
+        if (result == SetDropPasswordResult.NotFound)
         {
             return NotFound();
         }
 
-        if (string.IsNullOrEmpty(NewDropPassword))
+        if (result == SetDropPasswordResult.PasswordRequired)
         {
             ClearNewDropPassword();
             ModelState.AddModelError(
                 nameof(NewDropPassword),
                 "새 드롭 비밀번호를 입력하세요.");
+            var drop = await FindDropAsync(slug, cancellationToken);
+            if (drop is null)
+            {
+                return NotFound();
+            }
+
             PopulatePage(drop);
             return Page();
         }
 
-        drop.DropPasswordHash = Argon2.Hash(NewDropPassword);
-        drop.UpdatedAt = DateTime.UtcNow;
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        return RedirectToCurrentDrop(drop.Slug);
+        return RedirectToCurrentDrop(slug);
     }
 
     public async Task<IActionResult> OnPostClearPasswordAsync(
         string slug,
         CancellationToken cancellationToken)
     {
-        var drop = await FindDropAsync(slug, cancellationToken);
-        if (drop is null)
+        var result = await dropUseCases.ClearPasswordAsync(
+            slug,
+            cancellationToken);
+        if (result == DropCommandResult.NotFound)
         {
             return NotFound();
         }
 
-        drop.DropPasswordHash = null;
-        drop.UpdatedAt = DateTime.UtcNow;
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        return RedirectToCurrentDrop(drop.Slug);
+        return RedirectToCurrentDrop(slug);
     }
 
     public async Task<IActionResult> OnPostSlugAsync(
         string slug,
         CancellationToken cancellationToken)
     {
-        var drop = await FindDropAsync(slug, cancellationToken);
-        if (drop is null)
+        var result = await dropUseCases.ChangeSlugAsync(
+            slug,
+            SlugInput,
+            cancellationToken);
+        if (result.Status == ChangeDropSlugStatus.NotFound)
         {
             return NotFound();
         }
 
-        if (!DropSlugGenerator.TryNormalizeCustomSlug(
-                SlugInput,
-                out var normalizedSlug,
-                out var errorMessage))
+        if (result.Status == ChangeDropSlugStatus.Invalid)
         {
             ModelState.Remove(nameof(SlugInput));
-            SlugInput = normalizedSlug;
-            ModelState.AddModelError(nameof(SlugInput), errorMessage);
+            SlugInput = result.NormalizedSlug;
+            ModelState.AddModelError(
+                nameof(SlugInput),
+                GetSlugValidationErrorMessage(result.ValidationError));
+            var drop = await FindDropAsync(slug, cancellationToken);
+            if (drop is null)
+            {
+                return NotFound();
+            }
+
             PopulatePage(drop, preserveSlugInput: true);
             return Page();
         }
 
-        var slugAlreadyExists = await dbContext.Drops
-            .AsNoTracking()
-            .AnyAsync(
-                candidate =>
-                    candidate.Id != drop.Id
-                    && candidate.Slug == normalizedSlug,
-                cancellationToken);
-        if (slugAlreadyExists)
+        if (result.Status == ChangeDropSlugStatus.AlreadyExists)
         {
             ModelState.Remove(nameof(SlugInput));
-            SlugInput = normalizedSlug;
+            SlugInput = result.NormalizedSlug;
             ModelState.AddModelError(
                 nameof(SlugInput),
                 "이미 사용 중인 slug입니다.");
+            var drop = await FindDropAsync(slug, cancellationToken);
+            if (drop is null)
+            {
+                return NotFound();
+            }
+
             PopulatePage(drop, preserveSlugInput: true);
             return Page();
         }
 
-        if (!string.Equals(
-                drop.Slug,
-                normalizedSlug,
-                StringComparison.Ordinal))
-        {
-            drop.Slug = normalizedSlug;
-            drop.UpdatedAt = DateTime.UtcNow;
-            await dbContext.SaveChangesAsync(cancellationToken);
-        }
-
-        return RedirectToCurrentDrop(drop.Slug);
+        return RedirectToCurrentDrop(result.NormalizedSlug);
     }
 
     public async Task<IActionResult> OnPostFavoriteAsync(
         string slug,
         CancellationToken cancellationToken)
     {
-        var drop = await FindDropAsync(slug, cancellationToken);
-        if (drop is null)
+        var result = await dropUseCases.ToggleFavoriteAsync(
+            slug,
+            cancellationToken);
+        if (result == DropCommandResult.NotFound)
         {
             return NotFound();
         }
 
-        drop.IsFavorite = !drop.IsFavorite;
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        return RedirectToCurrentDrop(drop.Slug);
+        return RedirectToCurrentDrop(slug);
     }
 
     public async Task<IActionResult> OnPostDeleteAsync(
         string slug,
         CancellationToken cancellationToken)
     {
-        var drop = await FindDropAsync(slug, cancellationToken);
-        if (drop is null)
+        var result = await dropUseCases.DeleteAsync(
+            slug,
+            cancellationToken);
+        if (result == DropCommandResult.NotFound)
         {
             return NotFound();
-        }
-
-        dbContext.Drops.Remove(drop);
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        try
-        {
-            var filePath = Path.GetFullPath(
-                Path.Combine(options.Value.ShareDirectory, drop.Location));
-            System.IO.File.Delete(filePath);
-        }
-        catch (Exception exception)
-        {
-            logger.LogWarning(
-                exception,
-                "Drop {DropId} was removed, but its file at location {Location} could not be deleted.",
-                drop.Id,
-                drop.Location);
         }
 
         return RedirectToPage("/Index", new { deleted = true });
@@ -259,9 +236,16 @@ public sealed class DropDetailModel(
         return RedirectToPage("/DropDetail", new { slug });
     }
 
-    private static string? NormalizeOptionalText(string? value)
+    private static string GetSlugValidationErrorMessage(
+        DropSlugValidationError validationError)
     {
-        var normalized = value?.Trim();
-        return string.IsNullOrEmpty(normalized) ? null : normalized;
+        return validationError switch
+        {
+            DropSlugValidationError.InvalidFormat =>
+                "slug는 영문 소문자 또는 숫자로 시작하고, 영문 소문자·숫자·하이픈만 사용해 64자 이하여야 합니다.",
+            DropSlugValidationError.Reserved =>
+                "이 slug는 teledrop 경로에 예약되어 있습니다.",
+            _ => "slug가 올바르지 않습니다.",
+        };
     }
 }

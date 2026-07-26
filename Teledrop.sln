@@ -4,6 +4,8 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Teledrop", "src\Teledrop\Teledrop.csproj", "{18A9CDE7-F906-49CA-8CF3-4104A331DAA5}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Teledrop.Core", "src\Teledrop.Core\Teledrop.Core.csproj", "{B43F5E55-5CB3-423A-B021-07885965F3A7}"
+EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Teledrop.Tests", "tests\Teledrop.Tests\Teledrop.Tests.csproj", "{BA8240BE-C9F5-41AB-97DD-657C38DAC17E}"
 EndProject
 Global
@@ -16,6 +18,10 @@ Global
 		{18A9CDE7-F906-49CA-8CF3-4104A331DAA5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{18A9CDE7-F906-49CA-8CF3-4104A331DAA5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{18A9CDE7-F906-49CA-8CF3-4104A331DAA5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B43F5E55-5CB3-423A-B021-07885965F3A7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B43F5E55-5CB3-423A-B021-07885965F3A7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B43F5E55-5CB3-423A-B021-07885965F3A7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B43F5E55-5CB3-423A-B021-07885965F3A7}.Release|Any CPU.Build.0 = Release|Any CPU
 		{BA8240BE-C9F5-41AB-97DD-657C38DAC17E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{BA8240BE-C9F5-41AB-97DD-657C38DAC17E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BA8240BE-C9F5-41AB-97DD-657C38DAC17E}.Release|Any CPU.ActiveCfg = Release|Any CPU

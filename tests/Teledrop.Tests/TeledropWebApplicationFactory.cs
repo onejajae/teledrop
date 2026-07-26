@@ -1,6 +1,7 @@
 using Isopoh.Cryptography.Argon2;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 
 namespace Teledrop.Tests;
@@ -19,6 +20,8 @@ internal sealed class TeledropWebApplicationFactory : WebApplicationFactory<Prog
 
     internal string ShareDirectory { get; }
 
+    internal string DatabasePath { get; }
+
     internal TeledropWebApplicationFactory(string? apiKey = ApiKey)
     {
         temporaryDirectory = Path.Combine(
@@ -26,7 +29,7 @@ internal sealed class TeledropWebApplicationFactory : WebApplicationFactory<Prog
             $"teledrop-tests-{Guid.NewGuid():N}");
 
         ShareDirectory = Path.Combine(temporaryDirectory, "share");
-        var databasePath = Path.Combine(temporaryDirectory, "database.db");
+        DatabasePath = Path.Combine(temporaryDirectory, "database.db");
 
         Directory.CreateDirectory(temporaryDirectory);
 
@@ -37,7 +40,8 @@ internal sealed class TeledropWebApplicationFactory : WebApplicationFactory<Prog
                 ["WEB_PASSWORD"] = InitialPasswordHash,
                 ["TELEDROP_API_KEY"] = apiKey,
                 ["SHARE_DIRECTORY"] = ShareDirectory,
-                ["ConnectionStrings:DefaultConnection"] = $"Data Source={databasePath}",
+                ["ConnectionStrings:DefaultConnection"] =
+                    $"Data Source={DatabasePath}",
             });
     }
 
@@ -69,6 +73,7 @@ internal sealed class TeledropWebApplicationFactory : WebApplicationFactory<Prog
 
         if (disposing && Directory.Exists(temporaryDirectory))
         {
+            SqliteConnection.ClearAllPools();
             Directory.Delete(temporaryDirectory, recursive: true);
         }
     }

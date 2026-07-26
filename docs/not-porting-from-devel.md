@@ -24,7 +24,9 @@ user 테이블, 회원가입(`ENABLE_REGISTRATION`), 소유권 검사, private �
 ### 6계층 아키텍처
 `domain` / `application` / `infrastructure` / `interfaces` / `core` / `bootstrap`, ports & adapters, use case 객체, Unit of Work, presenter 레이어(3,078줄).
 
-**이유**: 셀프호스팅 개인 파일 공유 도구에 헥사고날/DDD 풀세트를 적용한 것. 대체안은 단일 프로젝트 + 기능별 폴더다. [ADR 0002](adr/0002-ssr-and-csharp.md)의 "경계" 절 참고 — .NET에서 이 유혹은 더 강해진다.
+**이유**: 셀프호스팅 개인 파일 공유 도구에 헥사고날/DDD 풀세트를 적용한 것. 버리는 것은 로직과 구현의 분리 자체가 아니라, 그 사이에 Domain/Application/Infrastructure/Interfaces와 범용 port, Unit of Work, DTO, presenter를 모두 세운 구조다.
+
+대체안은 `Teledrop.Core`와 Web host 두 프로젝트만 두고 양쪽 모두 기능별 폴더로 구성하는 것이다. Core에는 업무 규칙과 use case, 필요한 최소 port만 두며 범용 Repository/UoW는 만들지 않는다. [ADR 0005](adr/0005-two-project-functional-core.md) 참고.
 
 ### grant / unlock 서브시스템
 `domain/drop/grants.py`, `core/drop_grants.py`, `core/drop_unlock_tokens.py`, 서명 쿠키 2종, secret key 2개(`DROP_GRANT_SECRET_KEY`, `DROP_UNLOCK_SECRET_KEY`), 버전 태그와 HMAC 직접 구현.

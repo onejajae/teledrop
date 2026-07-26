@@ -125,6 +125,72 @@ public sealed class FileCoreTests
         Assert.StartsWith("/login?ReturnUrl=", pathAndQuery);
     }
 
+    [Fact]
+    public async Task ExistingMigratedDatabaseAndStoredFileRemainReadable()
+    {
+        using var factory = new TeledropWebApplicationFactory();
+        Directory.CreateDirectory(factory.ShareDirectory);
+
+        var fileBytes = "existing-file-data"u8.ToArray();
+        const string location = "existing-file";
+        var drop = new Drop
+        {
+            Id = Guid.NewGuid(),
+            Slug = "existing-drop",
+            Title = "Existing title",
+            IsPrivate = false,
+            FileName = "existing.bin",
+            FileHash = Convert.ToHexStringLower(
+                SHA256.HashData(fileBytes)),
+            FileSizeBytes = fileBytes.LongLength,
+            ContentType = "application/octet-stream",
+            Location = location,
+            CreatedAt = DateTime.UtcNow.AddDays(-1),
+        };
+
+        var databaseOptions =
+            new DbContextOptionsBuilder<TeledropDbContext>()
+                .UseSqlite($"Data Source={factory.DatabasePath}")
+                .Options;
+        await using (var existingDatabase =
+                     new TeledropDbContext(databaseOptions))
+        {
+            await existingDatabase.Database.MigrateAsync();
+            existingDatabase.Drops.Add(drop);
+            await existingDatabase.SaveChangesAsync();
+        }
+
+        await File.WriteAllBytesAsync(
+            Path.Combine(factory.ShareDirectory, location),
+            fileBytes);
+
+        using var client = CreateClient(factory);
+        using var pageResponse = await client.GetAsync(
+            $"/{drop.Slug}");
+        using var downloadResponse = await client.GetAsync(
+            $"/d/{drop.Slug}");
+
+        Assert.Equal(HttpStatusCode.OK, pageResponse.StatusCode);
+        Assert.Contains(
+            drop.Title,
+            await pageResponse.Content.ReadAsStringAsync(),
+            StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.OK, downloadResponse.StatusCode);
+        Assert.Equal(
+            fileBytes,
+            await downloadResponse.Content.ReadAsByteArrayAsync());
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var runningDatabase = scope.ServiceProvider
+            .GetRequiredService<TeledropDbContext>();
+        Assert.Equal(
+            drop.Id,
+            (await runningDatabase.Drops
+                .AsNoTracking()
+                .SingleAsync(candidate => candidate.Slug == drop.Slug))
+                .Id);
+    }
+
     private static async Task<Drop> AddDropAsync(
         TeledropWebApplicationFactory factory,
         string slug,

@@ -1,6 +1,6 @@
 # ADR 0002 — SvelteKit SPA를 버리고 C# + Razor SSR로 간다
 
-- 상태: 채택
+- 상태: 채택 (프로젝트 경계는 ADR 0005로 일부 대체)
 - 날짜: 2026-07-26
 
 ## 맥락
@@ -83,4 +83,6 @@ SSR 안에서 Razor Pages 대신 **Blazor Web App**을 쓰는 안을 검토했�
 
 **.NET 생태계의 기본 조언이 정확히 devel을 죽인 방향이다.** Clean Architecture 템플릿, MediatR, Repository + Unit of Work, Entity/DTO 분리 — 검색해서 나오는 .NET 튜토리얼 대부분이 레이어를 권한다. devel의 `domain/application/infrastructure/interfaces` 구조는 Python보다 .NET 문화권에서 더 흔한 모양이다.
 
-**언어를 바꾸면 이 유혹은 약해지는 게 아니라 강해진다.** 단일 프로젝트 + 기능별 폴더로 간다.
+**언어를 바꾸면 이 유혹은 약해지는 게 아니라 강해진다.** 이 ADR을 채택할 때는 단일 프로젝트 + 기능별 폴더를 경계로 정했다.
+
+구현 완료 뒤 업무 규칙과 ASP.NET/EF/파일시스템 구현 사이의 의존 방향을 컴파일러로 강제할 필요가 확인되어, 프로젝트 경계만 [ADR 0005](0005-two-project-functional-core.md)의 `Teledrop.Core` + `Teledrop` 2프로젝트 구조로 대체했다. C# + Razor SSR, 기능별 폴더, MediatR·범용 Repository/UoW·Entity/DTO 복제 금지는 그대로 유지한다.
