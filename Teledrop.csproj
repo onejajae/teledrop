@@ -5,9 +5,11 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <DefaultItemExcludes>$(DefaultItemExcludes);Teledrop.Tests/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Isopoh.Cryptography.Argon2" Version="2.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>

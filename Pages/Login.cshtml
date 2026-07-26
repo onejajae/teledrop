@@ -1,0 +1,44 @@
+@page "/login"
+@model Teledrop.Features.Auth.LoginModel
+@{
+    ViewData["Title"] = "로그인";
+}
+
+<div class="hero min-h-screen bg-base-200 px-4">
+    <div class="card w-full max-w-sm bg-base-100 shadow-xl">
+        <div class="card-body">
+            <h1 class="card-title text-3xl">teledrop</h1>
+            <p class="text-base-content/70">소유자 세션을 시작합니다.</p>
+
+            @if (Model.ErrorMessage is not null)
+            {
+                <div class="alert alert-error" role="alert">
+                    <span>@Model.ErrorMessage</span>
+                </div>
+            }
+
+            <form method="post" class="space-y-4">
+                <input asp-for="ReturnUrl" type="hidden" />
+
+                <fieldset class="fieldset">
+                    <legend class="fieldset-legend">소유자 이름</legend>
+                    <input asp-for="Username"
+                           class="input w-full"
+                           autocomplete="username"
+                           autofocus
+                           required />
+                </fieldset>
+
+                <fieldset class="fieldset">
+                    <legend class="fieldset-legend">비밀번호</legend>
+                    <input asp-for="Password"
+                           class="input w-full"
+                           autocomplete="current-password"
+                           required />
+                </fieldset>
+
+                <button type="submit" class="btn btn-primary w-full">로그인</button>
+            </form>
+        </div>
+    </div>
+</div>
