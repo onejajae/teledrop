@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Data.Sqlite;
@@ -83,6 +84,29 @@ using (var scope = app.Services.CreateScope())
     dbContext.Database.Migrate();
 }
 
+app.Use(async (context, next) =>
+{
+    var scriptNonce = Convert.ToBase64String(
+        RandomNumberGenerator.GetBytes(32));
+    context.Items[SecurityHeaders.ContentSecurityPolicyNonceItemKey] =
+        scriptNonce;
+
+    context.Response.OnStarting(() =>
+    {
+        context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+        context.Response.Headers["Content-Security-Policy"] =
+            "default-src 'self'; "
+            + $"script-src 'self' 'nonce-{scriptNonce}'; "
+            + "style-src 'self' 'unsafe-inline'; "
+            + "object-src 'none'; "
+            + "frame-ancestors 'self'; "
+            + "base-uri 'self'";
+        return Task.CompletedTask;
+    });
+
+    await next();
+});
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
@@ -113,3 +137,9 @@ static string GetDatabaseConnectionString(IConfiguration configuration)
 }
 
 public partial class Program;
+
+internal static class SecurityHeaders
+{
+    internal const string ContentSecurityPolicyNonceItemKey =
+        "ContentSecurityPolicyNonce";
+}

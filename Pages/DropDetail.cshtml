@@ -250,7 +250,7 @@
 </div>
 
 @section Scripts {
-    <script>
+    <script nonce="@ViewContext.HttpContext.Items[SecurityHeaders.ContentSecurityPolicyNonceItemKey]">
         (() => {
             const button = document.getElementById("copy-share-link");
             const input = document.getElementById("share-link");

@@ -112,7 +112,7 @@
 </div>
 
 @section Scripts {
-    <script>
+    <script nonce="@ViewContext.HttpContext.Items[SecurityHeaders.ContentSecurityPolicyNonceItemKey]">
         (() => {
             const form = document.getElementById("guest-upload-form");
             if (!form) {

@@ -93,12 +93,6 @@ public sealed class GuestUploadModel(
             return ShowUnavailable();
         }
 
-        await RecordFirstPostAsync(uploadTicket, requestStartedAtUtc);
-        if (!uploadTicket.CanAcceptUpload(requestStartedAtUtc))
-        {
-            return ShowUnavailable();
-        }
-
         if (!TryGetMultipartBoundary(out var boundary))
         {
             return BadRequest();
@@ -218,11 +212,13 @@ public sealed class GuestUploadModel(
                     ticketCodeSeen = true;
                     if (!TicketCodesMatch(uploadTicket.Code, value))
                     {
-                        await RecordFailedCodeAttemptAsync(
+                        var attemptRecorded =
+                            await RecordFailedCodeAttemptAsync(
                             uploadTicket,
                             requestStartedAtUtc);
 
-                        if (!uploadTicket.CanAcceptUpload(
+                        if (!attemptRecorded
+                            || !uploadTicket.CanAcceptUpload(
                                 requestStartedAtUtc))
                         {
                             return ShowUnavailable();
@@ -233,6 +229,15 @@ public sealed class GuestUploadModel(
                         Response.StatusCode =
                             StatusCodes.Status400BadRequest;
                         return Page();
+                    }
+
+                    await RecordFirstPostAsync(
+                        uploadTicket,
+                        requestStartedAtUtc);
+                    if (!uploadTicket.CanAcceptUpload(
+                            requestStartedAtUtc))
+                    {
+                        return ShowUnavailable();
                     }
 
                     ticketCodeValidated = true;
@@ -375,17 +380,19 @@ public sealed class GuestUploadModel(
             .ReloadAsync(CancellationToken.None);
     }
 
-    private async Task RecordFailedCodeAttemptAsync(
+    private async Task<bool> RecordFailedCodeAttemptAsync(
         UploadTicket uploadTicket,
         DateTime requestStartedAtUtc)
     {
         var activeWindowStartUtc = requestStartedAtUtc.AddMinutes(-30);
 
-        await dbContext.UploadTickets
+        var affectedTickets = await dbContext.UploadTickets
             .Where(ticket =>
                 ticket.Id == uploadTicket.Id
                 && ticket.RevokedAtUtc == null
                 && ticket.ConsumedAtUtc == null
+                && ticket.FailedCodeAttempts
+                    < MaximumFailedCodeAttempts
                 && requestStartedAtUtc < ticket.ExpiresAtUtc
                 && (ticket.FirstUsedAtUtc == null
                     || activeWindowStartUtc < ticket.FirstUsedAtUtc))
@@ -404,6 +411,8 @@ public sealed class GuestUploadModel(
 
         await dbContext.Entry(uploadTicket)
             .ReloadAsync(CancellationToken.None);
+
+        return affectedTickets == 1;
     }
 
     private static bool TicketCodesMatch(

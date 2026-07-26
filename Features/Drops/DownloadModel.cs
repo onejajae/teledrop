@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Microsoft.Net.Http.Headers;
 using Teledrop.Data;
 
 namespace Teledrop.Features.Drops;
@@ -52,7 +53,7 @@ public sealed class DownloadModel(
         }
 
         PhysicalFileResult result;
-        if (inline)
+        if (inline && IsSafeInlineContentType(drop.ContentType))
         {
             Response.Headers.ContentDisposition = "inline";
             result = PhysicalFile(filePath, drop.ContentType);
@@ -67,5 +68,44 @@ public sealed class DownloadModel(
 
         result.EnableRangeProcessing = true;
         return result;
+    }
+
+    private static bool IsSafeInlineContentType(string contentType)
+    {
+        if (!MediaTypeHeaderValue.TryParse(
+                contentType,
+                out var parsedContentType)
+            || parsedContentType is null)
+        {
+            return false;
+        }
+
+        var mediaType = parsedContentType.MediaType.Value;
+        if (string.IsNullOrEmpty(mediaType))
+        {
+            return false;
+        }
+
+        return (mediaType.StartsWith(
+                    "image/",
+                    StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(
+                    mediaType,
+                    "image/svg+xml",
+                    StringComparison.OrdinalIgnoreCase))
+            || mediaType.StartsWith(
+                "video/",
+                StringComparison.OrdinalIgnoreCase)
+            || mediaType.StartsWith(
+                "audio/",
+                StringComparison.OrdinalIgnoreCase)
+            || string.Equals(
+                mediaType,
+                "application/pdf",
+                StringComparison.OrdinalIgnoreCase)
+            || string.Equals(
+                mediaType,
+                "text/plain",
+                StringComparison.OrdinalIgnoreCase);
     }
 }

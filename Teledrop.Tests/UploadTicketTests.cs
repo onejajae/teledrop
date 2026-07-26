@@ -159,6 +159,97 @@ public sealed class UploadTicketTests
     }
 
     [Fact]
+    public async Task JunkAndWrongCodePostsDoNotStartThirtyMinuteWindow()
+    {
+        using var factory = new TeledropWebApplicationFactory();
+        var uploadTicket = await AddUploadTicketAsync(
+            factory,
+            path: "dg5f",
+            code: "ghjk5678");
+        using var client = CreateClient(factory);
+        var uploadPath = $"/u/{uploadTicket.Path}";
+        var verificationValue = await GetGuestAntiforgeryValueAsync(
+            client,
+            uploadPath);
+
+        using (var junkContent =
+               new ByteArrayContent(Array.Empty<byte>()))
+        using (var junkResponse = await client.PostAsync(
+                   uploadPath,
+                   junkContent))
+        {
+            Assert.Equal(
+                HttpStatusCode.BadRequest,
+                junkResponse.StatusCode);
+        }
+
+        using (var wrongCodeResponse = await PostGuestUploadAsync(
+                   client,
+                   uploadPath,
+                   "aaaa-aaaa",
+                   verificationValue,
+                   "wrong"u8.ToArray(),
+                   "wrong.bin"))
+        {
+            Assert.Equal(
+                HttpStatusCode.BadRequest,
+                wrongCodeResponse.StatusCode);
+        }
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider
+            .GetRequiredService<TeledropDbContext>();
+        var storedTicket = await dbContext.UploadTickets
+            .AsNoTracking()
+            .SingleAsync(ticket => ticket.Id == uploadTicket.Id);
+
+        Assert.Null(storedTicket.FirstUsedAtUtc);
+        Assert.Equal(1, storedTicket.FailedCodeAttempts);
+        Assert.Null(storedTicket.ConsumedAtUtc);
+    }
+
+    [Fact]
+    public async Task CorrectCodeStartsThirtyMinuteWindowBeforeFileValidation()
+    {
+        using var factory = new TeledropWebApplicationFactory();
+        var uploadTicket = await AddUploadTicketAsync(
+            factory,
+            path: "eh6g",
+            code: "hjkm6789");
+        using var client = CreateClient(factory);
+        var uploadPath = $"/u/{uploadTicket.Path}";
+        var verificationValue = await GetGuestAntiforgeryValueAsync(
+            client,
+            uploadPath);
+
+        using var multipart = new MultipartFormDataContent();
+        multipart.Add(
+            new StringContent(verificationValue),
+            "__RequestVerificationToken");
+        multipart.Add(
+            new StringContent(uploadTicket.Code),
+            "TicketCode");
+
+        using var response = await client.PostAsync(
+            uploadPath,
+            multipart);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider
+            .GetRequiredService<TeledropDbContext>();
+        var storedTicket = await dbContext.UploadTickets
+            .AsNoTracking()
+            .SingleAsync(ticket => ticket.Id == uploadTicket.Id);
+
+        Assert.NotNull(storedTicket.FirstUsedAtUtc);
+        Assert.Null(storedTicket.ConsumedAtUtc);
+        Assert.Equal(0, storedTicket.FailedCodeAttempts);
+        Assert.False(await dbContext.Drops.AnyAsync());
+    }
+
+    [Fact]
     public async Task TenthWrongCodeAttemptRevokesTicketAndCorrectCodeThenFails()
     {
         using var factory = new TeledropWebApplicationFactory();
@@ -197,6 +288,7 @@ public sealed class UploadTicketTests
                 .SingleAsync(ticket => ticket.Id == uploadTicket.Id);
             Assert.Equal(10, storedTicket.FailedCodeAttempts);
             Assert.NotNull(storedTicket.RevokedAtUtc);
+            Assert.Null(storedTicket.FirstUsedAtUtc);
         }
 
         using var correctCodeResponse = await PostGuestUploadAsync(
@@ -209,6 +301,60 @@ public sealed class UploadTicketTests
 
         Assert.Equal(HttpStatusCode.Gone, correctCodeResponse.StatusCode);
         await AssertNoDropsAsync(factory);
+    }
+
+    [Fact]
+    public async Task ConcurrentWrongCodeAttemptsCannotIncrementPastTen()
+    {
+        using var factory = new TeledropWebApplicationFactory();
+        var uploadTicket = await AddUploadTicketAsync(
+            factory,
+            path: "df5g",
+            code: "ghjk5678",
+            failedCodeAttempts: 9);
+        using var client = CreateClient(factory);
+        var uploadPath = $"/u/{uploadTicket.Path}";
+        var verificationValue = await GetGuestAntiforgeryValueAsync(
+            client,
+            uploadPath);
+
+        var responseTasks = Enumerable.Range(0, 5)
+            .Select(attempt => PostGuestUploadAsync(
+                client,
+                uploadPath,
+                "aaaa-aaaa",
+                verificationValue,
+                [(byte)attempt],
+                $"wrong-{attempt}.bin"));
+        var responses = await Task.WhenAll(responseTasks);
+
+        try
+        {
+            Assert.All(
+                responses,
+                response => Assert.Equal(
+                    HttpStatusCode.Gone,
+                    response.StatusCode));
+        }
+        finally
+        {
+            foreach (var response in responses)
+            {
+                response.Dispose();
+            }
+        }
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider
+            .GetRequiredService<TeledropDbContext>();
+        var storedTicket = await dbContext.UploadTickets
+            .AsNoTracking()
+            .SingleAsync(ticket => ticket.Id == uploadTicket.Id);
+
+        Assert.Equal(10, storedTicket.FailedCodeAttempts);
+        Assert.NotNull(storedTicket.RevokedAtUtc);
+        Assert.Null(storedTicket.FirstUsedAtUtc);
+        Assert.False(await dbContext.Drops.AnyAsync());
     }
 
     [Fact]
@@ -281,7 +427,8 @@ public sealed class UploadTicketTests
         string path,
         string code,
         DateTime? expiresAtUtc = null,
-        DateTime? revokedAtUtc = null)
+        DateTime? revokedAtUtc = null,
+        int failedCodeAttempts = 0)
     {
         var now = DateTime.UtcNow;
         var uploadTicket = new UploadTicket
@@ -292,6 +439,7 @@ public sealed class UploadTicketTests
             CreatedAt = now,
             ExpiresAtUtc = expiresAtUtc ?? now.AddHours(24),
             RevokedAtUtc = revokedAtUtc,
+            FailedCodeAttempts = failedCodeAttempts,
         };
 
         await using var scope = factory.Services.CreateAsyncScope();
@@ -331,7 +479,39 @@ public sealed class UploadTicketTests
         using var response = await client.GetAsync(path);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
+        AssertInlineScriptHasCspNonce(response, body);
         return ExtractAntiforgeryValue(body);
+    }
+
+    private static void AssertInlineScriptHasCspNonce(
+        HttpResponseMessage response,
+        string pageBody)
+    {
+        const string nonceSourceMarker =
+            "script-src 'self' 'nonce-";
+
+        var contentSecurityPolicy = Assert.Single(
+            response.Headers.GetValues("Content-Security-Policy"));
+        var nonceStart = contentSecurityPolicy.IndexOf(
+            nonceSourceMarker,
+            StringComparison.Ordinal);
+        Assert.True(
+            nonceStart >= 0,
+            "The CSP has no nonce-based script-src directive.");
+
+        nonceStart += nonceSourceMarker.Length;
+        var nonceEnd = contentSecurityPolicy.IndexOf(
+            '\'',
+            nonceStart);
+        Assert.True(
+            nonceEnd > nonceStart,
+            "The CSP script nonce is empty.");
+
+        var scriptNonce = contentSecurityPolicy[nonceStart..nonceEnd];
+        Assert.Contains(
+            $"<script nonce=\"{scriptNonce}\">",
+            WebUtility.HtmlDecode(pageBody),
+            StringComparison.Ordinal);
     }
 
     private static async Task<HttpResponseMessage> PostGuestUploadAsync(

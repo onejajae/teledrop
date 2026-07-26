@@ -72,7 +72,8 @@ public sealed class DropAccessTests
             dropPasswordHash: Argon2.Hash(DropPassword),
             title: "unlocked title",
             fileName: "unlocked.bin",
-            fileBytes);
+            fileBytes,
+            contentType: "image/png");
         using var client = CreateClient(factory);
 
         using var lockedPage = await client.GetAsync($"/{drop.Slug}");
@@ -139,6 +140,63 @@ public sealed class DropAccessTests
         Assert.Equal(
             "inline",
             inlineResponse.Content.Headers.ContentDisposition?.DispositionType);
+    }
+
+    [Fact]
+    public async Task TextHtmlAndSvgInlineRequestsAreForcedToAttachment()
+    {
+        using var factory = new TeledropWebApplicationFactory();
+        var fileBytes = "<script>document.title='owned'</script>"u8.ToArray();
+        using var client = CreateClient(factory);
+
+        foreach (var (slug, contentType) in new[]
+                 {
+                     ("unsafe-html", "text/html"),
+                     ("unsafe-svg", "image/svg+xml"),
+                 })
+        {
+            var drop = await AddDropAsync(
+                factory,
+                slug,
+                isPrivate: false,
+                dropPasswordHash: null,
+                title: "unsafe inline content",
+                fileName: $"{slug}.html",
+                fileBytes,
+                contentType);
+
+            using var response = await client.GetAsync(
+                $"/d/{drop.Slug}?inline=true");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(
+                "attachment",
+                response.Content.Headers.ContentDisposition?.DispositionType);
+            Assert.Equal(
+                "nosniff",
+                Assert.Single(
+                    response.Headers.GetValues(
+                        "X-Content-Type-Options")));
+
+            var contentSecurityPolicy = Assert.Single(
+                response.Headers.GetValues("Content-Security-Policy"));
+            Assert.Contains(
+                "default-src 'self'",
+                contentSecurityPolicy,
+                StringComparison.Ordinal);
+            Assert.Contains(
+                "script-src 'self' 'nonce-",
+                contentSecurityPolicy,
+                StringComparison.Ordinal);
+            Assert.Contains(
+                "object-src 'none'",
+                contentSecurityPolicy,
+                StringComparison.Ordinal);
+            Assert.Contains(
+                "frame-ancestors 'self'",
+                contentSecurityPolicy,
+                StringComparison.Ordinal);
+        }
     }
 
     [Fact]
@@ -246,7 +304,8 @@ public sealed class DropAccessTests
         string? dropPasswordHash,
         string title,
         string fileName,
-        byte[] fileBytes)
+        byte[] fileBytes,
+        string contentType = "application/octet-stream")
     {
         var location = Guid.NewGuid().ToString("N");
         var drop = new Drop
@@ -260,7 +319,7 @@ public sealed class DropAccessTests
             FileHash = Convert.ToHexStringLower(
                 SHA256.HashData(fileBytes)),
             FileSizeBytes = fileBytes.LongLength,
-            ContentType = "application/octet-stream",
+            ContentType = contentType,
             Location = location,
             CreatedAt = DateTime.UtcNow,
         };
