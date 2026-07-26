@@ -12,6 +12,9 @@ public sealed class TeledropOptions
     [ConfigurationKeyName("WEB_PASSWORD")]
     public string WebPassword { get; set; } = string.Empty;
 
+    [ConfigurationKeyName("TELEDROP_API_KEY")]
+    public string ApiKey { get; set; } = string.Empty;
+
     [ConfigurationKeyName("SHARE_DIRECTORY")]
     public string ShareDirectory { get; set; } = "share";
 

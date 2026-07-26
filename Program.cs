@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Teledrop;
 using Teledrop.Data;
+using Teledrop.Features.Api;
 using Teledrop.Features.Auth;
 using Teledrop.Features.Drops;
 using Teledrop.Features.UploadTickets;
@@ -97,6 +98,7 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapApiUpload();
 app.MapStaticAssets()
    .AllowAnonymous();
 app.MapRazorPages()

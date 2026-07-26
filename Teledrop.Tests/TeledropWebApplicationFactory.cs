@@ -9,6 +9,7 @@ internal sealed class TeledropWebApplicationFactory : WebApplicationFactory<Prog
 {
     internal const string WebUsername = "admin";
     internal const string WebPassword = "password";
+    internal const string ApiKey = "teledrop-test-api-key";
 
     private static readonly string InitialPasswordHash = Argon2.Hash(WebPassword);
     private static readonly string ChangedPasswordHash = Argon2.Hash("changed-password");
@@ -18,7 +19,7 @@ internal sealed class TeledropWebApplicationFactory : WebApplicationFactory<Prog
 
     internal string ShareDirectory { get; }
 
-    internal TeledropWebApplicationFactory()
+    internal TeledropWebApplicationFactory(string? apiKey = ApiKey)
     {
         temporaryDirectory = Path.Combine(
             Path.GetTempPath(),
@@ -34,6 +35,7 @@ internal sealed class TeledropWebApplicationFactory : WebApplicationFactory<Prog
             {
                 ["WEB_USERNAME"] = WebUsername,
                 ["WEB_PASSWORD"] = InitialPasswordHash,
+                ["TELEDROP_API_KEY"] = apiKey,
                 ["SHARE_DIRECTORY"] = ShareDirectory,
                 ["ConnectionStrings:DefaultConnection"] = $"Data Source={databasePath}",
             });
