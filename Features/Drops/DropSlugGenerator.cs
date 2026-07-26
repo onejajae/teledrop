@@ -29,6 +29,7 @@ public sealed class DropSlugGenerator(TeledropDbContext dbContext)
             "login",
             "logout",
             "static",
+            "tickets",
             "u",
             "upload",
         ],

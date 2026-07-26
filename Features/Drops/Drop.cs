@@ -29,4 +29,6 @@ public sealed class Drop
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime? UpdatedAt { get; set; }
+
+    public Guid? UploadTicketId { get; set; }
 }

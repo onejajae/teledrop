@@ -1,0 +1,163 @@
+@page "/u/{path}"
+@model Teledrop.Features.UploadTickets.GuestUploadModel
+@{
+    ViewData["Title"] = "파일 보내기";
+}
+
+<div class="min-h-screen bg-base-200 px-4 py-10">
+    <div class="mx-auto w-full max-w-xl">
+        <header class="mb-6 text-center">
+            <h1 class="text-4xl font-bold">teledrop</h1>
+            <p class="mt-2 text-base-content/70">
+                파일 하나를 안전하게 보내세요.
+            </p>
+        </header>
+
+        <section id="guest-upload-card"
+                 class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+                @if (Model.UploadSucceeded)
+                {
+                    <div class="alert alert-success items-start"
+                         role="status">
+                        <div class="min-w-0">
+                            <p class="font-semibold">받았습니다.</p>
+                            <p class="mt-1 truncate">
+                                @Model.UploadedFileName
+                            </p>
+                            <p class="text-sm">
+                                @Teledrop.Features.Drops.IndexModel.FormatFileSize(
+                                    Model.UploadedFileSizeBytes)
+                            </p>
+                        </div>
+                    </div>
+                }
+                else if (Model.IsUnavailable)
+                {
+                    <div class="alert alert-warning" role="status">
+                        <div>
+                            <p class="font-semibold">만료된 링크입니다.</p>
+                            <p class="mt-1 text-sm">
+                                새 Upload Ticket을 요청해 주세요.
+                            </p>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <h2 class="card-title text-2xl">파일 보내기</h2>
+
+                    @if (Model.TicketCodeError is not null)
+                    {
+                        <div class="alert alert-error" role="alert">
+                            <span>@Model.TicketCodeError</span>
+                        </div>
+                    }
+
+                    <form id="guest-upload-form"
+                          method="post"
+                          enctype="multipart/form-data"
+                          asp-antiforgery="false"
+                          hx-post="@Model.Request.Path"
+                          hx-encoding="multipart/form-data"
+                          hx-target="#guest-upload-card"
+                          hx-select="#guest-upload-card"
+                          hx-swap="outerHTML"
+                          class="space-y-4">
+                        @Html.AntiForgeryToken()
+
+                        <fieldset class="fieldset">
+                            <legend class="fieldset-legend">
+                                Ticket Code
+                            </legend>
+                            <input type="text"
+                                   name="TicketCode"
+                                   class="input w-full font-mono uppercase tracking-widest"
+                                   inputmode="text"
+                                   autocomplete="one-time-code"
+                                   autocapitalize="characters"
+                                   maxlength="9"
+                                   placeholder="K7M2-9XPQ"
+                                   required />
+                        </fieldset>
+
+                        <fieldset class="fieldset">
+                            <legend class="fieldset-legend">파일</legend>
+                            <input type="file"
+                                   name="File"
+                                   class="file-input w-full"
+                                   required />
+                        </fieldset>
+
+                        <div id="guest-upload-progress-wrap" hidden>
+                            <progress id="guest-upload-progress"
+                                      class="progress progress-primary w-full"
+                                      value="0"
+                                      max="100"></progress>
+                            <p id="guest-upload-progress-label"
+                               class="mt-1 text-sm text-base-content/70"
+                               aria-live="polite">0%</p>
+                        </div>
+
+                        <button id="guest-upload-submit"
+                                type="submit"
+                                class="btn btn-primary w-full">
+                            보내기
+                        </button>
+                    </form>
+                }
+            </div>
+        </section>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (() => {
+            const form = document.getElementById("guest-upload-form");
+            if (!form) {
+                return;
+            }
+
+            const progressWrap =
+                document.getElementById("guest-upload-progress-wrap");
+            const progress =
+                document.getElementById("guest-upload-progress");
+            const progressLabel =
+                document.getElementById("guest-upload-progress-label");
+            const submit =
+                document.getElementById("guest-upload-submit");
+
+            form.addEventListener("htmx:beforeRequest", () => {
+                progressWrap.hidden = false;
+                progress.value = 0;
+                progressLabel.textContent = "0%";
+                submit.disabled = true;
+            });
+
+            form.addEventListener("htmx:xhr:progress", (event) => {
+                if (!event.detail.total) {
+                    return;
+                }
+
+                const percent = Math.min(
+                    100,
+                    Math.round(
+                        (event.detail.loaded / event.detail.total) * 100));
+                progress.value = percent;
+                progressLabel.textContent = `${percent}%`;
+            });
+
+            form.addEventListener("htmx:afterRequest", (event) => {
+                submit.disabled = false;
+
+                if (!event.detail.successful) {
+                    progressLabel.textContent =
+                        event.detail.xhr.status === 413
+                            ? "파일이 최대 크기를 초과했습니다."
+                            : "업로드에 실패했습니다.";
+                }
+            });
+        })();
+    </script>
+}

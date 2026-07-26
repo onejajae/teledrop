@@ -7,6 +7,7 @@ using Teledrop;
 using Teledrop.Data;
 using Teledrop.Features.Auth;
 using Teledrop.Features.Drops;
+using Teledrop.Features.UploadTickets;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,6 +22,9 @@ builder.Services.AddRazorPages();
 builder.Services.AddDataProtection();
 builder.Services.AddSingleton<DropUnlockCookie>();
 builder.Services.AddScoped<DropSlugGenerator>();
+builder.Services.AddScoped<DropFileStore>();
+builder.Services.AddScoped<UploadTicketCredentialGenerator>();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services
     .AddOptions<TeledropOptions>()
     .Bind(builder.Configuration)

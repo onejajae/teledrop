@@ -1,5 +1,4 @@
 using System.Buffers;
-using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Http.Features;
@@ -21,12 +20,9 @@ public sealed class UploadModel(
     IAntiforgery antiforgery,
     IOptions<AntiforgeryOptions> antiforgeryOptions,
     IOptions<FormOptions> formOptions,
-    IOptions<TeledropOptions> teledropOptions,
-    ILogger<UploadModel> logger)
+    DropFileStore dropFileStore)
     : PageModel
 {
-    private const int CopyBufferSize = 64 * 1024;
-
     public IActionResult OnGet()
     {
         return RedirectToPage("/Index");
@@ -48,8 +44,7 @@ public sealed class UploadModel(
 
         string? title = null;
         string? description = null;
-        string? storedFilePath = null;
-        StoredFile? storedFile = null;
+        StoredDropFile? storedFile = null;
         var antiforgeryValidated = false;
         var sectionCount = 0;
         var formValueCount = 0;
@@ -98,20 +93,12 @@ public sealed class UploadModel(
                         return BadRequest();
                     }
 
-                    var location = Guid.NewGuid().ToString("N");
-                    storedFilePath = Path.GetFullPath(
-                        Path.Combine(
-                            teledropOptions.Value.ShareDirectory,
-                            location));
-                    storedFile = await StoreFileAsync(
+                    storedFile = await dropFileStore.StoreAsync(
                         section.Body,
-                        storedFilePath,
-                        location,
                         fileName,
                         string.IsNullOrWhiteSpace(section.ContentType)
                             ? "application/octet-stream"
                             : section.ContentType,
-                        teledropOptions.Value.MaxUploadBytes,
                         requestAborted);
 
                     continue;
@@ -198,7 +185,7 @@ public sealed class UploadModel(
 
             return RedirectToPage("/Index", new { uploaded = drop.Slug });
         }
-        catch (UploadTooLargeException)
+        catch (DropUploadTooLargeException)
         {
             return StatusCode(StatusCodes.Status413PayloadTooLarge);
         }
@@ -212,9 +199,9 @@ public sealed class UploadModel(
         }
         finally
         {
-            if (!persisted && storedFilePath is not null)
+            if (!persisted && storedFile is not null)
             {
-                TryDeleteIncompleteFile(storedFilePath);
+                dropFileStore.TryDelete(storedFile);
             }
         }
     }
@@ -338,89 +325,10 @@ public sealed class UploadModel(
         return value.ToString();
     }
 
-    private static async Task<StoredFile> StoreFileAsync(
-        Stream source,
-        string filePath,
-        string location,
-        string fileName,
-        string contentType,
-        long maxUploadBytes,
-        CancellationToken cancellationToken)
-    {
-        await using var destination = new FileStream(
-            filePath,
-            FileMode.CreateNew,
-            FileAccess.Write,
-            FileShare.None,
-            CopyBufferSize,
-            FileOptions.Asynchronous | FileOptions.SequentialScan);
-        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-
-        var buffer = ArrayPool<byte>.Shared.Rent(CopyBufferSize);
-        long fileSizeBytes = 0;
-
-        try
-        {
-            int read;
-            while ((read = await source.ReadAsync(
-                       buffer.AsMemory(0, buffer.Length),
-                       cancellationToken)) > 0)
-            {
-                if (read > maxUploadBytes - fileSizeBytes)
-                {
-                    throw new UploadTooLargeException();
-                }
-
-                await destination.WriteAsync(
-                    buffer.AsMemory(0, read),
-                    cancellationToken);
-                hash.AppendData(buffer, 0, read);
-                fileSizeBytes += read;
-            }
-
-            await destination.FlushAsync(cancellationToken);
-        }
-        finally
-        {
-            ArrayPool<byte>.Shared.Return(buffer);
-        }
-
-        return new StoredFile(
-            location,
-            fileName,
-            contentType,
-            fileSizeBytes,
-            Convert.ToHexStringLower(hash.GetHashAndReset()));
-    }
-
-    private void TryDeleteIncompleteFile(string filePath)
-    {
-        try
-        {
-            System.IO.File.Delete(filePath);
-        }
-        catch (Exception exception)
-        {
-            logger.LogWarning(
-                exception,
-                "Incomplete upload file at {FilePath} could not be deleted.",
-                filePath);
-        }
-    }
-
     private static string? EmptyToNull(string value)
     {
         return value.Length == 0 ? null : value;
     }
 
-    private sealed record StoredFile(
-        string Location,
-        string FileName,
-        string ContentType,
-        long FileSizeBytes,
-        string FileHash);
-
     private sealed class InvalidUploadException : Exception;
-
-    private sealed class UploadTooLargeException : Exception;
 }

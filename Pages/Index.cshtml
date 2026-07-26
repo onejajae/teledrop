@@ -11,9 +11,16 @@
                 <h1 class="text-4xl font-bold">teledrop</h1>
                 <p class="mt-1 text-base-content/70">지금 올리고, 필요할 때 바로 꺼내세요.</p>
             </div>
-            <form method="post" asp-page-handler="Logout">
-                <button type="submit" class="btn btn-ghost btn-sm">로그아웃</button>
-            </form>
+            <div class="flex items-center gap-2">
+                <a asp-page="/Tickets" class="btn btn-ghost btn-sm">
+                    Upload Ticket
+                </a>
+                <form method="post" asp-page-handler="Logout">
+                    <button type="submit" class="btn btn-ghost btn-sm">
+                        로그아웃
+                    </button>
+                </form>
+            </div>
         </header>
 
         @if (Model.UploadedDrop is not null)
