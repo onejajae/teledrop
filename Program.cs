@@ -9,6 +9,13 @@ using Teledrop.Features.Auth;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.WebHost.ConfigureKestrel((context, options) =>
+{
+    options.Limits.MaxRequestBodySize = context.Configuration.GetValue(
+        "MAX_UPLOAD_BYTES",
+        TeledropOptions.DefaultMaxUploadBytes);
+});
+
 builder.Services.AddRazorPages();
 builder.Services
     .AddOptions<TeledropOptions>()
@@ -20,6 +27,9 @@ builder.Services
         options => !string.IsNullOrWhiteSpace(options.WebPassword)
             && options.WebPassword.StartsWith("$argon2id$", StringComparison.Ordinal),
         "WEB_PASSWORD must be set to an argon2id encoded hash string.")
+    .Validate(
+        options => options.MaxUploadBytes > 0,
+        "MAX_UPLOAD_BYTES must be greater than zero.")
     .ValidateOnStart();
 
 builder.Services

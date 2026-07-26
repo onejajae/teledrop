@@ -16,13 +16,15 @@ internal sealed class TeledropWebApplicationFactory : WebApplicationFactory<Prog
     private readonly MutableConfigurationSource configurationSource;
     private readonly string temporaryDirectory;
 
+    internal string ShareDirectory { get; }
+
     internal TeledropWebApplicationFactory()
     {
         temporaryDirectory = Path.Combine(
             Path.GetTempPath(),
             $"teledrop-tests-{Guid.NewGuid():N}");
 
-        var shareDirectory = Path.Combine(temporaryDirectory, "share");
+        ShareDirectory = Path.Combine(temporaryDirectory, "share");
         var databasePath = Path.Combine(temporaryDirectory, "database.db");
 
         Directory.CreateDirectory(temporaryDirectory);
@@ -32,7 +34,7 @@ internal sealed class TeledropWebApplicationFactory : WebApplicationFactory<Prog
             {
                 ["WEB_USERNAME"] = WebUsername,
                 ["WEB_PASSWORD"] = InitialPasswordHash,
-                ["SHARE_DIRECTORY"] = shareDirectory,
+                ["SHARE_DIRECTORY"] = ShareDirectory,
                 ["ConnectionStrings:DefaultConnection"] = $"Data Source={databasePath}",
             });
     }
