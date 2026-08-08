@@ -4,41 +4,46 @@
     ViewData["Title"] = "로그인";
 }
 
-<div class="hero min-h-screen bg-base-200 px-4">
-    <div class="card w-full max-w-sm bg-base-100 shadow-xl">
-        <div class="card-body">
-            <h1 class="card-title text-3xl">teledrop</h1>
-            <p class="text-base-content/70">소유자 세션을 시작합니다.</p>
+<section class="td-section w-full">
+    <div class="td-section-body p-6">
+        <h1 class="text-center text-2xl font-bold">로그인</h1>
 
-            @if (Model.ErrorMessage is not null)
-            {
-                <div class="alert alert-error" role="alert">
-                    <span>@Model.ErrorMessage</span>
-                </div>
-            }
+        @if (Model.ErrorMessage is not null)
+        {
+            <div class="td-alert td-alert-error mt-5" role="alert">
+                <svg class="mt-0.5 size-5 shrink-0" aria-hidden="true" viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 14h-2v-2h2v2Zm0-4h-2V7h2v5Z" />
+                </svg>
+                <span>@Model.ErrorMessage</span>
+            </div>
+        }
 
-            <form method="post" class="space-y-4">
-                <input asp-for="ReturnUrl" type="hidden" />
+        <form method="post" class="mt-5 space-y-5">
+            <input asp-for="ReturnUrl" type="hidden" />
 
-                <fieldset class="fieldset">
-                    <legend class="fieldset-legend">소유자 이름</legend>
-                    <input asp-for="Username"
-                           class="input w-full"
-                           autocomplete="username"
-                           autofocus
-                           required />
-                </fieldset>
+            <div class="td-fieldset">
+                <label asp-for="Username" class="td-label">사용자 ID</label>
+                <input asp-for="Username"
+                       class="input w-full"
+                       placeholder="사용자 ID"
+                       autocomplete="username"
+                       autofocus
+                       required />
+            </div>
 
-                <fieldset class="fieldset">
-                    <legend class="fieldset-legend">비밀번호</legend>
-                    <input asp-for="Password"
-                           class="input w-full"
-                           autocomplete="current-password"
-                           required />
-                </fieldset>
+            <div class="td-fieldset">
+                <label asp-for="Password" class="td-label">비밀번호</label>
+                <input asp-for="Password"
+                       type="password"
+                       class="input w-full"
+                       placeholder="••••••"
+                       autocomplete="current-password"
+                       required />
+            </div>
 
-                <button type="submit" class="btn btn-primary w-full">로그인</button>
-            </form>
-        </div>
+            <button type="submit" class="btn btn-primary w-full">
+                로그인
+            </button>
+        </form>
     </div>
-</div>
+</section>

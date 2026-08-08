@@ -4,370 +4,397 @@
     ViewData["Title"] = "홈";
 }
 
-<div class="min-h-screen bg-base-200 px-4 py-10">
-    <div class="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <header class="flex items-center justify-between gap-4">
-            <div>
-                <h1 class="text-4xl font-bold">teledrop</h1>
-                <p class="mt-1 text-base-content/70">지금 올리고, 필요할 때 바로 꺼내세요.</p>
-            </div>
-            <div class="flex items-center gap-2">
-                <a asp-page="/Tickets" class="btn btn-ghost btn-sm">
-                    Upload Ticket
+@if (Model.UploadedDrop is not null)
+{
+    <div class="td-alert td-alert-success" role="status">
+        <svg class="mt-0.5 size-5 shrink-0" aria-hidden="true" viewBox="0 0 24 24">
+            <path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.2 14.3-4.1-4.1 1.4-1.4 2.7 2.7 5.6-5.6 1.4 1.4-7 7Z" />
+        </svg>
+        <div class="min-w-0 flex-1">
+            <p class="font-semibold">업로드가 완료되었습니다.</p>
+            <p class="truncate text-sm">@Model.UploadedDrop.FileName</p>
+            <div class="mt-3 flex flex-wrap gap-2">
+                <a asp-page="/DropDetail"
+                   asp-route-slug="@Model.UploadedDrop.Slug"
+                   class="btn btn-sm">
+                    파일 미리보기
                 </a>
-                <form method="post" asp-page-handler="Logout">
-                    <button type="submit" class="btn btn-ghost btn-sm">
-                        로그아웃
-                    </button>
-                </form>
+                <a asp-page="/Download"
+                   asp-route-slug="@Model.UploadedDrop.Slug"
+                   class="btn btn-sm btn-primary">
+                    다운로드
+                </a>
             </div>
-        </header>
+        </div>
+    </div>
+}
 
-        @if (Model.UploadedDrop is not null)
-        {
-            <div class="alert alert-success items-start" role="status">
-                <div class="min-w-0 flex-1">
-                    <p class="font-semibold">업로드했습니다.</p>
-                    <p class="truncate">@Model.UploadedDrop.FileName</p>
-                    <div class="mt-3 flex flex-wrap gap-2">
-                        <a asp-page="/DropDetail"
-                           asp-route-slug="@Model.UploadedDrop.Slug"
-                           class="btn btn-sm">
-                            상세
-                        </a>
-                        <a asp-page="/Download"
-                           asp-route-slug="@Model.UploadedDrop.Slug"
-                           class="btn btn-sm btn-primary">
-                            다운로드
-                        </a>
-                        <form method="post"
-                              asp-page-handler="Delete"
-                              asp-route-slug="@Model.UploadedDrop.Slug">
-                            <button type="submit" class="btn btn-sm btn-error">
-                                삭제
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        }
+@if (Model.DeleteSucceeded)
+{
+    <div class="td-alert td-alert-success" role="status">
+        <span>드롭을 삭제했습니다.</span>
+    </div>
+}
 
-        @if (Model.DeleteSucceeded)
-        {
-            <div class="alert alert-success" role="status">
-                <span>드롭을 삭제했습니다.</span>
-            </div>
-        }
+<section class="td-section">
+    <div class="td-section-body">
+        <div class="td-section-header">
+            <h1 class="td-section-title">파일 업로드</h1>
+            <a asp-page="/Tickets" class="td-text-action">
+                Upload Ticket
+            </a>
+        </div>
 
-        <section class="card bg-base-100 shadow-xl">
-            <div class="card-body">
-                <h2 class="card-title text-2xl">파일 올리기</h2>
+        <form id="upload-form"
+              method="post"
+              asp-page="/Upload"
+              asp-antiforgery="false"
+              enctype="multipart/form-data"
+              hx-post="@Url.Page("/Upload")"
+              hx-encoding="multipart/form-data"
+              hx-swap="none"
+              class="space-y-3">
+            @Html.AntiForgeryToken()
 
-                <form id="upload-form"
-                      method="post"
-                      asp-page="/Upload"
-                      asp-antiforgery="false"
-                      enctype="multipart/form-data"
-                      hx-post="@Url.Page("/Upload")"
-                      hx-encoding="multipart/form-data"
-                      hx-swap="none"
-                      class="space-y-4">
-                    @Html.AntiForgeryToken()
+            <label id="upload-zone" class="td-upload-zone" for="upload-file">
+                <input id="upload-file"
+                       type="file"
+                       name="File"
+                       required />
+                <svg aria-hidden="true" viewBox="0 0 24 24">
+                    <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 16.5a4.5 4.5 0 0 1-.4-9A6 6 0 0 1 18 9.4a3.6 3.6 0 0 1-.5 7.1M12 21V10m0 0-3 3m3-3 3 3" />
+                </svg>
+                <p id="upload-prompt" class="td-upload-prompt">
+                    <strong>클릭하여 업로드</strong> 또는 끌어서 가져오기
+                </p>
+                <p id="upload-filename" class="td-upload-filename" hidden></p>
+            </label>
 
-                    <fieldset class="fieldset">
-                        <legend class="fieldset-legend">제목 <span class="font-normal text-base-content/50">(선택)</span></legend>
+            <details class="td-disclosure">
+                <summary>추가 정보 입력</summary>
+                <div class="td-disclosure-content space-y-3">
+                    <fieldset class="td-fieldset">
+                        <legend class="td-label">
+                            제목 <span class="td-optional">(선택)</span>
+                        </legend>
                         <input type="text"
                                name="Title"
                                class="input w-full"
+                               placeholder="제목"
                                autocomplete="off" />
                     </fieldset>
 
-                    <fieldset class="fieldset">
-                        <legend class="fieldset-legend">설명 <span class="font-normal text-base-content/50">(선택)</span></legend>
+                    <fieldset class="td-fieldset">
+                        <legend class="td-label">
+                            내용 <span class="td-optional">(선택)</span>
+                        </legend>
                         <textarea name="Description"
-                                  class="textarea min-h-24 w-full"></textarea>
+                                  class="textarea min-h-24 w-full"
+                                  rows="4"></textarea>
                     </fieldset>
+                </div>
+            </details>
 
-                    <fieldset class="fieldset">
-                        <legend class="fieldset-legend">파일</legend>
-                        <input type="file"
-                               name="File"
-                               class="file-input w-full"
-                               required />
-                    </fieldset>
-
-                    <div id="upload-progress-wrap" hidden>
-                        <progress id="upload-progress"
-                                  class="progress progress-primary w-full"
-                                  value="0"
-                                  max="100"></progress>
-                        <p id="upload-progress-label"
-                           class="mt-1 text-sm text-base-content/70"
-                           aria-live="polite">0%</p>
-                    </div>
-
-                    <button id="upload-submit"
-                            type="submit"
-                            class="btn btn-primary w-full">
-                        업로드
-                    </button>
-                </form>
+            <div id="upload-progress-wrap" hidden>
+                <progress id="upload-progress"
+                          class="td-progress"
+                          value="0"
+                          max="100"></progress>
+                <p id="upload-progress-label"
+                   class="td-muted mt-1 text-center text-sm"
+                   aria-live="polite">0%</p>
             </div>
-        </section>
 
-        <section id="drop-list" class="card bg-base-100 shadow-xl">
-            <div class="card-body gap-5">
-                <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                    <div>
-                        <h2 class="card-title text-2xl">드롭 목록</h2>
-                        <p class="mt-1 text-sm text-base-content/60">
-                            @if (Model.Search is null)
-                            {
-                                <span>총 @(Model.TotalDropCount)개</span>
-                            }
-                            else
-                            {
-                                <span>검색 결과 @(Model.TotalDropCount)개</span>
-                            }
-                        </p>
-                    </div>
+            <div class="flex justify-center pt-1">
+                <button id="upload-submit"
+                        type="submit"
+                        class="btn btn-primary btn-sm min-w-36">
+                    <svg class="size-4" aria-hidden="true" viewBox="0 0 24 24">
+                        <path fill="currentColor" d="M11 16.2V7.8L8.4 10.4 7 9l5-5 5 5-1.4 1.4L13 7.8v8.4h-2ZM5 20a2 2 0 0 1-2-2v-3h2v3h14v-3h2v3a2 2 0 0 1-2 2H5Z" />
+                    </svg>
+                    업로드
+                </button>
+            </div>
+        </form>
+    </div>
+</section>
 
-                    <form method="get"
-                          asp-page="/Index"
-                          class="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
-                        <input type="search"
-                               name="search"
-                               value="@Model.Search"
-                               class="input w-full sm:min-w-64"
-                               placeholder="제목 또는 파일명 검색"
-                               aria-label="제목 또는 파일명 검색" />
-
-                        <select name="sort"
-                                class="select"
-                                aria-label="정렬 기준">
-                            <option value="created_at"
-                                    selected="@(Model.Sort == "created_at")">생성일</option>
-                            <option value="title"
-                                    selected="@(Model.Sort == "title")">제목</option>
-                            <option value="size"
-                                    selected="@(Model.Sort == "size")">크기</option>
-                        </select>
-
-                        <select name="direction"
-                                class="select"
-                                aria-label="정렬 방향">
-                            <option value="desc"
-                                    selected="@(Model.Direction == "desc")">내림차순</option>
-                            <option value="asc"
-                                    selected="@(Model.Direction == "asc")">오름차순</option>
-                        </select>
-
-                        <button type="submit" class="btn btn-neutral">적용</button>
-                    </form>
+<section id="drop-list" class="td-section">
+    <div class="td-section-body">
+        <div class="td-section-header">
+            <div class="min-w-0">
+                <div class="flex items-center gap-1">
+                    <h2 class="td-section-title">내 업로드</h2>
+                    <a asp-page="/Index"
+                       asp-route-search="@Model.Search"
+                       asp-route-sort="@Model.Sort"
+                       asp-route-direction="@Model.Direction"
+                       class="td-row-action"
+                       aria-label="목록 새로고침"
+                       title="새로고침">
+                        <svg aria-hidden="true" viewBox="0 0 24 24">
+                            <path fill="currentColor" d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.3L13 11h8V3l-3.3 3.3Z" />
+                        </svg>
+                    </a>
                 </div>
+                <p class="td-section-subtitle">
+                    @(Model.Search is null
+                        ? $"총 {Model.TotalDropCount}개"
+                        : $"검색 결과 {Model.TotalDropCount}개")
+                </p>
+            </div>
+        </div>
 
-                <div class="overflow-x-auto">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th scope="col" class="w-12">favorite</th>
-                                <th scope="col">제목</th>
-                                <th scope="col">파일명</th>
-                                <th scope="col">크기</th>
-                                <th scope="col">생성일</th>
-                                <th scope="col">상태</th>
-                                <th scope="col" class="text-right">동작</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @if (Model.Drops.Count == 0)
-                            {
-                                <tr>
-                                    <td colspan="7"
-                                        class="py-12 text-center text-base-content/60">
-                                        @(Model.Search is null
-                                            ? "아직 드롭이 없습니다."
-                                            : "검색 결과가 없습니다.")
-                                    </td>
-                                </tr>
-                            }
-                            else
-                            {
-                                @foreach (var drop in Model.Drops)
-                                {
-                                    var displayTitle = string.IsNullOrEmpty(drop.Title)
-                                        ? drop.FileName
-                                        : drop.Title;
-                                    var createdAtUtc = drop.CreatedAt.Kind == DateTimeKind.Utc
-                                        ? drop.CreatedAt
-                                        : DateTime.SpecifyKind(
-                                            drop.CreatedAt,
-                                            DateTimeKind.Utc);
-                                    var createdAtLocal = createdAtUtc.ToLocalTime();
-                                    var favoriteLabel = drop.IsFavorite
-                                        ? "favorite 해제"
-                                        : "favorite 설정";
-                                    var favoriteUrl = Url.Page(
-                                        "/Index",
-                                        "Favorite",
-                                        new
-                                        {
-                                            slug = drop.Slug,
-                                            search = Model.Search,
-                                            sort = Model.Sort,
-                                            direction = Model.Direction,
-                                            pageNumber = Model.CurrentPage,
-                                        });
+        <form method="get"
+              asp-page="/Index"
+              class="mb-3 space-y-2">
+            <div class="flex gap-2">
+                <input type="search"
+                       name="search"
+                       value="@Model.Search"
+                       class="input input-sm min-w-0 flex-1"
+                       placeholder="제목 또는 파일명 검색"
+                       aria-label="제목 또는 파일명 검색" />
+                <button type="submit" class="btn btn-neutral btn-sm">
+                    검색
+                </button>
+            </div>
+            <div class="flex items-center justify-end gap-2">
+                <select name="direction"
+                        class="select select-sm w-auto"
+                        aria-label="정렬 방향">
+                    <option value="desc" selected="@(Model.Direction == "desc")">내림차순</option>
+                    <option value="asc" selected="@(Model.Direction == "asc")">오름차순</option>
+                </select>
+                <select name="sort"
+                        class="select select-sm w-auto"
+                        aria-label="정렬 기준">
+                    <option value="created_at" selected="@(Model.Sort == "created_at")">날짜</option>
+                    <option value="title" selected="@(Model.Sort == "title")">제목</option>
+                    <option value="size" selected="@(Model.Sort == "size")">크기</option>
+                </select>
+                <button type="submit" class="btn btn-ghost btn-sm">적용</button>
+            </div>
+        </form>
 
-                                    <tr>
-                                        <td>
-                                            <form method="post"
-                                                  asp-page-handler="Favorite"
-                                                  asp-route-slug="@drop.Slug"
-                                                  asp-route-search="@Model.Search"
-                                                  asp-route-sort="@Model.Sort"
-                                                  asp-route-direction="@Model.Direction"
-                                                  asp-route-pageNumber="@Model.CurrentPage"
-                                                  hx-post="@favoriteUrl"
-                                                  hx-target="#drop-list"
-                                                  hx-select="#drop-list"
-                                                  hx-swap="outerHTML">
-                                                <button type="submit"
-                                                        class="btn btn-square btn-ghost btn-sm @(drop.IsFavorite ? "text-warning" : "text-base-content/40")"
-                                                        aria-label="@favoriteLabel"
-                                                        aria-pressed="@drop.IsFavorite.ToString().ToLowerInvariant()"
-                                                        title="@favoriteLabel">
-                                                    <span aria-hidden="true" class="text-xl">
-                                                        @(drop.IsFavorite ? "★" : "☆")
-                                                    </span>
-                                                </button>
-                                            </form>
-                                        </td>
-                                        <td class="max-w-64">
-                                            <a asp-page="/DropDetail"
-                                               asp-route-slug="@drop.Slug"
-                                               class="link link-hover block truncate font-semibold"
-                                               title="@displayTitle">
-                                                @displayTitle
-                                            </a>
-                                        </td>
-                                        <td class="max-w-64">
-                                            <span class="block truncate"
-                                                  title="@drop.FileName">
-                                                @drop.FileName
-                                            </span>
-                                        </td>
-                                        <td class="whitespace-nowrap">
-                                            @Teledrop.Features.Drops.IndexModel.FormatFileSize(
-                                                drop.FileSizeBytes)
-                                        </td>
-                                        <td class="whitespace-nowrap">
-                                            <time datetime="@createdAtUtc.ToString("O")"
-                                                  title="@createdAtUtc.ToString("yyyy-MM-dd HH:mm:ss 'UTC'")">
-                                                @createdAtLocal.ToString("yyyy-MM-dd HH:mm")
-                                            </time>
-                                        </td>
-                                        <td>
-                                            @if (drop.IsPrivate)
-                                            {
-                                                <span class="badge badge-neutral badge-sm">
-                                                    private
-                                                </span>
-                                            }
-                                        </td>
-                                        <td>
-                                            <div class="flex justify-end gap-2">
-                                                <a asp-page="/Download"
-                                                   asp-route-slug="@drop.Slug"
-                                                   class="btn btn-primary btn-sm">
-                                                    다운로드
-                                                </a>
-                                                <form method="post"
-                                                      asp-page-handler="Delete"
-                                                      asp-route-slug="@drop.Slug"
-                                                      asp-route-search="@Model.Search"
-                                                      asp-route-sort="@Model.Sort"
-                                                      asp-route-direction="@Model.Direction"
-                                                      asp-route-pageNumber="@Model.CurrentPage">
-                                                    <button type="submit"
-                                                            class="btn btn-error btn-sm">
-                                                        삭제
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                }
-                            }
-                        </tbody>
-                    </table>
+        <div class="td-list">
+            @if (Model.Drops.Count == 0)
+            {
+                <div class="td-empty">
+                    @(Model.Search is null
+                        ? "아직 업로드한 파일이 없습니다."
+                        : "검색 결과가 없습니다.")
                 </div>
-
-                <div class="flex flex-col items-center justify-between gap-3 sm:flex-row">
-                    <p class="text-sm text-base-content/60">
-                        페이지당 @(Teledrop.Features.Drops.IndexModel.PageSize)개
-                    </p>
-
-                    <nav class="join" aria-label="드롭 목록 페이지">
-                        @if (Model.CurrentPage > 1)
+            }
+            else
+            {
+                @foreach (var drop in Model.Drops)
+                {
+                    var displayTitle = string.IsNullOrEmpty(drop.Title)
+                        ? drop.FileName
+                        : drop.Title;
+                    var createdAtUtc = drop.CreatedAt.Kind == DateTimeKind.Utc
+                        ? drop.CreatedAt
+                        : DateTime.SpecifyKind(drop.CreatedAt, DateTimeKind.Utc);
+                    var createdAtLocal = createdAtUtc.ToLocalTime();
+                    var favoriteLabel = drop.IsFavorite
+                        ? "favorite 해제"
+                        : "favorite 설정";
+                    var favoriteUrl = Url.Page(
+                        "/Index",
+                        "Favorite",
+                        new
                         {
-                            <a asp-page="/Index"
-                               asp-route-search="@Model.Search"
-                               asp-route-sort="@Model.Sort"
-                               asp-route-direction="@Model.Direction"
-                               asp-route-pageNumber="@(Model.CurrentPage - 1)"
-                               class="btn join-item">
-                                이전
-                            </a>
-                        }
-                        else
-                        {
-                            <button type="button"
-                                    class="btn join-item"
-                                    disabled>
-                                이전
+                            slug = drop.Slug,
+                            search = Model.Search,
+                            sort = Model.Sort,
+                            direction = Model.Direction,
+                            pageNumber = Model.CurrentPage,
+                        });
+
+                    <article class="td-drop-row">
+                        <form method="post"
+                              asp-page-handler="Favorite"
+                              asp-route-slug="@drop.Slug"
+                              asp-route-search="@Model.Search"
+                              asp-route-sort="@Model.Sort"
+                              asp-route-direction="@Model.Direction"
+                              asp-route-pageNumber="@Model.CurrentPage"
+                              hx-post="@favoriteUrl"
+                              hx-target="#drop-list"
+                              hx-select="#drop-list"
+                              hx-swap="outerHTML">
+                            <button type="submit"
+                                    class="td-row-action @(drop.IsFavorite ? "text-warning" : "")"
+                                    aria-label="@favoriteLabel"
+                                    aria-pressed="@drop.IsFavorite.ToString().ToLowerInvariant()"
+                                    title="@favoriteLabel">
+                                <span aria-hidden="true" class="text-xl">
+                                    @(drop.IsFavorite ? "★" : "☆")
+                                </span>
                             </button>
-                        }
+                        </form>
 
-                        <span class="btn join-item pointer-events-none"
-                              aria-current="page">
-                            @Model.CurrentPage / @Model.TotalPages
+                        <span class="td-file-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M6 2h8l5 5v15H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm7 2v5h4l-4-5ZM8 13v2h7v-2H8Zm0 4v2h7v-2H8Z" />
+                            </svg>
                         </span>
 
-                        @if (Model.CurrentPage < Model.TotalPages)
-                        {
-                            <a asp-page="/Index"
-                               asp-route-search="@Model.Search"
-                               asp-route-sort="@Model.Sort"
-                               asp-route-direction="@Model.Direction"
-                               asp-route-pageNumber="@(Model.CurrentPage + 1)"
-                               class="btn join-item">
-                                다음
+                        <div class="min-w-0 flex-1">
+                            <a asp-page="/DropDetail"
+                               asp-route-slug="@drop.Slug"
+                               class="td-row-title"
+                               title="@displayTitle">
+                                @displayTitle
                             </a>
-                        }
-                        else
-                        {
-                            <button type="button"
-                                    class="btn join-item"
-                                    disabled>
-                                다음
-                            </button>
-                        }
-                    </nav>
-                </div>
-            </div>
-        </section>
+                            <div class="td-row-meta">
+                                <span>@Teledrop.Features.Drops.IndexModel.FormatFileSize(drop.FileSizeBytes)</span>
+                                <span aria-hidden="true">•</span>
+                                <span>@(drop.IsPrivate ? "나만 보기" : "전체 공개")</span>
+                                @if (drop.DropPasswordHash is not null)
+                                {
+                                    <span aria-hidden="true">•</span>
+                                    <span>비밀번호</span>
+                                }
+                                <span aria-hidden="true">•</span>
+                                <time datetime="@createdAtUtc.ToString("O")"
+                                      title="@createdAtLocal.ToString("yyyy-MM-dd HH:mm:ss")">
+                                    @createdAtLocal.ToString("yyyy-MM-dd HH:mm")
+                                </time>
+                            </div>
+                            @if (!string.IsNullOrEmpty(drop.Title))
+                            {
+                                <p class="td-muted truncate text-xs" title="@drop.FileName">
+                                    @drop.FileName
+                                </p>
+                            }
+                        </div>
+
+                        <div class="td-row-actions">
+                            <a asp-page="/Download"
+                               asp-route-slug="@drop.Slug"
+                               class="td-row-action"
+                               aria-label="@displayTitle 다운로드"
+                               title="다운로드">
+                                <svg aria-hidden="true" viewBox="0 0 24 24">
+                                    <path fill="currentColor" d="M11 4h2v8.2l2.6-2.6L17 11l-5 5-5-5 1.4-1.4 2.6 2.6V4ZM5 18h14v2H5v-2Z" />
+                                </svg>
+                            </a>
+                            <form method="post"
+                                  asp-page-handler="Delete"
+                                  asp-route-slug="@drop.Slug"
+                                  asp-route-search="@Model.Search"
+                                  asp-route-sort="@Model.Sort"
+                                  asp-route-direction="@Model.Direction"
+                                  asp-route-pageNumber="@Model.CurrentPage">
+                                <button type="submit"
+                                        class="td-row-action td-row-action-danger"
+                                        aria-label="@displayTitle 삭제"
+                                        title="삭제">
+                                    <svg aria-hidden="true" viewBox="0 0 24 24">
+                                        <path fill="currentColor" d="M8 3h8l1 2h4v2H3V5h4l1-2Zm1 6h2v8H9V9Zm4 0h2v8h-2V9ZM6 9h2v10h8V9h2v10a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9Z" />
+                                    </svg>
+                                </button>
+                            </form>
+                        </div>
+                    </article>
+                }
+            }
+        </div>
+
+        <div class="mt-3 flex items-center justify-between gap-3">
+            <p class="td-muted text-xs">
+                페이지당 @(Teledrop.Features.Drops.IndexModel.PageSize)개
+            </p>
+
+            <nav class="join" aria-label="드롭 목록 페이지">
+                @if (Model.CurrentPage > 1)
+                {
+                    <a asp-page="/Index"
+                       asp-route-search="@Model.Search"
+                       asp-route-sort="@Model.Sort"
+                       asp-route-direction="@Model.Direction"
+                       asp-route-pageNumber="@(Model.CurrentPage - 1)"
+                       class="btn btn-sm join-item">
+                        이전
+                    </a>
+                }
+                else
+                {
+                    <button type="button" class="btn btn-sm join-item" disabled>이전</button>
+                }
+
+                <span class="btn btn-sm join-item pointer-events-none" aria-current="page">
+                    @Model.CurrentPage / @Model.TotalPages
+                </span>
+
+                @if (Model.CurrentPage < Model.TotalPages)
+                {
+                    <a asp-page="/Index"
+                       asp-route-search="@Model.Search"
+                       asp-route-sort="@Model.Sort"
+                       asp-route-direction="@Model.Direction"
+                       asp-route-pageNumber="@(Model.CurrentPage + 1)"
+                       class="btn btn-sm join-item">
+                        다음
+                    </a>
+                }
+                else
+                {
+                    <button type="button" class="btn btn-sm join-item" disabled>다음</button>
+                }
+            </nav>
+        </div>
     </div>
-</div>
+</section>
 
 @section Scripts {
     <script nonce="@ViewContext.HttpContext.Items[SecurityHeaders.ContentSecurityPolicyNonceItemKey]">
         (() => {
             const form = document.getElementById("upload-form");
+            const fileInput = document.getElementById("upload-file");
+            const uploadZone = document.getElementById("upload-zone");
+            const prompt = document.getElementById("upload-prompt");
+            const fileName = document.getElementById("upload-filename");
             const progressWrap = document.getElementById("upload-progress-wrap");
             const progress = document.getElementById("upload-progress");
             const progressLabel = document.getElementById("upload-progress-label");
             const submit = document.getElementById("upload-submit");
+
+            const syncSelectedFile = () => {
+                const selectedFile = fileInput.files?.[0];
+                prompt.hidden = Boolean(selectedFile);
+                fileName.hidden = !selectedFile;
+                fileName.textContent = selectedFile?.name ?? "";
+                submit.disabled = !selectedFile;
+            };
+
+            syncSelectedFile();
+            fileInput.addEventListener("change", syncSelectedFile);
+
+            for (const eventName of ["dragenter", "dragover"]) {
+                uploadZone.addEventListener(eventName, (event) => {
+                    event.preventDefault();
+                    uploadZone.classList.add("is-dragging");
+                });
+            }
+
+            for (const eventName of ["dragleave", "drop"]) {
+                uploadZone.addEventListener(eventName, (event) => {
+                    event.preventDefault();
+                    uploadZone.classList.remove("is-dragging");
+                });
+            }
+
+            uploadZone.addEventListener("drop", (event) => {
+                if (!event.dataTransfer?.files.length) {
+                    return;
+                }
+
+                fileInput.files = event.dataTransfer.files;
+                syncSelectedFile();
+            });
 
             form.addEventListener("htmx:beforeRequest", () => {
                 progressWrap.hidden = false;

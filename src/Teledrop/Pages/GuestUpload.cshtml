@@ -4,112 +4,109 @@
     ViewData["Title"] = "파일 보내기";
 }
 
-<div class="min-h-screen bg-base-200 px-4 py-10">
-    <div class="mx-auto w-full max-w-xl">
-        <header class="mb-6 text-center">
-            <h1 class="text-4xl font-bold">teledrop</h1>
-            <p class="mt-2 text-base-content/70">
-                파일 하나를 안전하게 보내세요.
-            </p>
-        </header>
-
-        <section id="guest-upload-card"
-                 class="card bg-base-100 shadow-xl">
-            <div class="card-body">
-                @if (Model.UploadSucceeded)
-                {
-                    <div class="alert alert-success items-start"
-                         role="status">
-                        <div class="min-w-0">
-                            <p class="font-semibold">받았습니다.</p>
-                            <p class="mt-1 truncate">
-                                @Model.UploadedFileName
-                            </p>
-                            <p class="text-sm">
-                                @Teledrop.Features.Drops.IndexModel.FormatFileSize(
-                                    Model.UploadedFileSizeBytes)
-                            </p>
-                        </div>
-                    </div>
-                }
-                else if (Model.IsUnavailable)
-                {
-                    <div class="alert alert-warning" role="status">
-                        <div>
-                            <p class="font-semibold">만료된 링크입니다.</p>
-                            <p class="mt-1 text-sm">
-                                새 Upload Ticket을 요청해 주세요.
-                            </p>
-                        </div>
-                    </div>
-                }
-                else
-                {
-                    <h2 class="card-title text-2xl">파일 보내기</h2>
-
-                    @if (Model.TicketCodeError is not null)
-                    {
-                        <div class="alert alert-error" role="alert">
-                            <span>@Model.TicketCodeError</span>
-                        </div>
-                    }
-
-                    <form id="guest-upload-form"
-                          method="post"
-                          enctype="multipart/form-data"
-                          asp-antiforgery="false"
-                          hx-post="@Model.Request.Path"
-                          hx-encoding="multipart/form-data"
-                          hx-target="#guest-upload-card"
-                          hx-select="#guest-upload-card"
-                          hx-swap="outerHTML"
-                          class="space-y-4">
-                        @Html.AntiForgeryToken()
-
-                        <fieldset class="fieldset">
-                            <legend class="fieldset-legend">
-                                Ticket Code
-                            </legend>
-                            <input type="text"
-                                   name="TicketCode"
-                                   class="input w-full font-mono uppercase tracking-widest"
-                                   inputmode="text"
-                                   autocomplete="one-time-code"
-                                   autocapitalize="characters"
-                                   maxlength="9"
-                                   placeholder="K7M2-9XPQ"
-                                   required />
-                        </fieldset>
-
-                        <fieldset class="fieldset">
-                            <legend class="fieldset-legend">파일</legend>
-                            <input type="file"
-                                   name="File"
-                                   class="file-input w-full"
-                                   required />
-                        </fieldset>
-
-                        <div id="guest-upload-progress-wrap" hidden>
-                            <progress id="guest-upload-progress"
-                                      class="progress progress-primary w-full"
-                                      value="0"
-                                      max="100"></progress>
-                            <p id="guest-upload-progress-label"
-                               class="mt-1 text-sm text-base-content/70"
-                               aria-live="polite">0%</p>
-                        </div>
-
-                        <button id="guest-upload-submit"
-                                type="submit"
-                                class="btn btn-primary w-full">
-                            보내기
-                        </button>
-                    </form>
-                }
+<section id="guest-upload-card" class="td-section">
+    <div class="td-section-body">
+        @if (Model.UploadSucceeded)
+        {
+            <div class="py-5 text-center" role="status">
+                <svg class="mx-auto size-12 text-success" aria-hidden="true" viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.2 14.3-4.1-4.1 1.4-1.4 2.7 2.7 5.6-5.6 1.4 1.4-7 7Z" />
+                </svg>
+                <h1 class="mt-3 text-2xl font-bold">파일을 받았습니다.</h1>
+                <p class="mt-2 truncate font-semibold">@Model.UploadedFileName</p>
+                <p class="td-muted text-sm">
+                    @Teledrop.Features.Drops.IndexModel.FormatFileSize(
+                        Model.UploadedFileSizeBytes)
+                </p>
             </div>
-        </section>
+        }
+        else if (Model.IsUnavailable)
+        {
+            <div class="td-alert td-alert-warning" role="status">
+                <div>
+                    <p class="font-semibold">만료된 링크입니다.</p>
+                    <p class="mt-1 text-sm">새 Upload Ticket을 요청해 주세요.</p>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="td-section-header">
+                <div>
+                    <h1 class="td-section-title">파일 보내기</h1>
+                    <p class="td-section-subtitle">파일 하나를 안전하게 보내세요.</p>
+                </div>
+            </div>
+
+            @if (Model.TicketCodeError is not null)
+            {
+                <div class="td-alert td-alert-error mb-4" role="alert">
+                    <span>@Model.TicketCodeError</span>
+                </div>
+            }
+
+            <form id="guest-upload-form"
+                  method="post"
+                  enctype="multipart/form-data"
+                  asp-antiforgery="false"
+                  hx-post="@Model.Request.Path"
+                  hx-encoding="multipart/form-data"
+                  hx-target="#guest-upload-card"
+                  hx-select="#guest-upload-card"
+                  hx-swap="outerHTML"
+                  class="space-y-4">
+                @Html.AntiForgeryToken()
+
+                <fieldset class="td-fieldset">
+                    <legend class="td-label">Ticket Code</legend>
+                    <input type="text"
+                           name="TicketCode"
+                           class="input w-full font-mono uppercase tracking-widest"
+                           inputmode="text"
+                           autocomplete="one-time-code"
+                           autocapitalize="characters"
+                           maxlength="9"
+                           placeholder="K7M2-9XPQ"
+                           required />
+                </fieldset>
+
+                <label id="guest-upload-zone"
+                       class="td-upload-zone"
+                       for="guest-upload-file">
+                    <input id="guest-upload-file"
+                           type="file"
+                           name="File"
+                           required />
+                    <svg aria-hidden="true" viewBox="0 0 24 24">
+                        <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 16.5a4.5 4.5 0 0 1-.4-9A6 6 0 0 1 18 9.4a3.6 3.6 0 0 1-.5 7.1M12 21V10m0 0-3 3m3-3 3 3" />
+                    </svg>
+                    <p id="guest-upload-prompt" class="td-upload-prompt">
+                        <strong>클릭하여 업로드</strong> 또는 끌어서 가져오기
+                    </p>
+                    <p id="guest-upload-filename"
+                       class="td-upload-filename"
+                       hidden></p>
+                </label>
+
+                <div id="guest-upload-progress-wrap" hidden>
+                    <progress id="guest-upload-progress"
+                              class="td-progress"
+                              value="0"
+                              max="100"></progress>
+                    <p id="guest-upload-progress-label"
+                       class="td-muted mt-1 text-center text-sm"
+                       aria-live="polite">0%</p>
+                </div>
+
+                <button id="guest-upload-submit"
+                        type="submit"
+                        class="btn btn-primary w-full">
+                    보내기
+                </button>
+            </form>
+        }
     </div>
-</div>
+</section>
 
 @section Scripts {
     <script nonce="@ViewContext.HttpContext.Items[SecurityHeaders.ContentSecurityPolicyNonceItemKey]">
@@ -119,14 +116,48 @@
                 return;
             }
 
-            const progressWrap =
-                document.getElementById("guest-upload-progress-wrap");
-            const progress =
-                document.getElementById("guest-upload-progress");
-            const progressLabel =
-                document.getElementById("guest-upload-progress-label");
-            const submit =
-                document.getElementById("guest-upload-submit");
+            const fileInput = document.getElementById("guest-upload-file");
+            const uploadZone = document.getElementById("guest-upload-zone");
+            const prompt = document.getElementById("guest-upload-prompt");
+            const fileName = document.getElementById("guest-upload-filename");
+            const progressWrap = document.getElementById("guest-upload-progress-wrap");
+            const progress = document.getElementById("guest-upload-progress");
+            const progressLabel = document.getElementById("guest-upload-progress-label");
+            const submit = document.getElementById("guest-upload-submit");
+
+            const syncSelectedFile = () => {
+                const selectedFile = fileInput.files?.[0];
+                prompt.hidden = Boolean(selectedFile);
+                fileName.hidden = !selectedFile;
+                fileName.textContent = selectedFile?.name ?? "";
+                submit.disabled = !selectedFile;
+            };
+
+            syncSelectedFile();
+            fileInput.addEventListener("change", syncSelectedFile);
+
+            for (const eventName of ["dragenter", "dragover"]) {
+                uploadZone.addEventListener(eventName, (event) => {
+                    event.preventDefault();
+                    uploadZone.classList.add("is-dragging");
+                });
+            }
+
+            for (const eventName of ["dragleave", "drop"]) {
+                uploadZone.addEventListener(eventName, (event) => {
+                    event.preventDefault();
+                    uploadZone.classList.remove("is-dragging");
+                });
+            }
+
+            uploadZone.addEventListener("drop", (event) => {
+                if (!event.dataTransfer?.files.length) {
+                    return;
+                }
+
+                fileInput.files = event.dataTransfer.files;
+                syncSelectedFile();
+            });
 
             form.addEventListener("htmx:beforeRequest", () => {
                 progressWrap.hidden = false;
@@ -142,8 +173,7 @@
 
                 const percent = Math.min(
                     100,
-                    Math.round(
-                        (event.detail.loaded / event.detail.total) * 100));
+                    Math.round((event.detail.loaded / event.detail.total) * 100));
                 progress.value = percent;
                 progressLabel.textContent = `${percent}%`;
             });

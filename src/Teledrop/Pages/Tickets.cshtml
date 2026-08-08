@@ -4,148 +4,125 @@
     ViewData["Title"] = "Upload Ticket";
 }
 
-<div class="min-h-screen bg-base-200 px-4 py-10">
-    <div class="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <header class="flex flex-wrap items-center justify-between gap-4">
+<a asp-page="/Index" class="td-page-link">
+    <span aria-hidden="true">←</span>
+    내 업로드
+</a>
+
+@if (Model.IssuedUploadTicket is not null)
+{
+    <section class="td-section">
+        <div class="td-section-body">
+            <div class="td-alert td-alert-success" role="status">
+                <svg class="mt-0.5 size-5 shrink-0" aria-hidden="true" viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.2 14.3-4.1-4.1 1.4-1.4 2.7 2.7 5.6-5.6 1.4 1.4-7 7Z" />
+                </svg>
+                <div>
+                    <p class="font-semibold">Upload Ticket을 발급했습니다.</p>
+                    <p class="text-sm">링크와 Ticket Code를 함께 전달하세요.</p>
+                </div>
+            </div>
+
+            <div class="mt-4 space-y-3">
+                <fieldset class="td-fieldset">
+                    <legend class="td-label">전체 링크</legend>
+                    <input type="text"
+                           class="input w-full font-mono text-sm"
+                           value="@Model.IssuedUploadTicketUrl"
+                           readonly />
+                </fieldset>
+
+                <fieldset class="td-fieldset">
+                    <legend class="td-label">Ticket Code</legend>
+                    <input type="text"
+                           class="input w-full font-mono text-lg tracking-widest"
+                           value="@Teledrop.Features.UploadTickets.UploadTicketCredentialGenerator.FormatTicketCode(Model.IssuedUploadTicket.Code)"
+                           readonly />
+                </fieldset>
+            </div>
+        </div>
+    </section>
+}
+
+<section class="td-section">
+    <div class="td-section-body">
+        <div class="td-section-header">
             <div>
-                <h1 class="text-4xl font-bold">Upload Ticket</h1>
-                <p class="mt-1 text-base-content/70">
-                    게스트가 파일 하나를 보낼 수 있는 경로와 코드를 관리합니다.
+                <h1 class="td-section-title">Upload Ticket</h1>
+                <p class="td-section-subtitle">
+                    게스트가 파일 하나를 보낼 수 있는 링크를 관리합니다.
                 </p>
             </div>
-            <a asp-page="/Index" class="btn btn-ghost">홈으로</a>
-        </header>
+            <form method="post" asp-page-handler="Issue">
+                <button type="submit" class="btn btn-primary btn-sm">
+                    새 티켓 발급
+                </button>
+            </form>
+        </div>
 
-        @if (Model.IssuedUploadTicket is not null)
-        {
-            <section class="card bg-base-100 shadow-xl">
-                <div class="card-body">
-                    <h2 class="card-title text-2xl">발급했습니다</h2>
-                    <p class="text-sm text-base-content/60">
-                        링크와 Ticket Code를 함께 전달하세요.
-                    </p>
-
-                    <fieldset class="fieldset">
-                        <legend class="fieldset-legend">전체 링크</legend>
-                        <input type="text"
-                               class="input w-full font-mono"
-                               value="@Model.IssuedUploadTicketUrl"
-                               readonly />
-                    </fieldset>
-
-                    <fieldset class="fieldset">
-                        <legend class="fieldset-legend">Ticket Code</legend>
-                        <input type="text"
-                               class="input w-full font-mono tracking-widest"
-                               value="@Teledrop.Features.UploadTickets.UploadTicketCredentialGenerator.FormatTicketCode(Model.IssuedUploadTicket.Code)"
-                               readonly />
-                    </fieldset>
+        <div class="td-list">
+            @if (Model.UploadTickets.Count == 0)
+            {
+                <div class="td-empty">
+                    아직 발급한 Upload Ticket이 없습니다.
                 </div>
-            </section>
-        }
+            }
+            else
+            {
+                @foreach (var uploadTicket in Model.UploadTickets)
+                {
+                    var createdAtUtc = DateTime.SpecifyKind(
+                        uploadTicket.CreatedAt,
+                        DateTimeKind.Utc);
+                    var expiresAtUtc = DateTime.SpecifyKind(
+                        uploadTicket.ExpiresAtUtc,
+                        DateTimeKind.Utc);
+                    var status = Model.GetStatusLabel(uploadTicket);
 
-        <section class="card bg-base-100 shadow-xl">
-            <div class="card-body">
-                <div class="flex flex-wrap items-center justify-between gap-4">
-                    <div>
-                        <h2 class="card-title text-2xl">티켓 목록</h2>
-                        <p class="mt-1 text-sm text-base-content/60">
-                            Ticket Code는 이 화면에서 다시 확인할 수 있습니다.
-                        </p>
-                    </div>
+                    <article class="td-ticket-row items-start">
+                        <span class="td-file-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M7 3h10a2 2 0 0 1 2 2v4a3 3 0 0 0 0 6v4a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-4a3 3 0 0 0 0-6V5a2 2 0 0 1 2-2Zm1 2v2h2V5H8Zm0 4v2h2V9H8Zm0 4v2h2v-2H8Zm0 4v2h2v-2H8Z" />
+                            </svg>
+                        </span>
 
-                    <form method="post" asp-page-handler="Issue">
-                        <button type="submit" class="btn btn-primary">
-                            새 티켓 발급
-                        </button>
-                    </form>
-                </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <a asp-page="/GuestUpload"
+                                   asp-route-path="@uploadTicket.Path"
+                                   class="td-row-title font-mono uppercase">
+                                    @uploadTicket.Path
+                                </a>
+                                <span class="td-badge">@status</span>
+                            </div>
+                            <p class="mt-1 font-mono text-sm tracking-wider">
+                                @Teledrop.Features.UploadTickets.UploadTicketCredentialGenerator.FormatTicketCode(uploadTicket.Code)
+                            </p>
+                            <div class="td-row-meta mt-1">
+                                <span>발급 @createdAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</span>
+                                <span aria-hidden="true">•</span>
+                                <span>만료 @expiresAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</span>
+                            </div>
+                        </div>
 
-                <div class="overflow-x-auto">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Ticket Path</th>
-                                <th>Ticket Code</th>
-                                <th>발급시각</th>
-                                <th>만료시각</th>
-                                <th>상태</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @if (Model.UploadTickets.Count == 0)
-                            {
-                                <tr>
-                                    <td colspan="6"
-                                        class="py-12 text-center text-base-content/60">
-                                        아직 발급한 Upload Ticket이 없습니다.
-                                    </td>
-                                </tr>
-                            }
-                            else
-                            {
-                                @foreach (var uploadTicket in Model.UploadTickets)
-                                {
-                                    var createdAtUtc =
-                                        DateTime.SpecifyKind(
-                                            uploadTicket.CreatedAt,
-                                            DateTimeKind.Utc);
-                                    var expiresAtUtc =
-                                        DateTime.SpecifyKind(
-                                            uploadTicket.ExpiresAtUtc,
-                                            DateTimeKind.Utc);
-                                    var status =
-                                        Model.GetStatusLabel(uploadTicket);
-
-                                    <tr>
-                                        <td>
-                                            <a asp-page="/GuestUpload"
-                                               asp-route-path="@uploadTicket.Path"
-                                               class="link link-hover font-mono uppercase">
-                                                @uploadTicket.Path
-                                            </a>
-                                        </td>
-                                        <td class="font-mono tracking-wider">
-                                            @Teledrop.Features.UploadTickets.UploadTicketCredentialGenerator.FormatTicketCode(uploadTicket.Code)
-                                        </td>
-                                        <td class="whitespace-nowrap">
-                                            <time datetime="@createdAtUtc.ToString("O")"
-                                                  title="@createdAtUtc.ToString("yyyy-MM-dd HH:mm:ss 'UTC'")">
-                                                @createdAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
-                                            </time>
-                                        </td>
-                                        <td class="whitespace-nowrap">
-                                            <time datetime="@expiresAtUtc.ToString("O")"
-                                                  title="@expiresAtUtc.ToString("yyyy-MM-dd HH:mm:ss 'UTC'")">
-                                                @expiresAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
-                                            </time>
-                                        </td>
-                                        <td>
-                                            <span class="badge badge-outline">
-                                                @status
-                                            </span>
-                                        </td>
-                                        <td class="text-right">
-                                            @if (Model.CanRevoke(uploadTicket))
-                                            {
-                                                <form method="post"
-                                                      asp-page-handler="Revoke"
-                                                      asp-route-id="@uploadTicket.Id">
-                                                    <button type="submit"
-                                                            class="btn btn-error btn-sm">
-                                                        폐기
-                                                    </button>
-                                                </form>
-                                            }
-                                        </td>
-                                    </tr>
-                                }
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
+                        @if (Model.CanRevoke(uploadTicket))
+                        {
+                            <form method="post"
+                                  asp-page-handler="Revoke"
+                                  asp-route-id="@uploadTicket.Id">
+                                <button type="submit"
+                                        class="td-row-action td-row-action-danger"
+                                        aria-label="@uploadTicket.Path 티켓 폐기"
+                                        title="폐기">
+                                    <svg aria-hidden="true" viewBox="0 0 24 24">
+                                        <path fill="currentColor" d="M8 3h8l1 2h4v2H3V5h4l1-2Zm1 6h2v8H9V9Zm4 0h2v8h-2V9ZM6 9h2v10h8V9h2v10a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9Z" />
+                                    </svg>
+                                </button>
+                            </form>
+                        }
+                    </article>
+                }
+            }
+        </div>
     </div>
-</div>
+</section>
