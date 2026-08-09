@@ -86,6 +86,10 @@
                     <p id="guest-upload-filename"
                        class="td-upload-filename"
                        hidden></p>
+                    <p id="guest-upload-drop-error"
+                       class="text-sm font-semibold text-error"
+                       role="alert"
+                       hidden></p>
                 </label>
 
                 <div id="guest-upload-progress-wrap" hidden>
@@ -120,6 +124,7 @@
             const uploadZone = document.getElementById("guest-upload-zone");
             const prompt = document.getElementById("guest-upload-prompt");
             const fileName = document.getElementById("guest-upload-filename");
+            const dropError = document.getElementById("guest-upload-drop-error");
             const progressWrap = document.getElementById("guest-upload-progress-wrap");
             const progress = document.getElementById("guest-upload-progress");
             const progressLabel = document.getElementById("guest-upload-progress-label");
@@ -133,8 +138,16 @@
                 submit.disabled = !selectedFile;
             };
 
+            const clearDropError = () => {
+                dropError.textContent = "";
+                dropError.hidden = true;
+            };
+
             syncSelectedFile();
-            fileInput.addEventListener("change", syncSelectedFile);
+            fileInput.addEventListener("change", () => {
+                clearDropError();
+                syncSelectedFile();
+            });
 
             for (const eventName of ["dragenter", "dragover"]) {
                 uploadZone.addEventListener(eventName, (event) => {
@@ -151,11 +164,22 @@
             }
 
             uploadZone.addEventListener("drop", (event) => {
-                if (!event.dataTransfer?.files.length) {
+                const droppedFiles = event.dataTransfer?.files;
+                if (!droppedFiles?.length) {
                     return;
                 }
 
-                fileInput.files = event.dataTransfer.files;
+                if (droppedFiles.length > 1) {
+                    fileInput.value = "";
+                    syncSelectedFile();
+                    dropError.textContent =
+                        "파일은 한 번에 하나만 업로드할 수 있습니다.";
+                    dropError.hidden = false;
+                    return;
+                }
+
+                clearDropError();
+                fileInput.files = droppedFiles;
                 syncSelectedFile();
             });
 

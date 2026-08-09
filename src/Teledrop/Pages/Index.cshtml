@@ -68,6 +68,10 @@
                     <strong>클릭하여 업로드</strong> 또는 끌어서 가져오기
                 </p>
                 <p id="upload-filename" class="td-upload-filename" hidden></p>
+                <p id="upload-drop-error"
+                   class="text-sm font-semibold text-error"
+                   role="alert"
+                   hidden></p>
             </label>
 
             <details class="td-disclosure">
@@ -129,6 +133,7 @@
                        asp-route-search="@Model.Search"
                        asp-route-sort="@Model.Sort"
                        asp-route-direction="@Model.Direction"
+                       asp-route-pageNumber="@Model.CurrentPage"
                        class="td-row-action"
                        aria-label="목록 새로고침"
                        title="새로고침">
@@ -357,6 +362,7 @@
             const uploadZone = document.getElementById("upload-zone");
             const prompt = document.getElementById("upload-prompt");
             const fileName = document.getElementById("upload-filename");
+            const dropError = document.getElementById("upload-drop-error");
             const progressWrap = document.getElementById("upload-progress-wrap");
             const progress = document.getElementById("upload-progress");
             const progressLabel = document.getElementById("upload-progress-label");
@@ -370,8 +376,16 @@
                 submit.disabled = !selectedFile;
             };
 
+            const clearDropError = () => {
+                dropError.textContent = "";
+                dropError.hidden = true;
+            };
+
             syncSelectedFile();
-            fileInput.addEventListener("change", syncSelectedFile);
+            fileInput.addEventListener("change", () => {
+                clearDropError();
+                syncSelectedFile();
+            });
 
             for (const eventName of ["dragenter", "dragover"]) {
                 uploadZone.addEventListener(eventName, (event) => {
@@ -388,11 +402,22 @@
             }
 
             uploadZone.addEventListener("drop", (event) => {
-                if (!event.dataTransfer?.files.length) {
+                const droppedFiles = event.dataTransfer?.files;
+                if (!droppedFiles?.length) {
                     return;
                 }
 
-                fileInput.files = event.dataTransfer.files;
+                if (droppedFiles.length > 1) {
+                    fileInput.value = "";
+                    syncSelectedFile();
+                    dropError.textContent =
+                        "파일은 한 번에 하나만 업로드할 수 있습니다.";
+                    dropError.hidden = false;
+                    return;
+                }
+
+                clearDropError();
+                fileInput.files = droppedFiles;
                 syncSelectedFile();
             });
 

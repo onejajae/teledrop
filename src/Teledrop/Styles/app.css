@@ -11,7 +11,7 @@
     --color-base-200: #ffffff;
     --color-base-300: #e5e7eb;
     --color-base-content: #374151;
-    --color-primary: #0284c7;
+    --color-primary: #0369a1;
     --color-primary-content: #ffffff;
     --color-secondary: #64748b;
     --color-secondary-content: #ffffff;
@@ -43,6 +43,7 @@
     --td-border-strong: #9ca3af;
     --td-text: #374151;
     --td-text-muted: #6b7280;
+    --td-focus-ring: #0369a1;
     --td-shadow: 0 12px 24px -12px rgb(15 23 42 / 0.28);
 }
 
@@ -52,8 +53,8 @@
     --color-base-200: #1f2937;
     --color-base-300: #4b5563;
     --color-base-content: #e5e7eb;
-    --color-primary: #38bdf8;
-    --color-primary-content: #ffffff;
+    --color-primary: #7dd3fc;
+    --color-primary-content: #082f49;
     --color-secondary: #94a3b8;
     --color-secondary-content: #0f172a;
     --color-accent: #2dd4bf;
@@ -76,9 +77,11 @@
     --td-border-strong: #6b7280;
     --td-text: #e5e7eb;
     --td-text-muted: #9ca3af;
+    --td-focus-ring: #7dd3fc;
     --td-shadow: 0 14px 30px -14px rgb(0 0 0 / 0.65);
 }
 
+@layer base {
 html {
     min-height: 100%;
     overflow-y: scroll;
@@ -108,7 +111,9 @@ textarea {
 ::selection {
     background: color-mix(in srgb, var(--color-primary) 30%, transparent);
 }
+}
 
+@layer components {
 .td-shell {
     width: 100%;
     max-width: 40rem;
@@ -154,10 +159,8 @@ textarea {
     transition: background-color 120ms ease;
 }
 
-.td-text-action:hover,
-.td-text-action:focus-visible {
+.td-text-action:hover {
     background: var(--td-surface-hover);
-    outline: none;
 }
 
 .td-icon-button {
@@ -171,11 +174,16 @@ textarea {
     transition: background-color 120ms ease, color 120ms ease;
 }
 
-.td-icon-button:hover,
-.td-icon-button:focus-visible {
+.td-icon-button:hover {
     background: var(--td-surface-hover);
     color: var(--td-text);
-    outline: none;
+}
+
+.td-text-action:focus-visible,
+.td-icon-button:focus-visible,
+.td-row-action:focus-visible {
+    outline: 3px solid var(--td-focus-ring);
+    outline-offset: 2px;
 }
 
 .td-icon-button svg {
@@ -494,11 +502,9 @@ textarea {
     color: var(--td-text-muted);
 }
 
-.td-row-action:hover,
-.td-row-action:focus-visible {
+.td-row-action:hover {
     background: color-mix(in srgb, var(--td-text) 10%, transparent);
     color: var(--td-text);
-    outline: none;
 }
 
 .td-row-action-danger:hover,
@@ -638,7 +644,9 @@ textarea {
         margin-top: 0.45rem;
     }
 }
+}
 
+@layer base {
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -646,4 +654,5 @@ textarea {
         scroll-behavior: auto !important;
         transition-duration: 0.01ms !important;
     }
+}
 }

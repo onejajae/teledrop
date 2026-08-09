@@ -25,6 +25,14 @@
     var isAudio = drop.ContentType.StartsWith(
         "audio/",
         StringComparison.OrdinalIgnoreCase);
+    var passwordDetailsOpen =
+        ViewData.ModelState[nameof(Model.NewDropPassword)]?.Errors.Count > 0
+            ? "open"
+            : null;
+    var slugDetailsOpen =
+        ViewData.ModelState[nameof(Model.SlugInput)]?.Errors.Count > 0
+            ? "open"
+            : null;
 
     ViewData["Title"] = displayTitle;
 }
@@ -168,7 +176,7 @@
 
 <section class="td-section">
     <div class="td-section-body">
-        <details class="td-disclosure border-t-0">
+        <details class="td-disclosure border-t-0" open="@passwordDetailsOpen">
             <summary>접근 설정</summary>
             <div class="td-disclosure-content space-y-4">
                 <div class="flex flex-wrap items-center justify-between gap-3">
@@ -235,7 +243,7 @@
 
 <section class="td-section">
     <div class="td-section-body">
-        <details class="td-disclosure border-t-0">
+        <details class="td-disclosure border-t-0" open="@slugDetailsOpen">
             <summary>접근 URL 변경</summary>
             <div class="td-disclosure-content">
                 <form method="post"

@@ -21,10 +21,10 @@ public sealed class DropDetailModel(
     public string? DescriptionInput { get; set; }
 
     [BindProperty]
-    public string NewDropPassword { get; set; } = string.Empty;
+    public string? NewDropPassword { get; set; }
 
     [BindProperty]
-    public string SlugInput { get; set; } = string.Empty;
+    public string? SlugInput { get; set; }
 
     public async Task<IActionResult> OnGetAsync(
         string slug,
@@ -78,7 +78,7 @@ public sealed class DropDetailModel(
     {
         var result = await dropUseCases.SetPasswordAsync(
             slug,
-            NewDropPassword,
+            NewDropPassword ?? string.Empty,
             cancellationToken);
         if (result == SetDropPasswordResult.NotFound)
         {
