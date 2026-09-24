@@ -1,0 +1,14 @@
+@model Teledrop.Features.Drops.DropDetailModel
+@{
+    var drop = Model.Drop!;
+}
+<form id="drop-visibility" method="post" asp-page="/DropDetail" asp-page-handler="Visibility" asp-route-slug="@drop.Slug"
+      hx-post="@Url.Page("/DropDetail", "Visibility", new { slug = drop.Slug })" hx-swap="none"
+      hx-swap-oob="@(Model.FragmentPart == "visibility" ? "outerHTML" : null)" data-drop-action="visibility">
+    <input type="hidden" name="IsPrivate" value="@((!drop.IsPrivate).ToString().ToLowerInvariant())" />
+    <button id="visibility-button" type="submit" class="td-row-action"
+            data-tooltip="@(drop.IsPrivate ? "전체 보기로 변경" : "나만 보기로 변경")"
+            aria-label="@(drop.IsPrivate ? "전체 보기로 변경" : "나만 보기로 변경")">
+        <partial name="_Icon" model='@(drop.IsPrivate ? "UserCircleSolid" : "GlobeSolid")' />
+    </button>
+</form>

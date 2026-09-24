@@ -1,0 +1,116 @@
+@{
+    var nonce = ViewContext.HttpContext.Items[
+        SecurityHeaders.ContentSecurityPolicyNonceItemKey];
+    var isAuthenticated = User.Identity?.IsAuthenticated == true;
+}
+<!DOCTYPE html>
+<html lang="ko" data-theme="teledrop-light">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <title>@ViewData["Title"] - teledrop</title>
+
+    <link rel="icon" type="image/png" sizes="32x32" href="~/static/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="~/static/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="~/static/apple-icon-180x180.png" />
+    <link rel="manifest" href="~/static/manifest.json" />
+
+    <script nonce="@nonce">
+        (() => {
+            const savedTheme = localStorage.getItem("teledrop-theme");
+            const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+            const theme = savedTheme ?? (prefersDark ? "dark" : "light");
+            document.documentElement.dataset.theme = `teledrop-${theme}`;
+        })();
+    </script>
+    <link rel="stylesheet" href="~/css/app.css" />
+</head>
+<body>
+    <div class="td-shell">
+        <header class="td-topbar">
+            <div class="td-topbar-side td-topbar-start">
+                @if (isAuthenticated)
+                {
+                    <form method="post"
+                          asp-page="/Index"
+                          asp-page-handler="Logout">
+                        <button type="submit" class="td-text-action">
+                            로그아웃
+                        </button>
+                    </form>
+                }
+            </div>
+
+            <nav class="td-topbar-side td-topbar-end" aria-label="외부 링크와 화면 설정">
+                <a href="https://github.com/onejajae/teledrop"
+                   target="_blank"
+                   rel="noreferrer noopener"
+                   class="td-icon-button"
+                   aria-label="GitHub 저장소 열기"
+                   title="GitHub">
+                    <partial name="_Icon" model='@("GithubSolid")' />
+                </a>
+                <button id="theme-toggle"
+                        type="button"
+                        class="td-icon-button"
+                        aria-label="다크 모드로 전환"
+                        title="테마 전환">
+                    <svg class="td-theme-sun" aria-hidden="true" viewBox="0 0 24 24">
+                        <path fill="currentColor" d="M12 17.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11Zm0-15.8a.9.9 0 0 1 .9.9v1a.9.9 0 0 1-1.8 0v-1a.9.9 0 0 1 .9-.9Zm0 18.7a.9.9 0 0 1 .9.9v1a.9.9 0 0 1-1.8 0v-1a.9.9 0 0 1 .9-.9ZM2.6 11.1h1a.9.9 0 1 1 0 1.8h-1a.9.9 0 0 1 0-1.8Zm17.8 0h1a.9.9 0 0 1 0 1.8h-1a.9.9 0 0 1 0-1.8ZM4.7 4.7a.9.9 0 0 1 1.3 0l.7.7a.9.9 0 1 1-1.3 1.3L4.7 6a.9.9 0 0 1 0-1.3Zm12.6 12.6a.9.9 0 0 1 1.3 0l.7.7a.9.9 0 0 1-1.3 1.3l-.7-.7a.9.9 0 0 1 0-1.3ZM19.3 4.7a.9.9 0 0 1 0 1.3l-.7.7a.9.9 0 1 1-1.3-1.3l.7-.7a.9.9 0 0 1 1.3 0ZM6.7 17.3a.9.9 0 0 1 0 1.3l-.7.7A.9.9 0 0 1 4.7 18l.7-.7a.9.9 0 0 1 1.3 0Z" />
+                    </svg>
+                    <svg class="td-theme-moon" aria-hidden="true" viewBox="0 0 24 24">
+                        <path fill="currentColor" d="M20.7 15.4A8.8 8.8 0 0 1 8.6 3.3 9 9 0 1 0 20.7 15.4Z" />
+                    </svg>
+                </button>
+            </nav>
+        </header>
+
+        <div class="td-brand">
+            <a asp-page="/Index" aria-label="teledrop 홈">
+                <partial name="_Logo" />
+            </a>
+        </div>
+
+        <main class="td-content">
+            @RenderBody()
+            @if (isAuthenticated)
+            {
+                @await Component.InvokeAsync("DropList")
+                <noscript><style>.td-search:not([open]) > summary { display: flex; } [data-toggle-search] { display: none; }</style></noscript>
+            }
+        </main>
+    </div>
+
+    @* 페이지는 htmx 없이도 일반 폼 POST로 동작한다 (docs/adr/0002). *@
+    <script src="~/js/htmx.min.js" defer></script>
+    <script src="~/js/site.js" defer></script>
+    <script type="module" src="~/js/pdf-preview.js"></script>
+    <script src="~/js/drop-list.js" defer></script>
+    <script src="~/js/drop-interactions.js" defer></script>
+    <script nonce="@nonce">
+        (() => {
+            const root = document.documentElement;
+            const button = document.getElementById("theme-toggle");
+
+            const syncButton = () => {
+                const isDark = root.dataset.theme === "teledrop-dark";
+                button.setAttribute(
+                    "aria-label",
+                    isDark ? "라이트 모드로 전환" : "다크 모드로 전환");
+            };
+
+            syncButton();
+            button.addEventListener("click", () => {
+                const nextTheme = root.dataset.theme === "teledrop-dark"
+                    ? "light"
+                    : "dark";
+                root.dataset.theme = `teledrop-${nextTheme}`;
+                localStorage.setItem("teledrop-theme", nextTheme);
+                syncButton();
+            });
+        })();
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

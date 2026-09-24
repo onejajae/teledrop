@@ -1,0 +1,12 @@
+@model Teledrop.Features.Drops.DropDetailModel
+@{
+    var drop = Model.Drop!;
+}
+@{ var shareLink = Url.Page("/PublicDrop", null, new { slug = drop.Slug }, Context.Request.Scheme); }
+<div id="drop-share-state" class="space-y-4" hx-swap-oob="@(Model.FragmentPart == "shared" ? "outerHTML" : null)">
+    <p class="td-muted text-sm">@(drop.IsPrivate ? "소유자만 열 수 있는 링크입니다." : drop.DropPasswordHash is null ? "누구나 열 수 있는 공유 링크입니다." : "비밀번호를 아는 사람만 열 수 있는 공유 링크입니다.")</p>
+    <div class="flex gap-2">
+        <input id="share-link" aria-label="@(drop.IsPrivate ? "내 접근 링크" : "공유 링크")" class="input min-w-0 flex-1" value="@shareLink" readonly />
+        <button id="copy-share-link" type="button" class="btn btn-sm">복사</button>
+    </div>
+</div>

@@ -1,6 +1,42 @@
-# common ignores (sharing gitignore and dockerignore) - pycache, envfile, etc..
-**/__pycache__/
-**/*.py[cod]
-*$py.class
+# Version control and repository-only files
+.git/
+.github/
+docs/
+README*
+LICENSE
+
+# Local settings and editor metadata
 .env
 .env.*
+.vscode/
+.idea/
+.DS_Store
+*.user
+*.suo
+*.userosscache
+
+# Build and test outputs
+**/bin/
+**/obj/
+tests/
+
+# Local frontend toolchain
+**/node_modules/
+src/Teledrop.Infrastructure/Styles/
+src/Teledrop.Infrastructure/package.json
+src/Teledrop.Infrastructure/package-lock.json
+
+# Generated frontend assets are publish inputs committed to the repository
+!src/Teledrop.Infrastructure/wwwroot/css/app.css
+!src/Teledrop.Infrastructure/wwwroot/js/htmx.min.js
+
+# Local application data
+share/
+.local/
+
+# Development and container orchestration files
+.config/
+Properties/
+docker-compose*.yml
+Dockerfile
+.dockerignore

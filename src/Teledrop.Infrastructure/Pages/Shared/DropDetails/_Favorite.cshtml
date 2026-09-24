@@ -1,0 +1,16 @@
+@model Teledrop.Features.Drops.DropDetailModel
+@{
+    var drop = Model.Drop!;
+}
+<form data-favorite-value="@drop.IsFavorite.ToString().ToLowerInvariant()" id="drop-favorite" method="post" asp-page="/DropDetail" asp-page-handler="Favorite" asp-route-slug="@drop.Slug"
+      hx-post="@Url.Page("/DropDetail", "Favorite", new { slug = drop.Slug })" hx-swap="none"
+      hx-swap-oob="@(Model.FragmentPart == "favorite" ? "outerHTML" : null)" data-drop-action="favorite">
+    <input type="hidden" name="IsFavorite" value="@((!drop.IsFavorite).ToString().ToLowerInvariant())" />
+    <button id="favorite-button" type="submit" class="td-row-action td-favorite"
+            aria-pressed="@drop.IsFavorite.ToString().ToLowerInvariant()"
+            data-tooltip="@(drop.IsFavorite ? "즐겨찾기 해제" : "즐겨찾기 설정")"
+            aria-label="@(drop.IsFavorite ? "즐겨찾기 해제" : "즐겨찾기 설정")">
+        <span data-favorite-filled hidden="@(!drop.IsFavorite)"><partial name="_Icon" model='@("StarSolid")' /></span>
+        <span data-favorite-empty hidden="@drop.IsFavorite"><partial name="_Icon" model='@("StarOutline")' /></span>
+    </button>
+</form>

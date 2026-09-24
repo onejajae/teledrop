@@ -1,0 +1,18 @@
+{
+  "name": "teledrop-ui",
+  "private": true,
+  "description": "Tailwind + daisyUI \ube4c\ub4dc. \uc0dd\uc131 \uacb0\uacfc\ubb3c(wwwroot/css/app.css)\uc740 \uc800\uc7a5\uc18c\uc5d0 \ucee4\ubc0b\ud55c\ub2e4 \u2014 ../../docs/adr/0002-ssr-and-csharp.md \ucc38\uace0",
+  "scripts": {
+    "build": "npm run build:css && npm run vendor",
+    "build:css": "tailwindcss -i ./Styles/app.css -o ./wwwroot/css/app.css --minify",
+    "watch": "tailwindcss -i ./Styles/app.css -o ./wwwroot/css/app.css --watch",
+    "vendor": "cp node_modules/htmx.org/dist/htmx.min.js wwwroot/js/htmx.min.js && node scripts/vendor-pdf.mjs"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "daisyui": "^5.7.4",
+    "htmx.org": "^2.0.10",
+    "pdfjs-dist": "^6.3.289",
+    "tailwindcss": "^4.3.3"
+  }
+}

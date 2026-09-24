@@ -1,0 +1,18 @@
+@model Teledrop.Features.Drops.DropDetailModel
+@{
+    var drop = Model.Drop!;
+}
+<dialog id="delete-dialog" hx-swap-oob="@(Model.FragmentPart == "delete" ? "outerHTML" : null)" class="td-dialog" aria-labelledby="delete-title">
+    <div class="td-dialog-header">
+        <h2 id="delete-title">파일 삭제</h2>
+        <button type="button" class="td-row-action" data-dialog-close aria-label="닫기"><partial name="_Icon" model='@("CloseOutline")' /></button>
+    </div>
+    <div class="td-dialog-body">
+        <p class="mb-4">정말 삭제하시겠습니까?</p>
+        <p data-operation-error="delete" class="text-sm text-error" role="alert" hidden></p>
+        <form method="post" asp-page="/DropDetail" asp-page-handler="Delete" hx-post="@Url.Page("/DropDetail", "Delete", new { slug = drop.Slug })" hx-swap="none" data-drop-action="delete" asp-route-slug="@drop.Slug" class="td-dialog-actions">
+            <button type="button" class="btn btn-sm" data-dialog-close>취소</button>
+            <button type="submit" class="btn btn-primary btn-sm">삭제</button>
+        </form>
+    </div>
+</dialog>

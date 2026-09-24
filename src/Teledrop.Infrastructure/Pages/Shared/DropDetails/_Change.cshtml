@@ -1,0 +1,28 @@
+@model Teledrop.Features.Drops.DropDetailModel
+@{
+    var drop = Model.Drop!;
+}
+@switch (Model.FragmentPart)
+{
+    case "favorite":
+        <partial name="DropDetails/_Favorite" model="Model" />
+        break;
+    case "visibility":
+        <partial name="DropDetails/_Visibility" model="Model" />
+        break;
+    case "metadata":
+        <partial name="DropDetails/_Heading" model="Model" />
+        <p id="drop-description" class="td-preview-description" hidden="@(string.IsNullOrEmpty(drop.Description))" hx-swap-oob="outerHTML">@drop.Description</p>
+        <partial name="DropDetails/_MetadataDialog" model="Model" />
+        break;
+    case "password":
+        <partial name="DropDetails/_PasswordButton" model="Model" />
+        <partial name="DropDetails/_PasswordDialog" model="Model" />
+        break;
+    case "slug":
+        <partial name="DropDetails/_UrlDialog" model="Model" />
+        break;
+    case "shared":
+        <partial name="DropDetails/_ShareLink" model="Model" />
+        break;
+}

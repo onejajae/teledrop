@@ -1,0 +1,23 @@
+@model Teledrop.Features.Drops.DropDetailModel
+@{
+    var drop = Model.Drop!;
+}
+@{ var slugError = ViewData.ModelState[nameof(Model.SlugInput)]?.Errors.Count > 0; }
+<dialog id="url-dialog" hx-swap-oob="@(Model.FragmentPart == "slug" ? "outerHTML" : null)" class="td-dialog" aria-labelledby="url-title" open="@slugError">
+    <div class="td-dialog-header">
+        <h2 id="url-title">접근 URL</h2>
+        <button type="button" class="td-row-action" data-dialog-close aria-label="닫기"><partial name="_Icon" model='@("CloseOutline")' /></button>
+    </div>
+    <div class="td-dialog-body space-y-4">
+        <partial name="DropDetails/_ShareLink" model="Model" />
+        <p data-operation-error="slug" class="text-sm text-error" role="alert" hidden></p>
+        <form method="post" asp-page="/DropDetail" asp-page-handler="Slug" hx-post="@Url.Page("/DropDetail", "Slug", new { slug = drop.Slug })" hx-swap="none" data-drop-action="slug" asp-route-slug="@drop.Slug">
+            <div class="td-fieldset">
+                <label asp-for="SlugInput" class="td-label">접근 URL 변경</label>
+                <input asp-for="SlugInput" class="input w-full" maxlength="64" autocomplete="off" required />
+                <span asp-validation-for="SlugInput" class="text-sm text-error"></span>
+            </div>
+            <button type="submit" class="btn btn-primary w-full">변경</button>
+        </form>
+    </div>
+</dialog>

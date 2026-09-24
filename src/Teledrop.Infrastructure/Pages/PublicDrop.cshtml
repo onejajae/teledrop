@@ -1,0 +1,6 @@
+@page "/{slug}"
+@model Teledrop.Features.Drops.PublicDropModel
+@{
+    ViewData["Title"] = Model.IsLocked ? "비밀번호 입력" : Model.Drop?.Title ?? "미리보기";
+}
+<partial name="_PublicDropContent" model="Model" />

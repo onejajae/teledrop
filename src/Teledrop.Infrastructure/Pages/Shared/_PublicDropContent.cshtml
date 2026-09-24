@@ -1,0 +1,38 @@
+@model Teledrop.Features.Drops.PublicDropModel
+<div id="public-drop">
+@if (Model.IsLocked)
+{
+    <section class="td-section">
+        <div class="td-section-body">
+            <form data-public-unlock hx-post="@Url.Page("/PublicDrop", "Unlock", new { slug = ViewContext.RouteData.Values["slug"] })" hx-target="#public-drop" hx-swap="outerHTML" hx-push-url="false" method="post" asp-page="/PublicDrop" asp-page-handler="Unlock" asp-route-slug="@ViewContext.RouteData.Values["slug"]" class="td-lock-form">
+                <h1><label asp-for="DropPassword">비밀번호 입력</label></h1>
+                <input asp-for="DropPassword" type="password" class="input w-full" placeholder="••••••" autocomplete="current-password" required />
+                @if (Model.UnlockError is not null)
+                {
+                    <p class="text-sm text-error mb-3" role="alert">@Model.UnlockError</p>
+                }
+                <p data-public-error class="text-sm text-error" role="alert" hidden></p>
+                <button type="submit" class="btn btn-sm btn-outline btn-pill">확인</button>
+            </form>
+        </div>
+    </section>
+}
+else if (Model.Drop is { } drop)
+{
+    <section class="td-section">
+        <div class="td-section-body">
+            <div class="td-section-header">
+                <h1 class="td-section-title">@(string.IsNullOrEmpty(drop.Title) ? "미리보기" : drop.Title)</h1>
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <a asp-page="/DropDetail" asp-route-slug="@drop.Slug" class="td-row-action" aria-label="파일 관리" title="파일 관리">
+                        <partial name="_Icon" model='@("PenOutline")' />
+                    </a>
+                }
+            </div>
+            <partial name="_DropPreview" model="drop" />
+        </div>
+    </section>
+}
+
+</div>

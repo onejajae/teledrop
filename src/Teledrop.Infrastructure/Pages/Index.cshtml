@@ -1,0 +1,198 @@
+@page
+@model Teledrop.Features.Drops.IndexModel
+@{
+    ViewData["Title"] = "홈";
+}
+
+@if (Model.DeleteSucceeded)
+{
+    <div class="td-alert td-alert-success" role="status">
+        <span>드롭을 삭제했습니다.</span>
+    </div>
+}
+
+<section id="upload-card" class="td-section">
+    <div class="td-section-body">
+        <div class="td-section-header">
+            <h1 class="td-section-title">파일 업로드</h1>
+        </div>
+
+        <form id="upload-form"
+              method="post"
+              asp-page="/Upload"
+              asp-antiforgery="false"
+              enctype="multipart/form-data"
+              hx-post="@Url.Page("/Upload")"
+              hx-encoding="multipart/form-data"
+              hx-swap="none"
+              class="space-y-3">
+            @Html.AntiForgeryToken()
+
+            <label id="upload-zone" class="td-upload-zone" for="upload-file">
+                <input id="upload-file"
+                       type="file"
+                       name="File"
+                       required />
+                <svg id="upload-cloud" aria-hidden="true" viewBox="0 0 24 24">
+                    <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                <span id="upload-file-icon" class="td-selected-file-icon" hidden><partial name="_Icon" model='@("FileOutline")' /></span>
+                <img id="upload-preview" class="td-upload-preview" alt="선택한 파일 미리보기" hidden />
+                <video id="upload-video" class="td-upload-preview" controls hidden></video>
+                <p id="upload-prompt" class="td-upload-prompt">
+                    <strong>클릭하여 업로드</strong> 또는 끌어서 가져오기
+                </p>
+                <p id="upload-filename" class="td-upload-filename" hidden></p>
+                <p id="upload-drop-error"
+                   class="text-sm font-semibold text-error"
+                   role="alert"
+                   hidden></p>
+            </label>
+
+            <div id="upload-progress-wrap" hidden>
+                <h2 class="td-uploading-title">업로드 중...</h2>
+                <progress id="upload-progress"
+                          class="td-progress"
+                          value="0"
+                          max="100"></progress>
+                <p id="upload-progress-label"
+                   class="td-muted mt-1 text-center text-sm"
+                   aria-live="polite">0%</p>
+            </div>
+
+            <div class="td-upload-actions">
+                <button id="upload-submit"
+                        type="submit"
+                        class="btn btn-upload btn-sm">
+                    <partial name="_Icon" model='@("UploadOutline")' />
+                    업로드
+                </button>
+            </div>
+        </form>
+    </div>
+</section>
+
+@section Scripts {
+    <script nonce="@ViewContext.HttpContext.Items[SecurityHeaders.ContentSecurityPolicyNonceItemKey]">
+        (() => {
+            const form = document.getElementById("upload-form");
+            if (!form) return;
+            const fileInput = document.getElementById("upload-file");
+            const uploadZone = document.getElementById("upload-zone");
+            const prompt = document.getElementById("upload-prompt");
+            const fileName = document.getElementById("upload-filename");
+            const dropError = document.getElementById("upload-drop-error");
+            const progressWrap = document.getElementById("upload-progress-wrap");
+            const progress = document.getElementById("upload-progress");
+            const progressLabel = document.getElementById("upload-progress-label");
+            const submit = document.getElementById("upload-submit");
+
+            const imagePreview = document.getElementById("upload-preview");
+            const videoPreview = document.getElementById("upload-video");
+            const cloud = document.getElementById("upload-cloud");
+            const fileIcon = document.getElementById("upload-file-icon");
+            const uploadCard = document.getElementById("upload-card");
+            let previewUrl;
+            const syncSelectedFile = () => {
+                const selectedFile = fileInput.files?.[0];
+                if (previewUrl) URL.revokeObjectURL(previewUrl);
+                imagePreview.hidden = true;
+                videoPreview.hidden = true;
+                imagePreview.removeAttribute("src");
+                videoPreview.removeAttribute("src");
+                cloud.toggleAttribute("hidden", Boolean(selectedFile));
+                fileIcon.hidden = !selectedFile || selectedFile.type.startsWith("image/") || selectedFile.type.startsWith("video/");
+                if (selectedFile?.type.startsWith("image/")) {
+                    previewUrl = URL.createObjectURL(selectedFile);
+                    imagePreview.src = previewUrl;
+                    imagePreview.hidden = false;
+                } else if (selectedFile?.type.startsWith("video/")) {
+                    previewUrl = URL.createObjectURL(selectedFile);
+                    videoPreview.src = previewUrl;
+                    videoPreview.hidden = false;
+                }
+                prompt.hidden = Boolean(selectedFile);
+                fileName.hidden = !selectedFile;
+                fileName.textContent = selectedFile?.name ?? "";
+                submit.disabled = !selectedFile;
+            };
+
+            const clearDropError = () => {
+                dropError.textContent = "";
+                dropError.hidden = true;
+            };
+
+            syncSelectedFile();
+            fileInput.addEventListener("change", () => {
+                clearDropError();
+                syncSelectedFile();
+            });
+
+            for (const eventName of ["dragenter", "dragover"]) {
+                uploadZone.addEventListener(eventName, (event) => {
+                    event.preventDefault();
+                    uploadZone.classList.add("is-dragging");
+                });
+            }
+
+            for (const eventName of ["dragleave", "drop"]) {
+                uploadZone.addEventListener(eventName, (event) => {
+                    event.preventDefault();
+                    uploadZone.classList.remove("is-dragging");
+                });
+            }
+
+            uploadZone.addEventListener("drop", (event) => {
+                const droppedFiles = event.dataTransfer?.files;
+                if (!droppedFiles?.length) {
+                    return;
+                }
+
+                if (droppedFiles.length > 1) {
+                    fileInput.value = "";
+                    syncSelectedFile();
+                    dropError.textContent =
+                        "파일은 한 번에 하나만 업로드할 수 있습니다.";
+                    dropError.hidden = false;
+                    return;
+                }
+
+                clearDropError();
+                fileInput.files = droppedFiles;
+                syncSelectedFile();
+            });
+
+            form.addEventListener("htmx:beforeRequest", () => {
+                uploadCard.classList.add("is-uploading");
+                progressWrap.hidden = false;
+                progress.value = 0;
+                progressLabel.textContent = "0%";
+                submit.disabled = true;
+            });
+
+            form.addEventListener("htmx:xhr:progress", (event) => {
+                if (!event.detail.total) {
+                    return;
+                }
+
+                const percent = Math.min(
+                    100,
+                    Math.round((event.detail.loaded / event.detail.total) * 100));
+                progress.value = percent;
+                progressLabel.textContent = `${percent}%`;
+            });
+
+            form.addEventListener("htmx:afterRequest", (event) => {
+                submit.disabled = false;
+
+                if (!event.detail.successful) {
+                    uploadCard.classList.remove("is-uploading");
+                    progressLabel.textContent =
+                        event.detail.xhr.status === 413
+                            ? "파일이 최대 크기를 초과했습니다."
+                            : "업로드에 실패했습니다.";
+                }
+            });
+        })();
+    </script>
+}

@@ -1,0 +1,128 @@
+@model Teledrop.Features.Drops.DropList
+@using Teledrop.Features.Drops
+@{
+    var listPage = Model.CurrentSlug is null ? "/Index" : "/DropDetail";
+    string? ListUrl(int pageNumber) => Url.Page("/Index", "DropList", new
+    {
+        search = Model.Search,
+        sort = Model.Sort,
+        direction = Model.Direction,
+        pageNumber,
+    });
+}
+<section id="drop-list" class="td-section"
+         data-list-state="@System.Text.Json.JsonSerializer.Serialize(new { search = Model.Search, sort = Model.Sort, direction = Model.Direction, pageNumber = Model.CurrentPage, currentSlug = Model.CurrentSlug })"
+         data-list-url="@Url.Page("/Index", "DropList")"
+         hx-target="#drop-list" hx-swap="outerHTML" hx-push-url="false"
+         hx-sync="#drop-list:replace"
+         hx-vals="@System.Text.Json.JsonSerializer.Serialize(new { handler = "DropList", currentSlug = Model.CurrentSlug })">
+    <div class="td-section-body">
+        <p data-list-error class="text-sm text-error" role="alert" hidden>목록을 갱신하지 못했습니다. 새로고침으로 다시 시도하세요.</p>
+        <div class="td-section-header">
+            <div class="td-list-heading">
+                <h2 class="td-section-title">내 업로드</h2>
+                <a asp-page="@listPage" hx-get="@ListUrl(Model.CurrentPage)"
+                   asp-route-slug="@Model.CurrentSlug" asp-route-search="@Model.Search"
+                   asp-route-sort="@Model.Sort" asp-route-direction="@Model.Direction"
+                   asp-route-pageNumber="@Model.CurrentPage" class="td-row-action"
+                   aria-label="목록 새로고침" data-tooltip="새로고침">
+                    <partial name="_Icon" model='@("RefreshOutline")' />
+                </a>
+            </div>
+            <form method="get" asp-page="@listPage" asp-route-slug="@Model.CurrentSlug"
+                  hx-get="@Url.Page("/Index")" class="td-list-controls">
+                <input type="hidden" name="search" value="@Model.Search" />
+                <button type="button" class="td-row-action" data-toggle-search
+                        aria-label="파일 검색" aria-controls="drop-search" data-tooltip="검색"
+                        aria-expanded="@(Model.Search is not null ? "true" : "false")">
+                    <partial name="_Icon" model='@("SearchOutline")' />
+                </button>
+                <button type="submit" name="direction"
+                        value="@(Model.Direction == "desc" ? "asc" : "desc")"
+                        class="td-sort-direction" aria-label="정렬 방향 변경">
+                    @(Model.Direction == "desc" ? "내림차순" : "오름차순")
+                </button>
+                <select name="sort" class="select font-semibold" aria-label="정렬 기준" data-auto-submit>
+                    <option value="created_at" selected="@(Model.Sort == "created_at")">날짜</option>
+                    <option value="title" selected="@(Model.Sort == "title")">제목</option>
+                    <option value="size" selected="@(Model.Sort == "size")">크기</option>
+                </select>
+                <noscript><button type="submit" class="btn btn-sm">적용</button></noscript>
+            </form>
+        </div>
+        <details id="drop-search" class="td-search td-disclosure" open="@(Model.Search is not null)">
+            <summary>파일 검색</summary>
+            <form method="get" asp-page="@listPage" asp-route-slug="@Model.CurrentSlug"
+                  hx-get="@Url.Page("/Index")" class="td-search-row">
+                <input type="hidden" name="sort" value="@Model.Sort" />
+                <input type="hidden" name="direction" value="@Model.Direction" />
+                <input type="search" name="search" value="@Model.Search" class="input min-w-0 flex-1"
+                       placeholder="제목 또는 파일명 검색" aria-label="제목 또는 파일명 검색" />
+                <button type="submit" class="btn btn-sm">검색</button>
+            </form>
+        </details>
+        @if (Model.Drops.Count > 0)
+        {
+            <div class="td-list">
+                @foreach (var drop in Model.Drops)
+                {
+                    var title = string.IsNullOrEmpty(drop.Title) ? drop.FileName : drop.Title;
+                    var utc = DateTime.SpecifyKind(drop.CreatedAt, DateTimeKind.Utc);
+                    <a asp-page="/DropDetail" asp-route-slug="@drop.Slug" data-drop-slug="@drop.Slug"
+                       class="td-drop-row @(drop.Slug == Model.CurrentSlug ? "is-current" : "")"
+                       aria-current="@(drop.Slug == Model.CurrentSlug ? "page" : null)">
+                        <span class="td-list-icon"><partial name="_FileIcon" model="drop" /></span>
+                        <div class="td-row-copy">
+                            <div class="td-row-title" title="@title">
+                                <span class="td-favorite-indicator inline-block size-4 align-middle" data-list-favorite hidden="@(!drop.IsFavorite)" aria-label="즐겨찾기"><partial name="_Icon" model='@("StarSolid")' /></span>
+                                @title
+                            </div>
+                            <div class="td-row-meta">
+                                <span>@IndexModel.FormatFileSize(drop.FileSizeBytes)</span>
+                                @if (!drop.IsPrivate)
+                                {
+                                    <span>• 전체 공개</span>
+                                }
+                                <span>•</span>
+                                <time datetime="@utc.ToString("O")" data-relative-time
+                                      title="@utc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")">
+                                    @utc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+                                </time>
+                            </div>
+                        </div>
+                        @if (drop.DropPasswordHash is not null)
+                        {
+                            <span class="td-lock-indicator" aria-label="비밀번호 설정됨"><partial name="_Icon" model='@("LockSolid")' /></span>
+                        }
+                    </a>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="@(Model.Search is null ? "sr-only" : "td-muted text-center py-3")">
+                @(Model.Search is null ? "아직 업로드한 파일이 없습니다." : "검색 결과가 없습니다.")
+            </p>
+        }
+        @if (Model.TotalPages > 1)
+        {
+            <nav class="td-pagination" aria-label="드롭 목록 페이지">
+                @if (Model.CurrentPage > 1)
+                {
+                    <a asp-page="@listPage" asp-route-slug="@Model.CurrentSlug"
+                       hx-get="@ListUrl(Model.CurrentPage - 1)" asp-route-search="@Model.Search" asp-route-sort="@Model.Sort"
+                       asp-route-direction="@Model.Direction" asp-route-pageNumber="@(Model.CurrentPage - 1)"
+                       class="btn btn-sm">이전</a>
+                }
+                <span aria-current="page">@Model.CurrentPage / @Model.TotalPages</span>
+                @if (Model.CurrentPage < Model.TotalPages)
+                {
+                    <a asp-page="@listPage" asp-route-slug="@Model.CurrentSlug"
+                       hx-get="@ListUrl(Model.CurrentPage + 1)" asp-route-search="@Model.Search" asp-route-sort="@Model.Sort"
+                       asp-route-direction="@Model.Direction" asp-route-pageNumber="@(Model.CurrentPage + 1)"
+                       class="btn btn-sm">다음</a>
+                }
+            </nav>
+        }
+    </div>
+</section>

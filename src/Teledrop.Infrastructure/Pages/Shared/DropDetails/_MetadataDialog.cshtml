@@ -1,0 +1,18 @@
+@model Teledrop.Features.Drops.DropDetailModel
+@{
+    var drop = Model.Drop!;
+}
+<dialog id="metadata-dialog" hx-swap-oob="@(Model.FragmentPart == "metadata" ? "outerHTML" : null)" class="td-dialog" aria-labelledby="metadata-title">
+    <div class="td-dialog-header">
+        <h2 id="metadata-title">수정하기</h2>
+        <button type="button" class="td-row-action" data-dialog-close aria-label="닫기"><partial name="_Icon" model='@("CloseOutline")' /></button>
+    </div>
+    <div class="td-dialog-body">
+        <p data-operation-error="metadata" class="text-sm text-error" role="alert" hidden></p>
+        <form method="post" asp-page="/DropDetail" asp-page-handler="Metadata" hx-post="@Url.Page("/DropDetail", "Metadata", new { slug = drop.Slug })" hx-swap="none" data-drop-action="metadata" asp-route-slug="@drop.Slug">
+            <div class="td-fieldset"><label asp-for="TitleInput" class="td-label">제목</label><input asp-for="TitleInput" class="input w-full" /></div>
+            <div class="td-fieldset"><label asp-for="DescriptionInput" class="td-label">내용</label><textarea asp-for="DescriptionInput" class="textarea w-full" rows="4"></textarea></div>
+            <button type="submit" class="btn btn-primary w-full">수정</button>
+        </form>
+    </div>
+</dialog>

@@ -1,0 +1,7 @@
+@model Teledrop.Features.Drops.DropDetailModel
+@{
+    var drop = Model.Drop!;
+}
+@{ var title = string.IsNullOrEmpty(drop.Title) ? "미리보기" : drop.Title; }
+<h1 id="drop-heading" class="td-section-title truncate" title="@title"
+    hx-swap-oob="@(Model.FragmentPart == "metadata" ? "outerHTML" : null)">@title</h1>

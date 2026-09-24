@@ -1,0 +1,49 @@
+@model Teledrop.Features.Drops.Drop
+@using Teledrop.Features.Drops
+@{
+    var preview = DropPreviewPolicy.Evaluate(Model.ContentType);
+    var inlineUrl = Url.Page("/Download", null, new { slug = Model.Slug, inline = true });
+    var utc = DateTime.SpecifyKind(Model.CreatedAt, DateTimeKind.Utc);
+}
+<div class="td-preview-content">
+    @if (preview.Kind == DropPreviewKind.Image)
+    {
+        <div class="td-preview"><img src="@inlineUrl" alt="@Model.FileName" /></div>
+    }
+    else if (preview.Kind == DropPreviewKind.Video)
+    {
+        <div class="td-preview"><video src="@inlineUrl" controls preload="metadata"></video></div>
+    }
+    else if (preview.Kind == DropPreviewKind.Audio)
+    {
+        <audio src="@inlineUrl" controls class="my-5 w-full px-2"></audio>
+    }
+    else if (preview.Kind == DropPreviewKind.Pdf)
+    {
+        <div class="td-pdf-preview" data-pdf-url="@inlineUrl">
+            <div class="td-pdf-toolbar">
+                <button type="button" class="btn btn-sm" data-pdf-prev disabled aria-label="PDF 이전 페이지">이전</button>
+                <span data-pdf-status role="status">PDF 불러오는 중…</span>
+                <button type="button" class="btn btn-sm" data-pdf-next disabled aria-label="PDF 다음 페이지">다음</button>
+            </div>
+            <canvas data-pdf-canvas role="img" aria-label="@($"{Model.FileName} PDF 미리보기")" hidden></canvas>
+            <noscript>PDF 미리보기에는 JavaScript가 필요합니다. 다운로드 버튼으로 파일을 저장할 수 있습니다.</noscript>
+        </div>
+    }
+    <p id="drop-description" class="td-preview-description" hidden="@(string.IsNullOrEmpty(Model.Description))">@Model.Description</p>
+    <div class="td-file-info">
+        <partial name="_FileIcon" model="Model" />
+        <div class="min-w-0">
+            <p class="td-file-info-name">@Model.FileName</p>
+            <p>@Teledrop.Features.Drops.IndexModel.FormatFileSize(Model.FileSizeBytes)</p>
+            <p class="td-file-info-date">
+                <time datetime="@utc.ToString("O")" data-local-date>@utc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</time> 에 업로드
+            </p>
+        </div>
+    </div>
+</div>
+<div class="td-download-footer">
+    <a asp-page="/Download" asp-route-slug="@Model.Slug" class="btn btn-sm">
+        <partial name="_Icon" model='@("DownloadOutline")' />다운로드
+    </a>
+</div>

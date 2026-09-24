@@ -1,55 +1,38 @@
-# 1. web build
-FROM node:20-alpine AS web_builder
+FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
 
-# set workdir
-WORKDIR /web
+WORKDIR /src
 
-# install packages
-COPY ./web/package*.json ./
-RUN npm install
+COPY global.json ./
+COPY src/Teledrop.Core/Teledrop.Core.csproj src/Teledrop.Core/
+COPY src/Teledrop.Infrastructure/Teledrop.Infrastructure.csproj src/Teledrop.Infrastructure/
+COPY src/Teledrop/Teledrop.csproj src/Teledrop/
+RUN dotnet restore src/Teledrop/Teledrop.csproj
 
-# copy web sources
-COPY ./web ./
+COPY src/Teledrop.Core/ src/Teledrop.Core/
+COPY src/Teledrop.Infrastructure/ src/Teledrop.Infrastructure/
+COPY src/Teledrop/ src/Teledrop/
+RUN dotnet publish src/Teledrop/Teledrop.csproj \
+    --configuration Release \
+    --output /app/publish \
+    --no-restore \
+    /p:UseAppHost=false
 
-# web build
-RUN npm run build
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS runtime
 
+WORKDIR /app
 
-# python base image
-# FROM python:3.12-slim AS python_base
-FROM python:3.12-alpine AS python_base
+ENV ASPNETCORE_URLS=http://+:8080 \
+    SHARE_DIRECTORY=/app/share \
+    MAX_UPLOAD_BYTES=1073741824
 
-# 2. dependencies install
-FROM python_base AS dependency_builder
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
-ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
+RUN mkdir -p /app/share \
+    && chown app:app /app/share
 
-# set workdir
-WORKDIR /teledrop
+COPY --from=build /app/publish ./
 
-# install packages
-COPY uv.lock pyproject.toml ./
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-install-project --no-dev
+VOLUME ["/app/share"]
+EXPOSE 8080
 
+USER app
 
-# 3. deploy stage
-FROM python_base
-WORKDIR /teledrop
-
-# copy dependencies
-COPY --from=dependency_builder /teledrop ./
-
-# copy built web
-COPY --from=web_builder /web/build ./web/build
-
-# copy teledrop sources 
-COPY ./main.py .
-COPY ./api ./api
-
-# set path
-ENV PATH="/teledrop/.venv/bin:$PATH"
-
-# run
-EXPOSE 8000/tcp
-ENTRYPOINT ["uvicorn", "main:app", "--host", "0.0.0.0", "--no-server-header"]
+ENTRYPOINT ["dotnet", "Teledrop.dll"]

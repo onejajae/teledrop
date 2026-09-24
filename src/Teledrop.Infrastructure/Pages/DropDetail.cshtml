@@ -1,0 +1,43 @@
+@page "/drops/{slug}"
+@model Teledrop.Features.Drops.DropDetailModel
+@{
+    var drop = Model.Drop!;
+    ViewData["Title"] = string.IsNullOrEmpty(drop.Title) ? "미리보기" : drop.Title;
+}
+<section id="drop-detail" class="td-section" data-drop-slug="@drop.Slug"
+         data-shared-state-url="@Url.Page("/DropDetail", "SharedState", new { slug = drop.Slug })"
+         data-favorite-state-url="@Url.Page("/DropDetail", "FavoriteState", new { slug = drop.Slug })">
+    <div class="td-section-body">
+        <div class="td-section-header">
+            <partial name="DropDetails/_Heading" model="Model" />
+            <div class="td-toolbar" aria-label="파일 관리">
+                <partial name="DropDetails/_Visibility" model="Model" />
+                <partial name="DropDetails/_PasswordButton" model="Model" />
+                <partial name="DropDetails/_Favorite" model="Model" />
+                <button id="metadata-open" type="button" class="td-row-action" data-dialog-open="metadata-dialog" data-tooltip="수정" aria-label="수정">
+                    <partial name="_Icon" model='@("PenOutline")' />
+                </button>
+                <button id="slug-open" type="button" class="td-row-action" data-dialog-open="url-dialog" data-tooltip="접근 URL" aria-label="접근 URL">
+                    <partial name="_Icon" model='@("LinkOutline")' />
+                </button>
+                <button id="delete-open" type="button" class="td-row-action td-row-action-danger" data-dialog-open="delete-dialog" data-tooltip="삭제" aria-label="삭제">
+                    <partial name="_Icon" model='@("TrashBinOutline")' />
+                </button>
+            </div>
+        </div>
+        <p data-operation-error="favorite" class="text-sm text-error" role="alert" hidden></p>
+        <div id="favorite-recovery" class="flex gap-2 my-2" hidden>
+            <button type="button" class="btn btn-sm" data-favorite-recheck>상태 재확인</button>
+            <button type="button" class="btn btn-sm" data-favorite-retry>다시 적용</button>
+        </div>
+        <p data-operation-error="visibility" class="text-sm text-error" role="alert" hidden></p>
+        <p data-operation-error="shared" class="text-sm text-error" role="alert" hidden></p>
+        <p id="drop-navigation-status" class="td-muted text-sm" role="status" hidden>진행 중인 저장을 기다리고 있습니다.</p>
+        <partial name="_DropPreview" model="drop" />
+    </div>
+</section>
+<partial name="DropDetails/_MetadataDialog" model="Model" />
+<partial name="DropDetails/_PasswordDialog" model="Model" />
+<partial name="DropDetails/_UrlDialog" model="Model" />
+<partial name="DropDetails/_DeleteDialog" model="Model" />
+<noscript><style>.td-dialog { display: block; position: static; margin: 0.75rem 0; width: 100%; max-width: none; } .td-toolbar button[type=button], [data-dialog-close] { display: none; }</style></noscript>
