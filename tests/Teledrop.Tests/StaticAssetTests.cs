@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
 
@@ -7,6 +8,36 @@ namespace Teledrop.Tests;
 
 public sealed class StaticAssetTests
 {
+    [Fact]
+    public async Task LoginUsesFingerprintFontsWithImmutableCachingAndConditionalRequests()
+    {
+        using var factory = new TeledropWebApplicationFactory();
+        using var app = factory.WithWebHostBuilder(builder =>
+            builder.UseSetting("EnableStaticAssetsDevelopmentCaching", "true"));
+        using var client = app.CreateClient();
+        var page = await client.GetStringAsync("/login");
+        var fonts = Regex.Matches(page, "url\\(\"([^\"]*/fonts/Pretendard-[^\"]+\\.woff2)\"\\)");
+        Assert.Equal(4, fonts.Count);
+
+        foreach (Match font in fonts)
+        {
+            var path = WebUtility.HtmlDecode(font.Groups[1].Value);
+            Assert.Matches(@"/fonts/Pretendard-(Regular|Medium|SemiBold|Bold)\.[^.\/]+\.woff2$", path);
+            using var response = await client.GetAsync(path);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.NotEmpty(await response.Content.ReadAsByteArrayAsync());
+            Assert.Equal(TimeSpan.FromDays(365), response.Headers.CacheControl?.MaxAge);
+            Assert.Contains(response.Headers.CacheControl!.Extensions, value => value.Name == "immutable");
+            Assert.NotNull(response.Headers.ETag);
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, path);
+            request.Headers.IfNoneMatch.Add(response.Headers.ETag);
+            using var unchanged = await client.SendAsync(request);
+            Assert.Equal(HttpStatusCode.NotModified, unchanged.StatusCode);
+            Assert.Empty(await unchanged.Content.ReadAsByteArrayAsync());
+        }
+    }
+
     [Fact]
     public async Task RclAssetsKeepRootUrlsAndFingerprintLinksWithoutAuthentication()
     {

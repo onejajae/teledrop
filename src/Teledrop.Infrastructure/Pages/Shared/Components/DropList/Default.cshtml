@@ -13,9 +13,9 @@
 <section id="drop-list" class="td-section"
          data-list-state="@System.Text.Json.JsonSerializer.Serialize(new { search = Model.Search, sort = Model.Sort, direction = Model.Direction, pageNumber = Model.CurrentPage, currentSlug = Model.CurrentSlug })"
          data-list-url="@Url.Page("/Index", "DropList")"
-         hx-target="#drop-list" hx-swap="outerHTML" hx-push-url="false"
-         hx-sync="#drop-list:replace"
-         hx-vals="@System.Text.Json.JsonSerializer.Serialize(new { handler = "DropList", currentSlug = Model.CurrentSlug })">
+         hx-target:inherited="#drop-list" hx-swap:inherited="outerHTML" hx-push-url:inherited="false"
+         hx-sync:inherited="#drop-list:replace"
+         hx-vals:inherited="@System.Text.Json.JsonSerializer.Serialize(new { handler = "DropList", currentSlug = Model.CurrentSlug })">
     <div class="td-section-body">
         <p data-list-error class="text-sm text-error" role="alert" hidden>목록을 갱신하지 못했습니다. 새로고침으로 다시 시도하세요.</p>
         <div class="td-section-header">

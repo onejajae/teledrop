@@ -136,7 +136,7 @@ Core의 `DropSlugs` module이 비공개 Drop 생성과 직접 지정한 Slug 변
 
 - **.NET + Razor Pages (SSR)**, EF Core + SQLite
 - 인증은 ASP.NET Core 쿠키 인증
-- htmx로 부분 갱신. 업로드 진행률은 `htmx:xhr:progress`
+- htmx 4.0.0으로 부분 갱신. 웹 업로드 전송률은 해당 폼의 커스텀 XHR 전송으로 표시한다
 - CSS는 Tailwind + daisyUI. **생성 결과물을 저장소에 커밋한다** — Docker에서 node 스테이지를 없애기 위해서다
 
 ### 화면 디자인
@@ -146,6 +146,8 @@ Core의 `DropSlugs` module이 비공개 Drop 생성과 직접 지정한 Slug 변
 소유자의 파일 목록은 공통 View Component로 홈과 상세 화면에 표시한다. 검색과 페이지네이션은 유지하되 검색은 아이콘으로 펼치고, 페이지 이동은 여러 페이지가 있을 때 표시한다. 비인증 화면에는 소유자 목록을 렌더링하지 않는다.
 
 Pretendard 1.3.9 글꼴은 `wwwroot/fonts/`에 라이선스와 함께 포함한다. main에서 사용한 Flowbite 아이콘의 경로는 Razor partial로 재사용하며 `Pages/Shared/FlowbiteIcons.LICENSE.txt`에 라이선스를 둔다. 미리보기는 선택한 로컬 파일의 blob URL을 사용하며 CSP는 이미지·미디어에만 blob을 허용한다.
+
+`_FontFaces` partial은 `ResourceAssetCollection`에서 해시가 붙은 글꼴 URL을 찾아 `@font-face`를 렌더링한다. CSS에 고정 URL을 넣는 대신 ASP.NET Core 정적 자산의 장기 캐시와 파일 변경 시 URL 갱신을 사용한다.
 
 ### 저장된 Drop 미리보기
 
@@ -167,6 +169,14 @@ Owner 변경은 상세 화면의 경로만 지원한다. 이전 Index Favorite·
 부분 응답은 기능별 Razor partial로 만들고 `X-Drop-Outcome`으로 변경·검증 오류·조회 결과를 구분한다. 기존 일반 폼 응답은 유지한다. `drop-interactions.js`가 변경과 dialog 수명을, `drop-list.js`가 목록의 마지막 요청 조건과 늦은 응답 처리를 맡는다. 새 mutation과 목록 조건 변경은 이전 읽기 세대를 무효화한다. 공유 안내의 결합 상태는 저장이 끝난 뒤 새 요청으로 읽는다.
 
 공유 화면의 잠금 해제는 쿠키 설정 후 GET에서 접근 정책을 다시 판정한다. 실패의 401 HTML은 잠금 해제 폼에만 적용하며 잠긴 Drop의 메타데이터는 포함하지 않는다. fragment에는 inline script나 `hx-on`을 넣지 않는다. 브라우저 회귀 검증은 [testing.md](testing.md)를 따른다.
+
+### htmx 4와 업로드 진행률
+
+목록의 공통 속성은 `:inherited`로 명시적으로 상속한다. 이벤트는 `htmx:config:request`, `htmx:before:swap`, `htmx:finally:request` 등 4.x 이름과 `event.detail.ctx`를 사용한다. 요청 값은 인코딩 전 `ctx.request.body`의 `FormData`에서 수정하며, 완료·실패 뒤 UI 정리는 `htmx:finally:request`에서 수행한다. 4.x는 기본적으로 4xx·5xx 응답도 교체하므로 오류 응답은 `htmx:before:swap`에서 취소하고, 공유 잠금 해제 폼의 401 HTML만 허용한다. [공식 변경사항](https://four.htmx.org/docs/whats-new-in-htmx-4)을 기준으로 한다.
+
+htmx 4의 기본 전송은 Fetch이며 업로드 진행률 이벤트를 제공하지 않는다. 전송률 퍼센트를 유지하기 위해 업로드 폼만 `ctx.fetch`를 XHR 기반 함수로 바꾸고 `Promise<Response>`를 반환한다. XHR의 `upload.progress`로 전송률을 표시하고 htmx의 요청 헤더·취소 신호·`HX-Redirect` 처리를 연결한다. 대용량 업로드에는 htmx 기본 60초 제한이 적용되지 않도록 해당 요청의 timeout을 0으로 둔다. 이는 teledrop의 커스텀 전송 구현이며, `ctx.fetch` 재정의는 [공식 확장 작성 가이드](https://github.com/bigskysoftware/htmx/blob/v4.0.0/dist/skills/htmx-extension-authoring.md#request-context-detailctx)에 설명되어 있다. Fetch의 제한과 별도 업로드 도구에 대한 안내는 [공식 파일 업로드 문서](https://four.htmx.org/patterns/file-upload#upload-progress)를 따른다.
+
+htmx의 SSE·multipart 스트리밍은 서버 응답으로 화면을 연속 갱신하는 기능이다. 서버 수신·저장 진행률을 표시하려면 진행 상태 측정과 전달 경로를 별도로 구현해야 한다. 현재 퍼센트는 브라우저의 전송 진행률이며, 100%만으로 저장 완료를 뜻하지 않는다. Drop 생성이 끝난 뒤 서버가 반환하는 `204`와 `HX-Redirect`로 상세 화면에 이동한다. JS가 없으면 일반 multipart 폼 POST로 업로드한다.
 
 ### 개발 명령
 

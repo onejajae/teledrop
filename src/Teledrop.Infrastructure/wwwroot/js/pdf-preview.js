@@ -56,4 +56,4 @@ async function loadPdf(root) {
 }
 
 initializePdfPreviews();
-document.addEventListener("htmx:afterSwap", initializePdfPreviews);
+document.addEventListener("htmx:after:swap", initializePdfPreviews);

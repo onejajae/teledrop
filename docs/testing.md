@@ -28,7 +28,19 @@ dotnet test tests/Teledrop.Tests --filter 'FullyQualifiedName!~DropBrowserTests'
 
 `DropBrowserTests`는 `WebApplicationFactory.UseKestrel(0)`으로 임의 포트에 독립 서버를 띄운다. 각 테스트는 임시 SQLite와 저장 디렉터리, 별도 브라우저 컨텍스트를 사용하며 현재 개발 서버의 Drop은 읽거나 수정하지 않는다.
 
-브라우저 검증에는 미디어 node·재생 유지, 목록 조건, dialog 재시도, 낙관적 즐겨찾기와 응답 유실, 요청 순서 역전, Slug·삭제의 저장 대기, 공유 잠금 해제, 업로드 후 이동과 Session 만료를 포함한다. CSP는 실제 애플리케이션 설정 그대로 사용한다.
+브라우저 검증에는 미디어 node·재생 유지, 목록 조건, dialog 재시도, 낙관적 즐겨찾기와 응답 유실, 요청 순서 역전, Slug·삭제의 저장 대기, 공유 잠금 해제, 업로드 후 이동과 Session 만료를 포함한다. 각 테스트는 실제 로드된 `htmx.version`이 `4.0.0`인지 확인한다. 업로드는 413 거부·네트워크 실패 뒤 오류 표시와 재시도를 검증하며, CSP는 실제 애플리케이션 설정 그대로 사용한다.
+
+htmx의 제거된 속성·이벤트와 상속 패턴은 설치된 4.0.0 패키지의 공식 검사기로 확인한다. `npm --prefix src/Teledrop.Infrastructure ci` 후 다음 명령을 실행한다. Razor 파일을 포함하도록 `.cshtml`을 추가하고, vendor 파일 대신 애플리케이션 템플릿과 스크립트만 검사한다. 이 정적 검사는 위 브라우저 검증과 함께 사용한다.
+
+```sh
+node src/Teledrop.Infrastructure/node_modules/htmx.org/dist/scripts/upgrade-check.js \
+  --no-color --ext .cshtml \
+  src/Teledrop.Infrastructure/Pages \
+  src/Teledrop.Infrastructure/wwwroot/js/site.js \
+  src/Teledrop.Infrastructure/wwwroot/js/drop-list.js \
+  src/Teledrop.Infrastructure/wwwroot/js/drop-interactions.js \
+  src/Teledrop.Infrastructure/wwwroot/js/pdf-preview.js
+```
 
 `tests/Teledrop.Tests/Fixtures/preview.webm`은 FFmpeg `testsrc=size=160x90:rate=10`으로 생성한 8초 VP8 무음 영상이다. 다운로드한 사용자 미디어를 포함하지 않는다.
 
@@ -80,6 +92,8 @@ dotnet ef migrations list --no-connect --project src/Teledrop.Infrastructure --s
 ```
 
 `StaticAssetTests`는 인증 없이 기존 `/css`, `/js`, `/fonts`, `/static`, favicon URL과 Razor가 생성한 fingerprint CSS URL을 읽는다. 테스트는 계속 `WebApplicationFactory<Program>`으로 실제 Teledrop host를 실행하며, RCL 페이지·partial은 이 host가 발견한다.
+
+로그인 페이지의 `_FontFaces`가 네 가지 굵기의 fingerprint 글꼴 URL을 렌더링하는지 확인한다. 이 검증에서는 개발 환경의 정적 자산 캐시를 활성화해 각 응답의 1년 `max-age`, `immutable`, ETag와 조건부 요청의 304·빈 본문을 검사한다.
 
 배포 변경 시에는 전체 테스트에 더해 Release publish와 컨테이너 이미지 build를 확인한다.
 

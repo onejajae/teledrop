@@ -8,42 +8,44 @@
     const readState = () => JSON.parse(root()?.dataset.listState || "{}");
     desired = readState();
 
-    document.addEventListener("htmx:configRequest", event => {
-        const detail = event.detail;
-        const list = detail.elt.closest?.("#drop-list");
+    document.addEventListener("htmx:config:request", event => {
+        const { ctx } = event.detail;
+        const detail = ctx.request;
+        const list = ctx.sourceElement.closest?.("#drop-list");
         if (!list) return;
-        const values = new URL(detail.path, document.baseURI).searchParams;
+        const values = new URL(detail.action, document.baseURI).searchParams;
         const refresh = detail.headers["X-Drop-List-Refresh"] === "true";
         if (!refresh) {
             // Capture the requested state before its response can replace the list.
             const next = { ...readState(), pageNumber: 1 };
             for (const name of fields) {
                 if (values.has(name)) next[name] = values.get(name);
-                if (detail.parameters[name] !== undefined) next[name] = detail.parameters[name];
+                if (detail.body.has(name)) next[name] = detail.body.get(name);
             }
             desired = next;
         }
-        detail.path = new URL(list.dataset.listUrl, document.baseURI).pathname;
-        detail.parameters.handler = "DropList";
-        for (const name of fields) detail.parameters[name] = desired[name] ?? "";
+        detail.action = new URL(list.dataset.listUrl, document.baseURI).pathname;
+        detail.body.set("handler", "DropList");
+        for (const name of fields) detail.body.set(name, desired[name] ?? "");
     });
 
-    document.addEventListener("htmx:beforeRequest", event => {
-        if (!event.detail.elt.closest?.("#drop-list")) return;
-        requests.set(event.detail.xhr, { generation: ++generation, epoch: mutationEpoch });
+    document.addEventListener("htmx:before:request", event => {
+        if (!event.detail.ctx.sourceElement.closest?.("#drop-list")) return;
+        requests.set(event.detail.ctx, { generation: ++generation, epoch: mutationEpoch });
     });
-    document.addEventListener("htmx:beforeSwap", event => {
-        const request = requests.get(event.detail.xhr);
+    document.addEventListener("htmx:before:swap", event => {
+        const request = requests.get(event.detail.ctx);
         if (request && (request.generation !== generation || request.epoch !== mutationEpoch)) {
-            event.detail.shouldSwap = false;
+            event.preventDefault();
         }
     });
-    document.addEventListener("htmx:afterRequest", event => {
-        const request = requests.get(event.detail.xhr);
+    document.addEventListener("htmx:finally:request", event => {
+        const request = requests.get(event.detail.ctx);
         if (!request || request.generation !== generation || request.epoch !== mutationEpoch) return;
+        const successful = event.detail.ctx.response?.raw.ok && !event.detail.ctx.status.startsWith("error");
         const error = root()?.querySelector("[data-list-error]");
-        if (error) error.hidden = event.detail.successful;
-        if (event.detail.successful) desired = readState();
+        if (error) error.hidden = successful;
+        if (successful) desired = readState();
     });
     document.addEventListener("drop-change-started", () => { mutationEpoch++; });
     document.addEventListener("drop-changed", () => {

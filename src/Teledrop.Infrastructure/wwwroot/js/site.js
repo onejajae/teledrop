@@ -61,5 +61,5 @@
     };
     for (const dialog of document.querySelectorAll("dialog[open]")) openDialog(dialog);
     updateTimes();
-    document.addEventListener("htmx:afterSwap", updateTimes);
+    document.addEventListener("htmx:after:swap", updateTimes);
 })();

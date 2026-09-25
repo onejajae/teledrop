@@ -34,7 +34,7 @@ public sealed class DropBrowserTests : IAsyncLifetime
         page.PageError += (_, error) => errors.Enqueue(error);
         await LoginAsync(page);
         await page.GotoAsync("/drops/video");
-        Assert.True(await page.EvaluateAsync<bool>("() => typeof htmx !== 'undefined'"));
+        Assert.Equal("4.0.0", await page.EvaluateAsync<string>("() => htmx.version"));
     }
 
     public async Task DisposeAsync()
@@ -403,5 +403,33 @@ public sealed class DropBrowserTests : IAsyncLifetime
         factory.ChangeWebPassword();
         await page.Locator("#favorite-button").ClickAsync();
         await page.WaitForURLAsync("**/login");
+    }
+
+    [Theory]
+    [InlineData(413)]
+    [InlineData(0)]
+    public async Task UploadCanRetryAfterRejectionOrNetworkFailure(int failureStatus)
+    {
+        await page.GotoAsync("/");
+        var firstRequest = true;
+        await page.RouteAsync("**/upload", async route =>
+        {
+            if (!firstRequest) { await route.ContinueAsync(); return; }
+            firstRequest = false;
+            if (failureStatus == 0) await route.AbortAsync("failed");
+            else await route.FulfillAsync(new() { Status = failureStatus });
+        });
+        await page.Locator("#upload-file").SetInputFilesAsync(new FilePayload
+        {
+            Name = "retry.txt", MimeType = "text/plain", Buffer = "retry upload"u8.ToArray(),
+        });
+        await page.Locator("#upload-submit").ClickAsync();
+        await Expect(page.Locator("#upload-progress-label")).ToHaveTextAsync(
+            failureStatus == 413 ? "파일이 최대 크기를 초과했습니다." : "업로드에 실패했습니다.");
+        await Expect(page.Locator("#upload-submit")).ToBeEnabledAsync();
+        await page.Locator("#upload-submit").ClickAsync();
+        await page.WaitForURLAsync("**/drops/*");
+        await Expect(page.GetByText("retry.txt", new() { Exact = true }).First).ToBeVisibleAsync();
+        Assert.Empty(errors);
     }
 }

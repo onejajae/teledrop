@@ -162,7 +162,38 @@
                 syncSelectedFile();
             });
 
-            form.addEventListener("htmx:beforeRequest", () => {
+            // htmx 4 uses Fetch; preserve real upload progress with an XHR transport
+            // for this multipart form while keeping htmx redirects and lifecycle.
+            form.addEventListener("htmx:config:request", event => {
+                event.detail.ctx.request.timeout = 0;
+            });
+            form.addEventListener("htmx:before:request", event => {
+                event.detail.ctx.fetch = (url, options) => new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    const abort = () => xhr.abort();
+                    xhr.open(options.method, url);
+                    for (const [name, value] of Object.entries(options.headers)) xhr.setRequestHeader(name, value);
+                    xhr.upload.addEventListener("progress", event => {
+                        if (!event.lengthComputable) return;
+                        const percent = Math.min(100, Math.round(event.loaded / event.total * 100));
+                        progress.value = percent;
+                        progressLabel.textContent = `${percent}%`;
+                    });
+                    xhr.onload = () => {
+                        const headers = new Headers();
+                        for (const line of xhr.getAllResponseHeaders().trim().split(/[\r\n]+/)) {
+                            const colon = line.indexOf(":");
+                            if (colon > 0) headers.append(line.slice(0, colon), line.slice(colon + 1).trim());
+                        }
+                        resolve(new Response(xhr.status === 204 ? null : xhr.responseText, { status: xhr.status, headers }));
+                    };
+                    xhr.onerror = () => reject(new TypeError("Upload failed"));
+                    xhr.onabort = () => reject(new DOMException("Upload aborted", "AbortError"));
+                    xhr.onloadend = () => options.signal.removeEventListener("abort", abort);
+                    options.signal.addEventListener("abort", abort, { once: true });
+                    if (options.signal.aborted) { reject(new DOMException("Upload aborted", "AbortError")); return; }
+                    xhr.send(options.body);
+                });
                 uploadCard.classList.add("is-uploading");
                 progressWrap.hidden = false;
                 progress.value = 0;
@@ -170,25 +201,13 @@
                 submit.disabled = true;
             });
 
-            form.addEventListener("htmx:xhr:progress", (event) => {
-                if (!event.detail.total) {
-                    return;
-                }
-
-                const percent = Math.min(
-                    100,
-                    Math.round((event.detail.loaded / event.detail.total) * 100));
-                progress.value = percent;
-                progressLabel.textContent = `${percent}%`;
-            });
-
-            form.addEventListener("htmx:afterRequest", (event) => {
+            form.addEventListener("htmx:finally:request", (event) => {
                 submit.disabled = false;
 
-                if (!event.detail.successful) {
+                if (!event.detail.ctx.response?.raw.ok) {
                     uploadCard.classList.remove("is-uploading");
                     progressLabel.textContent =
-                        event.detail.xhr.status === 413
+                        event.detail.ctx.response?.status === 413
                             ? "파일이 최대 크기를 초과했습니다."
                             : "업로드에 실패했습니다.";
                 }

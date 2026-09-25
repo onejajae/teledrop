@@ -110,18 +110,20 @@
         }
     }, true);
 
-    document.addEventListener("htmx:beforeRequest", event => {
-        const { elt, xhr, requestConfig } = event.detail;
+    document.addEventListener("htmx:before:request", event => {
+        const { ctx } = event.detail;
+        const elt = ctx.sourceElement;
+        const requestConfig = ctx.request;
         const readKind = requestConfig.headers["X-Drop-Read"];
         if (readKind) {
-            requests.set(xhr, { read: readKind, epoch });
+            requests.set(ctx, { read: readKind, epoch });
             return;
         }
         const form = elt.closest?.("form[data-drop-action]");
         if (!form) return;
         const group = form.dataset.dropAction;
         const info = { group, form, desired: form.querySelector("[name=IsFavorite]")?.value === "true" };
-        requests.set(xhr, info);
+        requests.set(ctx, info);
         active.set(group, info);
         epoch++;
         notify("drop-change-started");
@@ -135,33 +137,36 @@
         locks();
     });
 
-    document.addEventListener("htmx:beforeSwap", event => {
-        const info = requests.get(event.detail.xhr);
+    document.addEventListener("htmx:before:swap", event => {
+        const info = requests.get(event.detail.ctx);
         if (info?.read && (info.epoch !== epoch || active.size || leaving || navigation?.started)) {
             info.stale = true;
-            event.detail.shouldSwap = false;
+            event.preventDefault();
         }
-        // Only the public unlock form may render its own 401 error fragment.
-        if (event.detail.requestConfig?.elt?.matches("[data-public-unlock]")
-            && event.detail.xhr.status === 401
-            && event.detail.xhr.getResponseHeader("Content-Type")?.includes("text/html")) {
-            event.detail.shouldSwap = true;
-            event.detail.isError = false;
+        // Error pages must not replace owner controls. A public unlock 401
+        // is the intentional validation fragment returned by that form.
+        const { ctx } = event.detail;
+        if (ctx.response.status >= 400
+            && !(ctx.sourceElement.matches("[data-public-unlock]")
+                && ctx.response.status === 401
+                && ctx.response.headers.get("Content-Type")?.includes("text/html"))) {
+            event.preventDefault();
         }
     });
 
-    document.addEventListener("htmx:afterRequest", event => {
-        const { xhr } = event.detail;
-        const info = requests.get(xhr);
+    document.addEventListener("htmx:finally:request", event => {
+        const { ctx } = event.detail;
+        const successful = ctx.response?.raw.ok && !ctx.status.startsWith("error");
+        const info = requests.get(ctx);
         if (!info) {
-            if (event.detail.elt.matches?.("[data-public-unlock]") && !event.detail.successful && xhr.status !== 401) {
+            if (ctx.sourceElement.matches?.("[data-public-unlock]") && !successful && ctx.response?.status !== 401) {
                 const error = document.querySelector("[data-public-error]");
                 if (error) { error.textContent = "요청에 실패했습니다. 다시 시도하세요."; error.hidden = false; }
             }
             return;
         }
-        requests.delete(xhr);
-        if (xhr.getResponseHeader("HX-Redirect")) { leaving = true; return; }
+        requests.delete(ctx);
+        if (ctx.response?.headers.get("HX-Redirect")) { leaving = true; return; }
         if (info.read) {
             if (info.read === "favorite") favoriteReading = false;
             else sharedReading = false;
@@ -169,7 +174,7 @@
                 if (info.read === "favorite") favoriteNeeded = true;
                 else sharedNeeded = true;
             } else if (info.read === "favorite") {
-                if (event.detail.successful) {
+                if (successful) {
                     optimisticFavorite = null;
                     const actual = document.getElementById("drop-favorite").dataset.favoriteValue === "true";
                     showFavorite(actual);
@@ -183,14 +188,14 @@
                     recovery(true);
                 }
             } else {
-                message("shared", event.detail.successful ? "" : "공유 안내를 갱신하지 못했습니다. 목록 새로고침 후 다시 확인하세요.");
+                message("shared", successful ? "" : "공유 안내를 갱신하지 못했습니다. 목록 새로고침 후 다시 확인하세요.");
             }
             locks(); drain(); return;
         }
 
         active.delete(info.group);
-        const outcome = xhr.getResponseHeader("X-Drop-Outcome");
-        if (event.detail.successful && outcome === "changed") {
+        const outcome = ctx.response?.headers.get("X-Drop-Outcome");
+        if (successful && outcome === "changed") {
             dirty = true;
             if (info.group === "favorite") {
                 optimisticFavorite = null; retryFavorite = null; recovery(false);
@@ -201,7 +206,7 @@
             const heading = document.getElementById("drop-heading");
             if (info.group === "metadata" && heading) document.title = `${heading.textContent} - teledrop`;
         } else if (outcome !== "invalid") {
-            message(info.group, xhr.status === 404 ? "Drop을 찾을 수 없습니다. 페이지를 새로고침해 주세요." : "변경을 저장하지 못했습니다. 입력을 확인하고 다시 시도하세요.");
+            message(info.group, ctx.response?.status === 404 ? "Drop을 찾을 수 없습니다. 페이지를 새로고침해 주세요." : "변경을 저장하지 못했습니다. 입력을 확인하고 다시 시도하세요.");
             if (info.group === "favorite") favoriteNeeded = true;
         }
         if (isNavigation(info.group)) navigation = null;
@@ -228,7 +233,6 @@
         const confirmation = document.querySelector("[data-password-confirm]");
         confirmation?.setCustomValidity(password.value === confirmation.value ? "" : "비밀번호가 일치하지 않습니다.");
     });
-    document.addEventListener("htmx:oobAfterSwap", initDialogs);
-    document.addEventListener("htmx:afterSwap", initDialogs);
+    document.addEventListener("htmx:after:swap", initDialogs);
     initDialogs();
 })();
