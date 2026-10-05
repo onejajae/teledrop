@@ -1,0 +1,429 @@
+<?xml version='1.0' encoding='utf-8'?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <data name="Home" xml:space="preserve">
+    <value>Home</value>
+  </data>
+  <data name="Login" xml:space="preserve">
+    <value>Sign in</value>
+  </data>
+  <data name="Logout" xml:space="preserve">
+    <value>Sign out</value>
+  </data>
+  <data name="Username" xml:space="preserve">
+    <value>Username</value>
+  </data>
+  <data name="Password" xml:space="preserve">
+    <value>Password</value>
+  </data>
+  <data name="Error" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="Error.Request" xml:space="preserve">
+    <value>Could not process your request.</value>
+  </data>
+  <data name="Error.TryLater" xml:space="preserve">
+    <value>Please try again later.</value>
+  </data>
+  <data name="Home.Back" xml:space="preserve">
+    <value>Go home</value>
+  </data>
+  <data name="RequestId" xml:space="preserve">
+    <value>Request ID:</value>
+  </data>
+  <data name="Navigation.Settings" xml:space="preserve">
+    <value>Display settings</value>
+  </data>
+  <data name="Navigation.External" xml:space="preserve">
+    <value>External links and display settings</value>
+  </data>
+  <data name="GitHub" xml:space="preserve">
+    <value>Open GitHub repository</value>
+  </data>
+  <data name="Brand.Home" xml:space="preserve">
+    <value>teledrop home</value>
+  </data>
+  <data name="Theme.Dark" xml:space="preserve">
+    <value>Switch to dark mode</value>
+  </data>
+  <data name="Theme.Light" xml:space="preserve">
+    <value>Switch to light mode</value>
+  </data>
+  <data name="Language.Label" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="Language.Current" xml:space="preserve">
+    <value>Language, currently {0}</value>
+  </data>
+  <data name="Language.Error" xml:space="preserve">
+    <value>Could not save the language. Please choose again.</value>
+  </data>
+  <data name="Language.Changed" xml:space="preserve">
+    <value>Switched to English.</value>
+  </data>
+  <data name="Apply" xml:space="preserve">
+    <value>Apply</value>
+  </data>
+  <data name="Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Confirm" xml:space="preserve">
+    <value>Confirm</value>
+  </data>
+  <data name="Change" xml:space="preserve">
+    <value>Change</value>
+  </data>
+  <data name="Set" xml:space="preserve">
+    <value>Set</value>
+  </data>
+  <data name="Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Delete.Title" xml:space="preserve">
+    <value>Delete file</value>
+  </data>
+  <data name="Delete.Question" xml:space="preserve">
+    <value>Delete “{0}”?</value>
+  </data>
+  <data name="Delete.Irreversible" xml:space="preserve">
+    <value>Deleted files can’t be recovered.</value>
+  </data>
+  <data name="Delete.Success" xml:space="preserve">
+    <value>File deleted.</value>
+  </data>
+  <data name="Upload.Title" xml:space="preserve">
+    <value>Upload file</value>
+  </data>
+  <data name="Upload" xml:space="preserve">
+    <value>Upload</value>
+  </data>
+  <data name="Upload.Preview" xml:space="preserve">
+    <value>Selected file preview</value>
+  </data>
+  <data name="Upload.Click" xml:space="preserve">
+    <value>Click to upload</value>
+  </data>
+  <data name="Upload.Drag" xml:space="preserve">
+    <value>or drag and drop</value>
+  </data>
+  <data name="Upload.Progress" xml:space="preserve">
+    <value>Uploading…</value>
+  </data>
+  <data name="Upload.ProgressName" xml:space="preserve">
+    <value>File upload progress</value>
+  </data>
+  <data name="Upload.Percent" xml:space="preserve">
+    <value>{0}%</value>
+  </data>
+  <data name="Upload.OneFile" xml:space="preserve">
+    <value>You can upload one file at a time.</value>
+  </data>
+  <data name="Upload.TooLarge" xml:space="preserve">
+    <value>The file exceeds the maximum size.</value>
+  </data>
+  <data name="Upload.Failed" xml:space="preserve">
+    <value>Upload failed.</value>
+  </data>
+  <data name="Uploaded" xml:space="preserve">
+    <value>Uploaded:</value>
+  </data>
+  <data name="File.Details" xml:space="preserve">
+    <value>File details</value>
+  </data>
+  <data name="File.Type" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="File.Size" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="File.Bytes" xml:space="preserve">
+    <value>bytes</value>
+  </data>
+  <data name="File.Uploaded" xml:space="preserve">
+    <value>Uploaded</value>
+  </data>
+  <data name="Hash.Copy" xml:space="preserve">
+    <value>Copy hash</value>
+  </data>
+  <data name="Hash.Selected" xml:space="preserve">
+    <value>Hash selected</value>
+  </data>
+  <data name="List.Title" xml:space="preserve">
+    <value>My uploads</value>
+  </data>
+  <data name="List.Refresh" xml:space="preserve">
+    <value>Refresh file list</value>
+  </data>
+  <data name="Refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="List.Error" xml:space="preserve">
+    <value>Could not update the list. Refresh to try again.</value>
+  </data>
+  <data name="List.Loading" xml:space="preserve">
+    <value>Loading files…</value>
+  </data>
+  <data name="List.Summary" xml:space="preserve">
+    <value>Uploads: {0}. Page {1} of {2}.</value>
+  </data>
+  <data name="List.SearchSummary" xml:space="preserve">
+    <value>Search results: {0}. Page {1} of {2}.</value>
+  </data>
+  <data name="List.Empty" xml:space="preserve">
+    <value>No files uploaded yet.</value>
+  </data>
+  <data name="List.NoResults" xml:space="preserve">
+    <value>No search results.</value>
+  </data>
+  <data name="List.Pagination" xml:space="preserve">
+    <value>File list pages</value>
+  </data>
+  <data name="Search" xml:space="preserve">
+    <value>Search</value>
+  </data>
+  <data name="Search.Files" xml:space="preserve">
+    <value>Search files</value>
+  </data>
+  <data name="Search.Clear" xml:space="preserve">
+    <value>Clear search</value>
+  </data>
+  <data name="Search.Placeholder" xml:space="preserve">
+    <value>Search titles or filenames</value>
+  </data>
+  <data name="Sort.Label" xml:space="preserve">
+    <value>Sort by</value>
+  </data>
+  <data name="Sort.Date" xml:space="preserve">
+    <value>Date</value>
+  </data>
+  <data name="Sort.Title" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="Sort.Size" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="Sort.Order" xml:space="preserve">
+    <value>Order</value>
+  </data>
+  <data name="Sort.Descending" xml:space="preserve">
+    <value>Descending</value>
+  </data>
+  <data name="Sort.Ascending" xml:space="preserve">
+    <value>Ascending</value>
+  </data>
+  <data name="Sort.Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Previous" xml:space="preserve">
+    <value>Previous</value>
+  </data>
+  <data name="Next" xml:space="preserve">
+    <value>Next</value>
+  </data>
+  <data name="Favorite.Set" xml:space="preserve">
+    <value>Add to favorites</value>
+  </data>
+  <data name="Favorite.Clear" xml:space="preserve">
+    <value>Remove from favorites</value>
+  </data>
+  <data name="Favorite" xml:space="preserve">
+    <value>Favorite</value>
+  </data>
+  <data name="Favorite.Uncertain" xml:space="preserve">
+    <value>The favorite change could not be confirmed. Showing the verified server state.</value>
+  </data>
+  <data name="Favorite.CheckFailed" xml:space="preserve">
+    <value>Could not check the favorite state. Check again or retry the change.</value>
+  </data>
+  <data name="Favorite.Recheck" xml:space="preserve">
+    <value>Check again</value>
+  </data>
+  <data name="Favorite.Retry" xml:space="preserve">
+    <value>Retry change</value>
+  </data>
+  <data name="Password.New" xml:space="preserve">
+    <value>New password</value>
+  </data>
+  <data name="Password.Confirm" xml:space="preserve">
+    <value>Confirm password</value>
+  </data>
+  <data name="Access.Label" xml:space="preserve">
+    <value>Access</value>
+  </data>
+  <data name="Access.Private" xml:space="preserve">
+    <value>Only me</value>
+  </data>
+  <data name="Access.Public" xml:space="preserve">
+    <value>Anyone with the link</value>
+  </data>
+  <data name="Access.Password" xml:space="preserve">
+    <value>Password protected</value>
+  </data>
+  <data name="Access.Private.Short" xml:space="preserve">
+    <value>Only me</value>
+  </data>
+  <data name="Access.Public.Short" xml:space="preserve">
+    <value>Public</value>
+  </data>
+  <data name="Access.Password.Short" xml:space="preserve">
+    <value>Password</value>
+  </data>
+  <data name="Access.Private.Hint" xml:space="preserve">
+    <value>Only you can open it</value>
+  </data>
+  <data name="Access.Public.Hint" xml:space="preserve">
+    <value>Anyone with the link can open it</value>
+  </data>
+  <data name="Access.Password.Hint" xml:space="preserve">
+    <value>Opens with the password</value>
+  </data>
+  <data name="Password.Change" xml:space="preserve">
+    <value>Change password</value>
+  </data>
+  <data name="Password.Publish" xml:space="preserve">
+    <value>Publish with password</value>
+  </data>
+  <data name="Password.Required" xml:space="preserve">
+    <value>Enter a new file password.</value>
+  </data>
+  <data name="Password.Mismatch" xml:space="preserve">
+    <value>The passwords do not match.</value>
+  </data>
+  <data name="Password.Enter" xml:space="preserve">
+    <value>Enter password</value>
+  </data>
+  <data name="Password.Incorrect" xml:space="preserve">
+    <value>The file password is incorrect.</value>
+  </data>
+  <data name="Login.Required" xml:space="preserve">
+    <value>Enter your username and password.</value>
+  </data>
+  <data name="Login.Invalid" xml:space="preserve">
+    <value>The username or password is incorrect.</value>
+  </data>
+  <data name="Validation.Required" xml:space="preserve">
+    <value>Please fill out this field.</value>
+  </data>
+  <data name="Actions" xml:space="preserve">
+    <value>More actions</value>
+  </data>
+  <data name="Manage" xml:space="preserve">
+    <value>Manage file</value>
+  </data>
+  <data name="Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Description.Edit" xml:space="preserve">
+    <value>Edit description</value>
+  </data>
+  <data name="Description.Add" xml:space="preserve">
+    <value>Add description</value>
+  </data>
+  <data name="Description.Shortcut" xml:space="preserve">
+    <value>Ctrl/⌘ + Enter to save · Esc to cancel</value>
+  </data>
+  <data name="Url" xml:space="preserve">
+    <value>Access URL</value>
+  </data>
+  <data name="Url.Change" xml:space="preserve">
+    <value>Change access URL</value>
+  </data>
+  <data name="Url.Format" xml:space="preserve">
+    <value>Use up to 64 lowercase letters, numbers, or hyphens, starting with a letter or number.</value>
+  </data>
+  <data name="Url.Reserved" xml:space="preserve">
+    <value>This URL name is reserved by teledrop.</value>
+  </data>
+  <data name="Url.Invalid" xml:space="preserve">
+    <value>This URL name is invalid.</value>
+  </data>
+  <data name="Url.Taken" xml:space="preserve">
+    <value>This URL name is already in use.</value>
+  </data>
+  <data name="Share.Private" xml:space="preserve">
+    <value>Only the owner can open this link.</value>
+  </data>
+  <data name="Share.Public" xml:space="preserve">
+    <value>Anyone can open this shared link.</value>
+  </data>
+  <data name="Share.Password" xml:space="preserve">
+    <value>A password is required to open this shared link.</value>
+  </data>
+  <data name="Share.OwnerLink" xml:space="preserve">
+    <value>Owner access link</value>
+  </data>
+  <data name="Share.Link" xml:space="preserve">
+    <value>Shared link</value>
+  </data>
+  <data name="Share.RefreshFailed" xml:space="preserve">
+    <value>Could not update sharing information. Refresh the list and check again.</value>
+  </data>
+  <data name="Copy" xml:space="preserve">
+    <value>Copy</value>
+  </data>
+  <data name="Copy.Done" xml:space="preserve">
+    <value>Copied</value>
+  </data>
+  <data name="Copy.Selected" xml:space="preserve">
+    <value>Link selected</value>
+  </data>
+  <data name="Operation.Wait" xml:space="preserve">
+    <value>Waiting for the current changes to finish saving.</value>
+  </data>
+  <data name="Operation.NotFound" xml:space="preserve">
+    <value>File not found. Please refresh the page.</value>
+  </data>
+  <data name="Operation.Failed" xml:space="preserve">
+    <value>Could not save the changes. Check your input and try again.</value>
+  </data>
+  <data name="Request.Failed" xml:space="preserve">
+    <value>The request failed. Please try again.</value>
+  </data>
+  <data name="Download" xml:space="preserve">
+    <value>Download</value>
+  </data>
+  <data name="Pdf.Previous" xml:space="preserve">
+    <value>Previous PDF page</value>
+  </data>
+  <data name="Pdf.Next" xml:space="preserve">
+    <value>Next PDF page</value>
+  </data>
+  <data name="Pdf.OpenInBrowser" xml:space="preserve">
+    <value>Open PDF in a new tab</value>
+  </data>
+  <data name="Pdf.Loading" xml:space="preserve">
+    <value>Loading PDF…</value>
+  </data>
+  <data name="Pdf.Preview" xml:space="preserve">
+    <value>PDF preview of {0}</value>
+  </data>
+  <data name="Pdf.NoScript" xml:space="preserve">
+    <value>PDF preview requires JavaScript. Use Download to save the file.</value>
+  </data>
+  <data name="Pdf.Page" xml:space="preserve">
+    <value>Page {0} of {1}</value>
+  </data>
+  <data name="Pdf.PageLabel" xml:space="preserve">
+    <value>PDF page {0} of {1}</value>
+  </data>
+  <data name="Pdf.PageFailed" xml:space="preserve">
+    <value>Could not display the page. Use Download to save the file.</value>
+  </data>
+  <data name="Pdf.Failed" xml:space="preserve">
+    <value>Could not display the PDF. Use Download to save the file.</value>
+  </data>
+  <data name="Time.SecondsAgo" xml:space="preserve">
+    <value>A few seconds ago</value>
+  </data>
+</root>

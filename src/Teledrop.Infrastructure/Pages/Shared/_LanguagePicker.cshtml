@@ -1,0 +1,31 @@
+@{ var language = UiText.Language; }
+<div id="language-picker" class="td-menu">
+    <button id="language-toggle" type="button" class="td-icon-button" data-menu-toggle
+            aria-haspopup="menu" aria-expanded="false" aria-controls="language-options"
+            td-tooltip="Language.Label" td-aria-label="Language.Current" td-args="@(new object[] { language == "ko" ? "한국어" : "English" })">
+        <partial name="_Icon" model='@("TranslateOutline")' />
+    </button>
+    <div id="language-options" class="td-menu-items" role="menu" td-aria-label="Language.Label">
+        @foreach (var (value, name) in new[] { ("ko", "한국어"), ("en", "English") })
+        {
+            <button id="language-@value" type="button" role="menuitemradio" tabindex="-1" data-value="@value" lang="@value"
+                    aria-checked="@(language == value ? "true" : "false")">
+                <span>@name</span><partial name="_Icon" model='@("CheckOutline")' />
+            </button>
+        }
+    </div>
+    <form id="language-form" asp-page="/Language" method="post">
+        <input type="hidden" name="returnUrl" value="@(Context.Request.PathBase + Context.Request.Path + Context.Request.QueryString)" />
+        <div id="language-fallback">
+            <label for="language-native" class="sr-only" td-text="Language.Label"></label>
+            <select id="language-native" name="language" class="select">
+                <option value="ko" lang="ko" selected="@(language == "ko")">한국어</option>
+                <option value="en" lang="en" selected="@(language == "en")">English</option>
+            </select>
+            <button type="submit" class="btn btn-sm" td-text="Apply"></button>
+        </div>
+    </form>
+    <p id="language-error" class="td-language-error text-sm text-error" role="alert" hidden></p>
+    <span id="language-status" class="sr-only" role="status" aria-atomic="true"></span>
+    <noscript><style>#language-toggle { display: none !important; } #language-fallback { display: flex !important; }</style></noscript>
+</div>

@@ -1,0 +1,8 @@
+@model Teledrop.Features.Drops.DropDetailModel
+@{
+    var label = string.IsNullOrEmpty(Model.Drop!.Description) ? "Description.Add" : "Description.Edit";
+}
+<button id="metadata-open" type="button" role="menuitem" tabindex="-1" data-description-edit
+        hx-swap-oob="@(Model.FragmentPart == "metadata" ? "outerHTML" : null)">
+    <partial name="_Icon" model='@("PenOutline")' /><span td-text="@label"></span>
+</button>

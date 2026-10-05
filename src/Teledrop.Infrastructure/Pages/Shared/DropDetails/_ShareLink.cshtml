@@ -1,0 +1,12 @@
+@model Teledrop.Features.Drops.DropDetailModel
+@{
+    var drop = Model.Drop!;
+    var shareLink = Url.Page("/PublicDrop", null, new { slug = drop.Slug }, Context.Request.Scheme);
+}
+<div id="drop-share-state" class="space-y-4" hx-swap-oob="@(Model.FragmentPart == "shared" ? "outerHTML" : null)">
+    <p class="td-muted text-sm" td-text='@(drop.IsPrivate ? "Share.Private" : drop.DropPasswordHash is null ? "Share.Public" : "Share.Password")'></p>
+    <div class="flex gap-2">
+        <input id="share-link" td-aria-label="@(drop.IsPrivate ? "Share.OwnerLink" : "Share.Link")" class="input min-w-0 flex-1" value="@shareLink" readonly />
+        <button id="copy-share-link" type="button" class="btn btn-sm" td-text="Copy"></button>
+    </div>
+</div>

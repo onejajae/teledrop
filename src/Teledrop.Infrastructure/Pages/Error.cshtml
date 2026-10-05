@@ -1,0 +1,23 @@
+﻿@page
+@model ErrorModel
+@{
+    ViewData["Title"] = Ui["Error"];
+    ViewData["TitleKey"] = "Error";
+}
+
+<section class="td-section">
+    <div class="td-section-body p-6 text-center">
+        <span class="td-error-icon"><partial name="_Icon" model='@("WarningCircleOutline")' /></span>
+        <h1 class="mt-3 text-2xl font-bold" td-text="Error.Request"></h1>
+        <p class="td-muted mt-2 text-sm" td-text="Error.TryLater"></p>
+
+        @if (Model.ShowRequestId)
+        {
+            <p class="td-muted mt-4 text-xs">
+                <span td-text="RequestId"></span> <code>@Model.RequestId</code>
+            </p>
+        }
+
+        <a asp-page="/Index" class="btn btn-primary btn-sm mt-5 min-w-28" td-text="Home.Back"></a>
+    </div>
+</section>

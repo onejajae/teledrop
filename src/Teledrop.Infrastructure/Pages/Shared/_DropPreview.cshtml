@@ -1,0 +1,75 @@
+@model Teledrop.Features.Drops.Drop
+@using Teledrop.Features.Drops
+@{
+    var preview = DropPreviewPolicy.Evaluate(Model.ContentType);
+    var inlineUrl = Url.Page("/Download", null, new { slug = Model.Slug, inline = "true" });
+    var utc = DateTime.SpecifyKind(Model.CreatedAt, DateTimeKind.Utc);
+}
+@* 순서: 설명 → 미리보기 → 파일 카드 → 다운로드. 받는 사람이 맥락을 먼저 읽고, 미리보기 유무와 상관없이 같은 자리에서 받는다. *@
+<div class="td-preview-content">
+    @if (ViewData["DescriptionEditor"] is not true)
+    {
+        <partial name="_DropDescription" model="Model" />
+    }
+    @if (preview.Kind == DropPreviewKind.Image)
+    {
+        <div class="td-preview"><img src="@inlineUrl" alt="@Model.FileName" /></div>
+    }
+    else if (preview.Kind == DropPreviewKind.Video)
+    {
+        <div class="td-preview"><video src="@inlineUrl" controls preload="metadata"></video></div>
+    }
+    else if (preview.Kind == DropPreviewKind.Audio)
+    {
+        <audio src="@inlineUrl" controls class="w-full"></audio>
+    }
+    else if (preview.Kind == DropPreviewKind.Pdf)
+    {
+        <div class="td-pdf-preview" data-pdf-url="@inlineUrl">
+            <div class="td-pdf-toolbar">
+                <button type="button" class="btn btn-sm" data-pdf-prev disabled td-aria-label="Pdf.Previous" td-text="Previous"></button>
+                <span data-pdf-status role="status" tabindex="-1" td-text="Pdf.Loading"></span>
+                <button type="button" class="btn btn-sm" data-pdf-next disabled td-aria-label="Pdf.Next" td-text="Next"></button>
+                <a href="@inlineUrl" target="_blank" rel="noopener" class="td-row-action" data-pdf-open
+                   td-tooltip="Pdf.OpenInBrowser" td-aria-label="Pdf.OpenInBrowser">
+                    <partial name="_Icon" model='@("ArrowSquareOutOutline")' />
+                </a>
+            </div>
+            <canvas data-pdf-canvas role="img" td-aria-label="Pdf.Preview" td-args="@(new object[] { Model.FileName })" hidden></canvas>
+            <noscript><span td-text="Pdf.NoScript"></span></noscript>
+        </div>
+    }
+    @* 카드를 누르면 형식·정확한 크기·업로드 시각·SHA-256을 펼친다. <details>라 JavaScript 없이도 열린다. *@
+    <details class="td-file-card">
+        <summary>
+            <span class="td-file-card-icon"><partial name="_FileIcon" model="Model" /></span>
+            <span class="td-file-card-text">
+                <span class="td-file-card-name" title="@Model.FileName">@Model.FileName</span>
+                <span class="td-file-card-meta">
+                    <span data-file-size="@Model.FileSizeBytes">@Teledrop.Features.Drops.IndexModel.FormatFileSize(Model.FileSizeBytes)</span>
+                    <span><span aria-hidden="true">· </span><span class="sr-only" td-text="Uploaded"></span><time datetime="@utc.ToString("O")" data-local-date>@utc.ToString("u")</time></span>
+                </span>
+            </span>
+            <span class="td-file-card-toggle" td-title="File.Details"><partial name="_Icon" model='@("InfoOutline")' /><span class="sr-only" td-text="File.Details"></span></span>
+        </summary>
+        <dl class="td-file-details">
+            <dt td-text="File.Type"></dt>
+            <dd>@Model.ContentType</dd>
+            <dt td-text="File.Size"></dt>
+            <dd><span data-number="@Model.FileSizeBytes">@Model.FileSizeBytes.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)</span> <span td-text="File.Bytes"></span></dd>
+            <dt td-text="File.Uploaded"></dt>
+            <dd><time datetime="@utc.ToString("O")" data-local-date="long">@utc.ToString("u")</time></dd>
+            @* 해시는 다른 항목과 같은 줄에 한 줄로 두고, 넘치면 말줄임한다. 전체 값은 툴팁과 복사로 얻는다. *@
+            <dt>SHA-256</dt>
+            <dd class="td-file-hash">
+                <code data-file-hash title="@Model.FileHash">@Model.FileHash</code>
+                <button type="button" class="td-row-action" data-copy-hash td-tooltip="Hash.Copy" td-aria-label="Hash.Copy">
+                    <partial name="_Icon" model='@("CopyOutline")' />
+                </button>
+            </dd>
+        </dl>
+    </details>
+    <a asp-page="/Download" asp-route-slug="@Model.Slug" id="drop-download" class="btn btn-primary w-full">
+        <partial name="_Icon" model='@("DownloadOutline")' /><span td-text="Download"></span>
+    </a>
+</div>
