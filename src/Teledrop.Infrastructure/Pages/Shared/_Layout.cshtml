@@ -1,0 +1,126 @@
+@{
+    var nonce = ViewContext.HttpContext.Items[
+        SecurityHeaders.ContentSecurityPolicyNonceItemKey];
+    var isAuthenticated = User.Identity?.IsAuthenticated == true;
+    var isLoginPage = ViewData["IsLoginPage"] is true;
+}
+<!DOCTYPE html>
+<html lang="@UiText.Language" data-theme="teledrop-light">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <title data-page-title-key="@ViewData["TitleKey"]">@ViewData["Title"] - teledrop</title>
+
+    <link rel="icon" type="image/png" sizes="32x32" href="~/static/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="~/static/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="~/static/apple-icon-180x180.png" />
+    <link rel="manifest" href="~/static/manifest.json" />
+
+    <script nonce="@nonce">
+        (() => {
+            const savedTheme = localStorage.getItem("teledrop-theme");
+            const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+            const theme = savedTheme ?? (prefersDark ? "dark" : "light");
+            document.documentElement.dataset.theme = `teledrop-${theme}`;
+        })();
+    </script>
+    <partial name="_FontFaces" />
+    <link rel="stylesheet" href="~/css/app.css" />
+</head>
+<body class="@(isLoginPage ? "td-page-login" : null)">
+    <div class="td-shell">
+        <header class="td-topbar">
+            @if (!isLoginPage)
+            {
+                <div class="td-topbar-side td-topbar-start">
+                    @if (isAuthenticated)
+                    {
+                        <form method="post"
+                              asp-page="/Index"
+                              asp-page-handler="Logout">
+                            <button type="submit" class="td-text-action" td-text="Logout"></button>
+                        </form>
+                    }
+                </div>
+            }
+
+            <nav class="td-topbar-side td-topbar-end"
+                 td-aria-label="@(isLoginPage ? "Navigation.Settings" : "Navigation.External")">
+                @if (!isLoginPage)
+                {
+                    <a href="https://github.com/onejajae/teledrop"
+                       target="_blank"
+                       rel="noreferrer noopener"
+                       class="td-icon-button"
+                       td-aria-label="GitHub"
+                       td-tooltip="GitHub">
+                        <partial name="_Icon" model='@("GithubMark")' />
+                    </a>
+                }
+                <partial name="_LanguagePicker" />
+                <button id="theme-toggle"
+                        type="button"
+                        class="td-icon-button"
+                        td-aria-label="Theme.Dark"
+                        td-tooltip="Theme.Dark">
+                    <span class="td-theme-sun"><partial name="_Icon" model='@("SunOutline")' /></span>
+                    <span class="td-theme-moon"><partial name="_Icon" model='@("MoonOutline")' /></span>
+                </button>
+            </nav>
+        </header>
+
+        @if (!isLoginPage)
+        {
+            <div class="td-brand">
+                <a asp-page="/Index" td-aria-label="Brand.Home">
+                    <partial name="_Logo" />
+                </a>
+            </div>
+        }
+
+        <main class="td-content">
+            @RenderBody()
+            @if (isAuthenticated && !isLoginPage)
+            {
+                <p id="drop-list-status" class="sr-only" role="status" aria-atomic="true"></p>
+                @await Component.InvokeAsync("DropList")
+                @* htmx가 목록을 교체할 때 조각 안의 <noscript><style>은 살아나므로 목록용 no-JS 스타일은 여기 둔다. *@
+                <noscript><style>.td-search > summary { display: flex; } .td-search { border-bottom: 1px solid var(--td-border); } .td-search[open] .td-search-row { padding-top: 0.75rem; } [data-toggle-search] { display: none; } #drop-sort-toggle { display: none !important; } #drop-sort-menu { display: flex !important; position: static; flex-direction: row; flex-wrap: wrap; align-items: center; border: 0; box-shadow: none; padding: 0; min-width: 0; } #drop-sort-menu [role=group] { display: flex; } #drop-sort-menu .td-menu-group, #drop-sort-menu .td-menu-separator { display: none; }</style></noscript>
+            }
+        </main>
+    </div>
+
+    @* 페이지는 htmx 없이도 일반 폼 POST로 동작한다 (docs/adr/0002). *@
+    <script id="td-translations" type="application/json" nonce="@nonce">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText.Catalogs))</script>
+    <script src="~/js/i18n.js"></script>
+    <script src="~/js/htmx.min.js" defer></script>
+    <script src="~/js/site.js" defer></script>
+    <script type="module" src="~/js/pdf-preview.js"></script>
+    <script src="~/js/drop-list.js" defer></script>
+    <script src="~/js/drop-interactions.js" defer></script>
+    <script nonce="@nonce">
+        (() => {
+            const root = document.documentElement;
+            const button = document.getElementById("theme-toggle");
+
+            const syncButton = () => {
+                const key = root.dataset.theme === "teledrop-dark" ? "Theme.Light" : "Theme.Dark";
+                tdI18n.setAttribute(button, "aria-label", key);
+                tdI18n.setAttribute(button, "data-tooltip", key);
+            };
+
+            syncButton();
+            button.addEventListener("click", () => {
+                const nextTheme = root.dataset.theme === "teledrop-dark"
+                    ? "light"
+                    : "dark";
+                root.dataset.theme = `teledrop-${nextTheme}`;
+                localStorage.setItem("teledrop-theme", nextTheme);
+                syncButton();
+            });
+        })();
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

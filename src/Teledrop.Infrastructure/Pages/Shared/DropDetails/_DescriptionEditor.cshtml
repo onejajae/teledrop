@@ -1,0 +1,25 @@
+@model Teledrop.Features.Drops.DropDetailModel
+@{
+    var drop = Model.Drop!;
+    var hasDescription = !string.IsNullOrEmpty(drop.Description);
+}
+@* 설명은 ⋯ 메뉴의 "설명 추가·수정"으로 그 자리에서 고친다(drop-interactions.js). 보기는 공개 화면과 같은 글자만 두고,
+   설명이 없으면 편집 중이 아닐 때 영역을 숨긴다. 보기와 원문 입력칸을 나눠 두어 나중에 보기만 마크다운 결과로 바꿀 수 있다. *@
+<div id="drop-description-editor" class="td-description @(hasDescription ? null : "is-empty")" hx-swap-oob="@(Model.FragmentPart == "metadata" ? "outerHTML" : null)">
+    @if (hasDescription)
+    {
+        <p id="drop-description" class="td-preview-description">@drop.Description</p>
+    }
+    <form method="post" asp-page="/DropDetail" asp-page-handler="Metadata" asp-route-slug="@drop.Slug"
+          hx-post="@Url.Page("/DropDetail", "Metadata", new { slug = drop.Slug })" hx-swap="none"
+          data-drop-action="metadata" class="td-description-form">
+        <label asp-for="DescriptionInput" class="sr-only" td-text="Description"></label>
+        <textarea asp-for="DescriptionInput" class="textarea w-full" rows="3" td-placeholder="Description" data-description-input></textarea>
+        <p data-operation-error="metadata" class="text-sm text-error" role="alert" hidden></p>
+        <div class="td-description-actions">
+            <span class="td-description-hint" td-text="Description.Shortcut"></span>
+            <button type="button" class="btn btn-sm" data-description-cancel td-text="Cancel"></button>
+            <button type="submit" class="btn btn-primary btn-sm" td-text="Save"></button>
+        </div>
+    </form>
+</div>

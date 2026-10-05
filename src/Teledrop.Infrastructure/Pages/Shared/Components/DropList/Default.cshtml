@@ -1,0 +1,198 @@
+@model Teledrop.Features.Drops.DropList
+@using Teledrop.Features.Drops
+@{
+    var listPage = Model.CurrentSlug is null ? "/Index" : "/DropDetail";
+    // 업로드한 파일이 하나도 없으면 정렬·검색은 쓸 데가 없으므로 그리지 않는다.
+    var isEmptyLibrary = Model.Search is null && Model.TotalDropCount == 0;
+    string? ListUrl(int pageNumber) => Url.Page("/Index", "DropList", new
+    {
+        search = Model.Search,
+        sort = Model.Sort,
+        direction = Model.Direction,
+        pageNumber,
+    });
+    var sortOptions = new[] { ("created_at", "Sort.Date"), ("name", "Sort.Name"), ("size", "Sort.Size") };
+    var sortKey = sortOptions.FirstOrDefault(option => option.Item1 == Model.Sort).Item2 ?? "Sort.Date";
+    var directionKey = Model.Direction == "desc" ? "Sort.Descending" : "Sort.Ascending";
+
+    // 현재 값은 다시 요청하지 않고 메뉴만 닫는다. 다른 값은 첫 페이지 목록으로 가는 링크다.
+    async Task SortItem(string id, string key, bool isCurrent, string sort, string direction, string? icon = null)
+    {
+        if (isCurrent)
+        {
+            <button id="@id" type="button" role="menuitemradio" aria-checked="true" tabindex="-1">
+                @if (icon is not null)
+                {
+                    <partial name="_Icon" model="icon" />
+                }
+                <span td-text="@key"></span><partial name="_Icon" model='@("CheckOutline")' />
+            </button>
+        }
+        else
+        {
+            <a id="@id" role="menuitemradio" aria-checked="false" tabindex="-1"
+               asp-page="@listPage" asp-route-slug="@Model.CurrentSlug" asp-route-search="@Model.Search"
+               asp-route-sort="@sort" asp-route-direction="@direction"
+               hx-get="@Url.Page("/Index", "DropList", new { search = Model.Search, sort, direction })">
+                @if (icon is not null)
+                {
+                    <partial name="_Icon" model="icon" />
+                }
+                <span td-text="@key"></span><partial name="_Icon" model='@("CheckOutline")' />
+            </a>
+        }
+    }
+}
+
+<section id="drop-list" class="td-section"
+         td-summary="@(Model.Search is null ? "List.Summary" : "List.SearchSummary")" td-args="@(new object[] { Model.TotalDropCount, Model.CurrentPage, Model.TotalPages })"
+         data-list-state="@System.Text.Json.JsonSerializer.Serialize(new { search = Model.Search, sort = Model.Sort, direction = Model.Direction, pageNumber = Model.CurrentPage, currentSlug = Model.CurrentSlug })"
+         data-list-url="@Url.Page("/Index", "DropList")"
+         hx-target:inherited="#drop-list" hx-swap:inherited="outerHTML" hx-push-url:inherited="false"
+         hx-sync:inherited="#drop-list:replace"
+         hx-vals:inherited="@System.Text.Json.JsonSerializer.Serialize(new { handler = "DropList", currentSlug = Model.CurrentSlug })">
+    <div class="td-section-body">
+        <p data-list-error class="text-sm text-error" role="alert" hidden td-text="List.Error"></p>
+        <div class="td-section-header">
+            <div class="td-list-heading">
+                <h2 id="drop-list-heading" tabindex="-1" class="td-section-title" td-text="List.Title"></h2>
+                <a asp-page="@listPage" hx-get="@ListUrl(Model.CurrentPage)"
+                   asp-route-slug="@Model.CurrentSlug" asp-route-search="@Model.Search"
+                   asp-route-sort="@Model.Sort" asp-route-direction="@Model.Direction"
+                   asp-route-pageNumber="@Model.CurrentPage" class="td-row-action"
+                   id="drop-list-refresh" td-aria-label="List.Refresh" td-tooltip="Refresh">
+                    <partial name="_Icon" model='@("RefreshOutline")' />
+                </a>
+            </div>
+            @if (!isEmptyLibrary)
+            {
+            <div class="td-list-controls">
+                <button id="drop-search-toggle" type="button" class="td-row-action" data-toggle-search
+                        td-aria-label="Search.Files" aria-controls="drop-search" td-tooltip="Search"
+                        aria-expanded="@(Model.Search is not null ? "true" : "false")">
+                    <partial name="_Icon" model='@("SearchOutline")' />
+                </button>
+                @* 정렬 기준과 순서를 메뉴 하나로 고른다. 항목은 목록 주소로 가는 링크라 JS 없이도 동작한다. *@
+                <div class="td-menu">
+                    <span id="drop-sort-label" class="sr-only" td-text="Sort.Label"></span>
+                    <button id="drop-sort-toggle" type="button" class="td-menu-button" data-menu-toggle
+                            aria-haspopup="menu" aria-expanded="false" aria-controls="drop-sort-menu"
+                            aria-labelledby="drop-sort-label drop-sort-current drop-sort-direction">
+                        <partial name="_Icon" model='@(Model.Direction == "desc" ? "SortDescOutline" : "SortAscOutline")' />
+                        <span id="drop-sort-current" td-text="@sortKey"></span><span id="drop-sort-direction" class="sr-only" td-text="@directionKey"></span>
+                        <partial name="_Icon" model='@("CaretDownOutline")' />
+                    </button>
+                    <div id="drop-sort-menu" class="td-menu-items td-sort-menu" role="menu" td-aria-label="Sort.Label">
+                        <div role="group" aria-labelledby="drop-sort-by">
+                            <span id="drop-sort-by" class="td-menu-group" td-text="Sort.Label"></span>
+                            @foreach (var (value, key) in sortOptions)
+                            {
+                                await SortItem($"drop-sort-{value}", key, Model.Sort == value, value, Model.Direction);
+                            }
+                        </div>
+                        <div class="td-menu-separator" role="separator"></div>
+                        <div role="group" aria-labelledby="drop-sort-order">
+                            <span id="drop-sort-order" class="td-menu-group" td-text="Sort.Order"></span>
+                            @{ await SortItem("drop-sort-desc", "Sort.Descending", Model.Direction == "desc", Model.Sort, "desc", "SortDescOutline"); }
+                            @{ await SortItem("drop-sort-asc", "Sort.Ascending", Model.Direction == "asc", Model.Sort, "asc", "SortAscOutline"); }
+                        </div>
+                    </div>
+                </div>
+            </div>
+            }
+        </div>
+        @if (!isEmptyLibrary)
+        {
+            @* 검색어가 적용된 동안에는 접지 않는다. 접으면 목록이 걸러진 사실이 보이지 않는다. *@
+            <details id="drop-search" class="td-search td-disclosure" open="@(Model.Search is not null)"
+                     data-search-active="@(Model.Search is not null ? "true" : "false")">
+                <summary td-text="Search.Files"></summary>
+                <div class="td-search-row">
+                    <form method="get" asp-page="@listPage" asp-route-slug="@Model.CurrentSlug"
+                          hx-get="@Url.Page("/Index")" class="td-search-form">
+                        <input type="hidden" name="sort" value="@Model.Sort" />
+                        <input type="hidden" name="direction" value="@Model.Direction" />
+                        <input id="drop-search-input" type="search" name="search" value="@Model.Search" class="input min-w-0 flex-1"
+                               td-placeholder="Search.Placeholder" td-aria-label="Search.Placeholder" />
+                        <button id="drop-search-submit" type="submit" class="btn btn-sm" td-text="Search"></button>
+                    </form>
+                    @if (Model.Search is not null)
+                    {
+                        <a asp-page="@listPage" asp-route-slug="@Model.CurrentSlug"
+                           asp-route-sort="@Model.Sort" asp-route-direction="@Model.Direction"
+                           hx-get="@Url.Page("/Index")" hx-vals='{"search": ""}'
+                           id="drop-search-clear" class="btn btn-sm" td-text="Search.Clear"></a>
+                    }
+                </div>
+            </details>
+        }
+        @if (Model.Drops.Count > 0)
+        {
+            <div class="td-list">
+                @foreach (var drop in Model.Drops)
+                {
+                    var utc = DateTime.SpecifyKind(drop.CreatedAt, DateTimeKind.Utc);
+                    <a asp-page="/DropDetail" asp-route-slug="@drop.Slug" data-drop-slug="@drop.Slug"
+                       class="td-drop-row @(drop.Slug == Model.CurrentSlug ? "is-current" : "")"
+                       aria-current="@(drop.Slug == Model.CurrentSlug ? "page" : null)">
+                        <span class="td-list-icon"><partial name="_FileIcon" model="drop" /></span>
+                        <div class="td-row-copy">
+                            <div class="td-row-title" title="@drop.FileName">
+                                <span class="td-favorite-indicator inline-block size-4 align-middle" data-list-favorite hidden="@(!drop.IsFavorite)" td-aria-label="Favorite"><partial name="_Icon" model='@("StarSolid")' /></span>
+                                @drop.FileName
+                            </div>
+                            <div class="td-row-meta">
+                                <span data-file-size="@drop.FileSizeBytes">@IndexModel.FormatFileSize(drop.FileSizeBytes)</span>
+                                <span>•</span>
+                                <time datetime="@utc.ToString("O")" data-relative-time
+                                      title="@utc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")">
+                                    @utc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+                                </time>
+                            </div>
+                        </div>
+                        @* 공개 범위는 상세 화면의 공개 범위 메뉴와 같은 아이콘 하나로 보여 준다. 나만 보기는 기본값이라 표시하지 않는다. *@
+                        @if (drop.AccessLevel != Teledrop.Features.Drops.DropAccessLevel.Private)
+                        {
+                            var isPublic = drop.AccessLevel == Teledrop.Features.Drops.DropAccessLevel.Public;
+                            <span class="td-row-status">
+                                <span role="img" class="@(isPublic ? "td-row-public" : null)" td-aria-label="Access.@drop.AccessLevel" td-title="Access.@drop.AccessLevel"><partial name="_Icon" model='@(isPublic ? "GlobeOutline" : "LockOutline")' /></span>
+                            </span>
+                        }
+                    </a>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="td-muted text-center py-3" td-text='@(Model.Search is null ? "List.Empty" : "List.NoResults")'></p>
+        }
+        @if (Model.TotalPages > 1)
+        {
+            <nav class="td-pagination" td-aria-label="List.Pagination">
+                @if (Model.CurrentPage > 1)
+                {
+                    <a asp-page="@listPage" asp-route-slug="@Model.CurrentSlug"
+                       hx-get="@ListUrl(Model.CurrentPage - 1)" asp-route-search="@Model.Search" asp-route-sort="@Model.Sort"
+                       asp-route-direction="@Model.Direction" asp-route-pageNumber="@(Model.CurrentPage - 1)"
+                       id="drop-list-prev" class="btn btn-sm" td-text="Previous"></a>
+                }
+                else
+                {
+                    <span class="td-pagination-slot"></span>
+                }
+                <span aria-current="page"><span data-number="@Model.CurrentPage">@Model.CurrentPage</span> / <span data-number="@Model.TotalPages">@Model.TotalPages</span></span>
+                @if (Model.CurrentPage < Model.TotalPages)
+                {
+                    <a asp-page="@listPage" asp-route-slug="@Model.CurrentSlug"
+                       hx-get="@ListUrl(Model.CurrentPage + 1)" asp-route-search="@Model.Search" asp-route-sort="@Model.Sort"
+                       asp-route-direction="@Model.Direction" asp-route-pageNumber="@(Model.CurrentPage + 1)"
+                       id="drop-list-next" class="btn btn-sm" td-text="Next"></a>
+                }
+                else
+                {
+                    <span class="td-pagination-slot"></span>
+                }
+            </nav>
+        }
+    </div>
+</section>

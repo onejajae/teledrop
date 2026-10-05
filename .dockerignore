@@ -1,6 +1,42 @@
-# common ignores (sharing gitignore and dockerignore) - pycache, envfile, etc..
-**/__pycache__/
-**/*.py[cod]
-*$py.class
+# Version control and repository-only files
+.git/
+.github/
+docs/
+README*
+LICENSE
+
+# Local settings and editor metadata
 .env
 .env.*
+.vscode/
+.idea/
+.DS_Store
+*.user
+*.suo
+*.userosscache
+
+# Build and test outputs
+**/bin/
+**/obj/
+tests/
+
+# Local frontend toolchain; htmx, PDF.js, and Pretendard are installed by the assets stage
+**/node_modules/
+src/Teledrop.Infrastructure/Styles/
+src/Teledrop.Infrastructure/wwwroot/js/htmx.min.js
+src/Teledrop.Infrastructure/wwwroot/js/pdfjs/
+src/Teledrop.Infrastructure/wwwroot/fonts/
+
+# Generated CSS is a publish input committed to the repository
+!src/Teledrop.Infrastructure/wwwroot/css/app.css
+
+# Local application data
+share/
+.local/
+
+# Development and container orchestration files
+.config/
+Properties/
+docker-compose*.yml
+Dockerfile
+.dockerignore

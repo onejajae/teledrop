@@ -1,0 +1,42 @@
+@page "/login"
+@model Teledrop.Features.Auth.LoginModel
+@{
+    ViewData["Title"] = Ui["Login"];
+    ViewData["TitleKey"] = "Login";
+    ViewData["IsLoginPage"] = true;
+}
+
+<section class="td-section td-login">
+    <div class="td-section-body">
+        <h1 class="text-center" td-text="Login"></h1>
+
+        <form method="post">
+            <input asp-for="ReturnUrl" type="hidden" />
+
+            <div class="td-fieldset">
+                <label asp-for="Username" class="td-label" td-text="Username"></label>
+                <input asp-for="Username"
+                       class="input w-full"
+                       td-placeholder="Username"
+                       autocomplete="username"
+                       required />
+            </div>
+
+            <div class="td-fieldset">
+                <label asp-for="Password" class="td-label" td-text="Password"></label>
+                <input asp-for="Password"
+                       type="password"
+                       class="input w-full"
+                       td-placeholder="Password"
+                       autocomplete="current-password"
+                       required />
+            </div>
+
+            <button type="submit" class="btn btn-primary w-full" td-text="Login"></button>
+            @if (Model.ErrorMessage is not null)
+            {
+                <p class="td-login-error" role="alert" td-text="@Model.ErrorKey">@Model.ErrorMessage</p>
+            }
+        </form>
+    </div>
+</section>

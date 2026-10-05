@@ -1,0 +1,901 @@
+@import "tailwindcss";
+@plugin "daisyui";
+
+/* Razor 파일에서 클래스를 훑는다. 기본 탐색 경로에 .cshtml이 없으므로 명시한다. */
+@source "../Pages/**/*.cshtml";
+
+:root,
+[data-theme="teledrop-light"] {
+    color-scheme: light;
+    --color-base-100: #ffffff;
+    --color-base-200: #f3f4f6;
+    --color-base-300: #e5e7eb;
+    --color-base-content: #111827;
+    --color-primary: #0369a1;
+    --color-primary-content: #ffffff;
+    --color-secondary: #64748b;
+    --color-secondary-content: #ffffff;
+    --color-accent: #0d9488;
+    --color-accent-content: #ffffff;
+    --color-neutral: #374151;
+    --color-neutral-content: #ffffff;
+    --color-info: #38bdf8;
+    --color-info-content: #0c4a6e;
+    --color-success: #16a34a;
+    --color-success-content: #ffffff;
+    --color-warning: #f59e0b;
+    --color-warning-content: #451a03;
+    --color-error: #b91c1c;
+    --color-error-content: #ffffff;
+    --radius-selector: 0.5rem;
+    --radius-field: 0.5rem;
+    --radius-box: 0.75rem;
+    --size-selector: 0.25rem;
+    --size-field: 0.25rem;
+    --border: 1px;
+    --depth: 0;
+    --noise: 0;
+    --td-canvas: #f9fafb;
+    --td-surface: #ffffff;
+    --td-surface-hover: #f3f4f6;
+    --td-field: #f3f4f6;
+    --td-border: #6b7280;
+    --td-border-strong: #9ca3af;
+    --td-text: #111827;
+    --td-text-muted: #5f6673;
+    --td-divider: #e5e7eb;
+    --td-selected: #e0f2fe;
+    --td-selected-text: #075985;
+    --td-selected-muted: #075985;
+    --td-danger: #dc2626;
+    --td-danger-content: #ffffff;
+    --td-link: #0369a1;
+    --td-primary-hover: #075985;
+    --td-focus-ring: #0369a1;
+    --td-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+[data-theme="teledrop-dark"] {
+    color-scheme: dark;
+    --color-base-100: #1f2937;
+    --color-base-200: #111827;
+    --color-base-300: #374151;
+    --color-base-content: #e5e7eb;
+    --color-primary: #0369a1;
+    --color-primary-content: #ffffff;
+    --color-secondary: #94a3b8;
+    --color-secondary-content: #0f172a;
+    --color-accent: #2dd4bf;
+    --color-accent-content: #042f2e;
+    --color-neutral: #111827;
+    --color-neutral-content: #f9fafb;
+    --color-info: #38bdf8;
+    --color-info-content: #082f49;
+    --color-success: #4ade80;
+    --color-success-content: #052e16;
+    --color-warning: #fbbf24;
+    --color-warning-content: #451a03;
+    --color-error: #fda4af;
+    --color-error-content: #4c0519;
+    --td-canvas: #111827;
+    --td-surface: #1f2937;
+    --td-surface-hover: #374151;
+    --td-field: #111827;
+    --td-border: #9ca3af;
+    --td-border-strong: #6b7280;
+    --td-text: #e5e7eb;
+    --td-text-muted: #9ca3af;
+    --td-divider: #374151;
+    --td-selected: #164e63;
+    --td-selected-text: #bae6fd;
+    --td-selected-muted: #bae6fd;
+    --td-danger: #f87171;
+    --td-danger-content: #450a0a;
+    --td-link: #7dd3fc;
+    --td-primary-hover: #075985;
+    --td-focus-ring: #7dd3fc;
+    --td-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+@layer base {
+html {
+    min-height: 100%;
+    overflow-y: scroll;
+    background: var(--td-canvas);
+}
+
+body {
+    min-height: 100vh;
+    margin: 0;
+    background: var(--td-canvas);
+    color: var(--td-text);
+    font-family: Pretendard, system-ui, sans-serif;
+    transition: background-color 160ms ease, color 160ms ease;
+}
+
+button,
+input,
+select,
+textarea {
+    font: inherit;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+::selection {
+    background: color-mix(in srgb, var(--color-primary) 30%, transparent);
+}
+}
+
+@layer components {
+.td-shell {
+    width: 100%;
+    max-width: 41rem;
+    min-height: 100vh;
+    margin-inline: auto;
+    padding: 0 0.5rem 2rem;
+}
+
+.td-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.td-topbar {
+    display: flex;
+    height: 2.5rem;
+    margin-top: 0.5rem;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.td-topbar-side {
+    display: flex;
+    width: 8rem;
+    align-items: center;
+    gap: 0;
+}
+
+.td-topbar-start {
+    justify-content: flex-start;
+}
+
+.td-topbar-end {
+    justify-content: flex-end;
+}
+
+.td-text-action {
+    border-radius: 0.5rem;
+    padding: 0;
+    margin-inline: 0.5rem;
+    color: var(--td-text);
+    font-size: 1rem;
+    font-weight: 600;
+    transition: background-color 120ms ease;
+}
+
+.td-text-action:hover {
+    text-decoration: underline;
+}
+
+.td-icon-button {
+    position: relative;
+    display: inline-flex;
+    width: 2.5rem;
+    height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.55rem;
+    color: var(--td-text-muted);
+    transition: background-color 120ms ease, color 120ms ease;
+}
+
+.td-icon-button:hover {
+    background: var(--td-surface-hover);
+    color: var(--td-text);
+}
+
+.td-text-action:focus-visible,
+.td-icon-button:focus-visible,
+.td-row-action:focus-visible {
+    outline: 3px solid var(--td-focus-ring);
+    outline-offset: 2px;
+}
+
+.td-icon-button svg {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.td-theme-sun,
+[data-theme="teledrop-dark"] .td-theme-moon {
+    display: none;
+}
+
+.td-theme-moon,
+[data-theme="teledrop-dark"] .td-theme-sun {
+    display: contents;
+}
+
+.td-brand {
+    width: calc(100% - 1.5rem);
+    max-width: 24rem;
+    margin: 0.75rem auto 1.5rem;
+}
+
+.td-logo {
+    display: block;
+    width: 100%;
+    height: auto;
+    color: var(--td-text);
+}
+
+.td-section {
+    border: 0;
+    border-radius: 0.75rem;
+    background: var(--td-surface);
+    box-shadow: var(--td-shadow);
+}
+
+.td-section-body {
+    padding: 0.75rem;
+}
+
+.td-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.td-section-title {
+    min-width: 0;
+    margin-inline: 0.25rem;
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 2rem;
+    color: var(--td-text);
+}
+
+.td-fieldset {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.td-label {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    font-weight: 500;
+    color: var(--td-text);
+}
+
+.input,
+.select,
+.textarea,
+.file-input {
+    border-color: var(--td-border);
+    background: var(--td-field);
+    color: var(--td-text);
+    box-shadow: none;
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus,
+.file-input:focus {
+    border-color: var(--color-primary);
+    outline-color: color-mix(in srgb, var(--color-primary) 45%, transparent);
+}
+
+.input::placeholder,
+.textarea::placeholder {
+    color: var(--td-text-muted);
+    opacity: 0.75;
+}
+
+.btn {
+    border-radius: 0.5rem;
+    font-weight: 600;
+    text-transform: none;
+}
+
+.btn-primary {
+    border-color: var(--color-primary);
+    background: var(--color-primary);
+}
+
+.btn-ghost:hover {
+    background: var(--td-surface-hover);
+}
+
+.td-upload-zone {
+    position: relative;
+    display: flex;
+    min-height: 11.5rem;
+    cursor: pointer;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    overflow: hidden;
+    border: 2px dashed var(--td-border);
+    border-radius: 0.6rem;
+    background: var(--td-field);
+    padding: 0.75rem;
+    text-align: center;
+    transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+.td-upload-zone:hover,
+.td-upload-zone:focus-within,
+.td-upload-zone.is-dragging {
+    border-color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 8%, var(--td-field));
+}
+
+.td-upload-zone input[type="file"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.td-upload-zone svg {
+    width: 2.5rem;
+    height: 2.5rem;
+}
+
+.td-upload-icon {
+    display: flex;
+    color: var(--td-text-muted);
+    transition: color 120ms ease;
+}
+
+.td-upload-zone:is(:hover, :focus-within, .is-dragging) .td-upload-icon {
+    color: var(--color-primary);
+}
+
+.td-error-icon {
+    display: flex;
+    justify-content: center;
+    color: var(--color-error);
+}
+
+.td-error-icon svg {
+    width: 3rem;
+    height: 3rem;
+}
+
+.td-upload-prompt {
+    color: var(--td-text-muted);
+    font-size: 1rem;
+}
+
+.td-upload-prompt strong {
+    color: inherit;
+}
+
+.td-upload-filename {
+    max-width: 100%;
+    overflow: hidden;
+    color: var(--td-text);
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.td-disclosure {
+    border-bottom: 1px solid var(--td-border);
+}
+
+.td-disclosure > summary {
+    display: flex;
+    cursor: pointer;
+    list-style: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.25rem 0;
+    color: var(--td-text-muted);
+    font-weight: 500;
+}
+
+.td-disclosure > summary::-webkit-details-marker {
+    display: none;
+}
+
+.td-disclosure > summary::after {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    content: "";
+    transform: rotate(45deg) translateY(-0.15rem);
+    transition: transform 120ms ease;
+}
+
+.td-disclosure[open] > summary::after {
+    transform: rotate(225deg) translate(-0.1rem, -0.1rem);
+}
+
+.td-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.7rem;
+    border: 1px solid color-mix(in srgb, currentColor 24%, transparent);
+    border-radius: 0.65rem;
+    padding: 0.8rem;
+    font-size: 0.9rem;
+}
+
+.td-alert-success {
+    background: color-mix(in srgb, var(--color-success) 10%, var(--td-surface));
+    color: color-mix(in srgb, var(--color-success) 75%, var(--td-text));
+}
+
+.td-list {
+    overflow: hidden;
+    border: 1px solid var(--td-border);
+    border-radius: 0.65rem;
+    background: var(--td-surface);
+}
+
+.td-drop-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    min-width: 0;
+    padding: 0.5rem 0.25rem;
+    transition: background-color 120ms ease;
+}
+
+.td-drop-row + .td-drop-row {
+    border-top: 1px solid var(--td-divider);
+}
+
+.td-drop-row:hover {
+    background: var(--td-surface-hover);
+}
+
+.td-row-title {
+    display: block;
+    overflow: hidden;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.td-row-meta {
+    display: flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    gap: 0.15rem 0.3rem;
+    color: var(--td-text-muted);
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+}
+
+.td-row-action {
+    display: inline-flex;
+    width: 2rem;
+    height: 2rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.45rem;
+    color: var(--td-text-muted);
+}
+
+.td-row-action:hover {
+    background: color-mix(in srgb, var(--td-text) 10%, transparent);
+    color: var(--td-text);
+}
+
+.td-row-action svg {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.td-favorite [data-favorite-filled] svg,
+.td-favorite-indicator > svg {
+    color: #f59e0b;
+}
+
+:is(.td-row-action, .td-icon-button)[data-tooltip] {
+    position: relative;
+}
+
+:is(.td-row-action, .td-icon-button)[data-tooltip]::before,
+:is(.td-row-action, .td-icon-button)[data-tooltip]::after {
+    position: absolute;
+    left: 50%;
+    z-index: 30;
+    visibility: hidden;
+    pointer-events: auto;
+    color: var(--td-text);
+    background: var(--td-canvas);
+    border: 1px solid var(--td-border);
+}
+
+:is(.td-row-action, .td-icon-button)[data-tooltip]::before {
+    content: "";
+    bottom: calc(100% - 0.25rem);
+    width: 0.5rem;
+    height: 0.5rem;
+    border-top: 0;
+    border-left: 0;
+    transform: translateX(-50%) rotate(45deg);
+    z-index: 31;
+}
+
+:is(.td-row-action, .td-icon-button)[data-tooltip]::after {
+    content: attr(data-tooltip);
+    bottom: 100%;
+    transform: translateX(-50%);
+    width: max-content;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.12);
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.25rem;
+    white-space: nowrap;
+}
+
+:is(.td-row-action, .td-icon-button)[data-tooltip]:not([data-tooltip-dismissed], [aria-haspopup][aria-expanded="true"]):is(:hover, :focus-visible)::before,
+:is(.td-row-action, .td-icon-button)[data-tooltip]:not([data-tooltip-dismissed], [aria-haspopup][aria-expanded="true"]):is(:hover, :focus-visible)::after {
+    visibility: visible;
+}
+
+/* 상단바와 PDF 도구 줄은 위·오른쪽 끝에 붙어 있어(PDF 영역은 overflow: hidden) 툴팁을 아래로, 오른쪽 정렬로 띄운다. */
+:is(.td-topbar, .td-pdf-toolbar) [data-tooltip]::before {
+    top: calc(100% - 0.25rem);
+    bottom: auto;
+    border-top: 1px solid var(--td-border);
+    border-left: 1px solid var(--td-border);
+    border-right: 0;
+    border-bottom: 0;
+}
+
+:is(.td-topbar, .td-pdf-toolbar) [data-tooltip]::after {
+    top: 100%;
+    bottom: auto;
+    left: auto;
+    right: 0;
+    transform: none;
+}
+
+.td-muted {
+    color: var(--td-text-muted);
+}
+
+.td-preview {
+    display: flex;
+    max-height: 100vh;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+}
+
+.td-preview img,
+.td-preview video {
+    max-width: 100%;
+    max-height: 100vh;
+    object-fit: contain;
+    border-radius: 0.5rem;
+}
+
+.td-progress {
+    --td-progress-track: color-mix(in srgb, var(--color-primary) 15%, var(--td-surface));
+    width: 100%;
+    height: 0.75rem;
+    overflow: hidden;
+    border: 0;
+    border-radius: 999px;
+    background: var(--td-progress-track);
+}
+
+.td-progress::-webkit-progress-bar {
+    background: var(--td-progress-track);
+}
+
+.td-progress::-webkit-progress-value {
+    background: var(--color-primary);
+}
+
+.td-progress::-moz-progress-bar {
+    background: var(--color-primary);
+}
+
+@media (max-width: 30rem) {
+    .td-topbar-side {
+        width: auto;
+        min-width: 6rem;
+    }
+}
+}
+
+@layer base {
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+}
+
+/* Unlayered overrides keep main's Flowbite control styles above daisyUI defaults. */
+.td-shell .input, .td-shell .select, .td-shell .textarea {
+    border: 1px solid var(--td-border); border-radius: 0.5rem;
+    background: var(--td-field); color: var(--td-text);
+    padding: 0.625rem; font-size: 0.875rem; line-height: 1.25rem;
+    height: auto; min-height: 0; outline: none; box-shadow: none;
+}
+.td-shell .input { height: 2.625rem; }
+.td-shell .select { padding: 0.5rem 2.5rem 0.5rem 0.5rem; height: 2.375rem; }
+.td-shell .input:focus, .td-shell .textarea:focus, .td-shell .select:focus {
+    border-color: var(--td-focus-ring); box-shadow: 0 0 0 1px var(--td-focus-ring);
+}
+.td-shell .input::placeholder, .td-shell .textarea::placeholder { opacity: 1; }
+.td-shell .btn {
+    min-height: 0; height: auto; padding: 0.625rem 1.25rem;
+    border: 1px solid var(--td-border); border-radius: 0.5rem;
+    font-size: 0.875rem; font-weight: 500; line-height: 1.25rem;
+    color: var(--td-text); background: var(--td-surface); gap: 0.75rem;
+    box-shadow: none; text-shadow: none; background-image: none;
+}
+.td-shell .btn:hover { background: var(--td-surface-hover); }
+.td-shell .btn-primary { background: var(--color-primary); color: var(--color-primary-content); border: 0; }
+.td-shell .btn-primary:hover { background: var(--td-primary-hover); }
+.td-shell .btn-danger { background: var(--td-danger); color: var(--td-danger-content); border: 0; }
+.td-shell .btn-danger:hover { background: color-mix(in srgb, var(--td-danger) 85%, black); }
+.td-shell .btn-sm { padding: 0.5rem 1.25rem; }
+.td-shell .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.td-shell .btn-pill { border-radius: 9999px; }
+.td-shell .btn-outline { color: var(--td-link); border-color: var(--td-link); background: transparent; }
+.td-shell .btn-outline:hover { background: var(--color-primary); color: var(--color-primary-content); }
+.td-shell .btn svg { width: 1.25rem; height: 1.25rem; }
+.td-page-login {
+    min-height: 100dvh;
+}
+
+.td-page-login .td-shell {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    max-width: none;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 4rem 1rem;
+}
+
+.td-page-login .td-content {
+    width: 100%;
+    max-width: 22rem;
+    margin: clamp(0rem, 12vh, 8rem) auto 0;
+}
+
+.td-page-login .td-topbar {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    height: auto;
+    margin: 0;
+}
+
+.td-page-login .td-topbar-side {
+    width: auto;
+}
+
+.td-login .td-section-body { padding: 2.25rem 1.75rem 1.75rem; }
+.td-login h1 { color: var(--td-text); font-size: 1.5rem; line-height: 2rem; font-weight: 700; }
+.td-login .td-fieldset { gap: 0.5rem; }
+.td-login .input { height: 2.5rem; }
+.td-login-error { text-align: center; font-size: 0.875rem; color: var(--color-error); }
+#upload-form { display: flex; flex-direction: column; gap: 0.75rem; }
+.td-upload-actions { display: flex; justify-content: center; }
+.td-upload-preview { max-width: 100%; max-height: 20rem; object-fit: contain; }
+.td-list-heading { display: flex; align-items: center; min-width: 0; }
+.td-list-controls { display: flex; align-items: center; gap: 0.25rem; }
+/* JS가 있으면 돋보기 버튼이 펼침을 맡으므로 접기 줄과 구분선을 그리지 않는다. JS가 없을 때는 _Layout의 <noscript> 스타일이 접기 줄을 되살린다. */
+.td-search { margin-bottom: 0.75rem; border-bottom: 0; }
+.td-search > summary { display: none; }
+.td-search-row { display: flex; gap: 0.5rem; }
+.td-search-form { display: flex; flex: 1; min-width: 0; gap: 0.5rem; }
+.td-search:not([open]) { margin: 0; border: 0; }
+.td-drop-row { color: var(--td-text); }
+.td-drop-row:hover { background: var(--td-surface-hover); text-decoration: none; }
+.td-drop-row.is-current { background: var(--td-selected); color: var(--td-selected-text); }
+.td-drop-row.is-current .td-row-meta { color: var(--td-selected-muted); }
+.td-drop-row.is-current .td-list-icon { color: var(--td-selected-text); }
+.td-list-icon { display: flex; flex: 0 0 auto; padding: 0.375rem; }
+.td-list-icon svg { width: 2rem; height: 2rem; }
+.td-row-copy { min-width: 0; flex: 1; padding-inline-start: 0.25rem; }
+.td-row-copy .td-row-title { font-weight: 500; line-height: 1.5rem; }
+.td-drop-row.is-current .td-row-title { font-weight: 600; }
+.td-row-meta { flex-wrap: nowrap; overflow: hidden; white-space: nowrap; color: var(--td-text-muted); font-weight: 400; }
+.td-row-meta > * { flex: none; }
+.td-row-status { display: flex; flex: 0 0 auto; gap: 0.5rem; padding-inline: 0.5rem 0.75rem; color: var(--td-text-muted); }
+.td-row-status svg { display: block; width: 1.125rem; height: 1.125rem; }
+.td-drop-row.is-current .td-row-status { color: var(--td-selected-muted); }
+/* 상세 화면처럼 누구나 열 수 있는 링크 공개만 강조색으로 표시한다. */
+.td-drop-row:not(.is-current) .td-row-public { color: var(--td-link); }
+/* 이전·현재·다음 자리를 고정해 페이지를 넘겨도 버튼이 움직이지 않게 한다. */
+.td-pagination { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 0.75rem; margin-top: 0.75rem; font-size: 0.875rem; }
+.td-pagination > :first-child { justify-self: end; }
+.td-pagination > :last-child { justify-self: start; }
+.td-file-card { border: 1px solid var(--td-divider); border-radius: 0.5rem; color: var(--td-text); }
+.td-file-card > summary { display: flex; align-items: center; gap: 0.75rem; min-width: 0; padding: 0.625rem 0.75rem; border-radius: 0.5rem; cursor: pointer; list-style: none; }
+.td-file-card > summary::-webkit-details-marker { display: none; }
+.td-file-card > summary:hover { background: var(--td-surface-hover); }
+.td-file-card > summary:focus-visible { outline: 3px solid var(--td-focus-ring); outline-offset: 2px; }
+.td-file-card-icon { display: flex; flex: none; }
+.td-file-card-icon svg { width: 2rem; height: 2rem; }
+.td-file-card-text { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.td-file-card-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.td-file-card-meta { display: flex; flex-wrap: wrap; gap: 0 0.375rem; white-space: nowrap; font-size: 0.875rem; line-height: 1.25rem; color: var(--td-text-muted); }
+.td-file-card-toggle { display: flex; flex: none; color: var(--td-text-muted); }
+.td-file-card-toggle svg { width: 1.25rem; height: 1.25rem; }
+.td-file-card[open] .td-file-card-toggle { color: var(--td-text); }
+.td-file-details { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.375rem 1rem; margin: 0; padding: 0.625rem 0.75rem 0.75rem; border-top: 1px solid var(--td-divider); font-size: 0.875rem; line-height: 1.25rem; }
+.td-file-details dt { color: var(--td-text-muted); }
+.td-file-details dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.td-file-hash { display: flex; align-items: center; gap: 0.25rem; }
+.td-file-hash code { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.8125rem; }
+.td-file-hash .td-row-action { width: 1.75rem; height: 1.75rem; margin-block: -0.25rem; flex: none; }
+.td-file-hash .td-row-action svg { width: 1.125rem; height: 1.125rem; }
+.td-file-hash [data-tooltip]::after { left: auto; right: 0; transform: none; }
+.td-preview-content { display: flex; flex-direction: column; gap: 0.75rem; }
+.td-pdf-preview { width: 100%; border: 1px solid var(--td-divider); border-radius: 0.5rem; background: var(--td-field); overflow: hidden; }
+.td-pdf-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.5rem; color: var(--td-text); font-size: 0.875rem; }
+.td-pdf-preview canvas { display: block; width: 100%; height: auto; }
+/* 소유자 화면의 설명 편집. 보기 영역을 누르면 같은 자리가 입력칸으로 바뀐다. */
+.td-description { margin-bottom: 0.75rem; }
+.td-description:not(.is-editing) .td-description-form,
+.td-description.is-editing > .td-preview-description,
+.td-description.is-empty:not(.is-editing) { display: none; }
+.td-description-form textarea { min-height: 4.5rem; resize: vertical; }
+.td-description-form [data-operation-error] { margin-top: 0.5rem; }
+.td-description-actions { display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; }
+.td-description-hint { margin-right: auto; font-size: 0.75rem; color: var(--td-text-muted); }
+@media (hover: none) { .td-description-hint { display: none; } }
+/* 설명은 제목 바로 아래 본문으로 둔다. 받는 사람이 미리보기보다 맥락을 먼저 읽는다. */
+.td-preview-description { margin-inline: 0.25rem; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--td-text); }
+.td-toolbar { display: flex; align-items: center; flex-shrink: 0; }
+/* 툴바는 헤더 오른쪽 끝에 있으므로 툴팁을 버튼 오른쪽에 맞춰 화면 밖으로 넘치지 않게 한다. */
+.td-toolbar [data-tooltip]::after { left: auto; right: 0; transform: none; }
+.td-toolbar .td-row-action { width: 2rem; height: 2rem; }
+.td-toolbar .td-row-action svg { width: 1.25rem; height: 1.25rem; }
+/* 공개 범위 버튼(공개·비밀번호)과 드물게 쓰는 작업 메뉴(URL·삭제)를 나눈다. */
+.td-toolbar-divider { width: 1px; height: 1.25rem; margin-inline: 0.375rem; background: var(--td-divider); }
+.td-dialog { width: calc(100% - 2rem); max-width: 28rem; max-height: calc(100vh - 2rem); padding: 0; border: 0; border-radius: 0.5rem; background: var(--td-surface); color: var(--td-text); box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); margin: auto; }
+.td-dialog::backdrop { background: rgb(17 24 39 / 0.5); }
+.td-dialog-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--td-divider); }
+.td-dialog-header h2 { font-size: 1.25rem; line-height: 1.75rem; font-weight: 600; }
+.td-dialog-header, .td-dialog-body { padding: 1rem; }
+@media (min-width: 48rem) { .td-dialog-header, .td-dialog-body { padding: 1.25rem; } }
+/* 간격은 gap으로 준다. 형제 margin은 맨 앞의 숨은 input 뒤에 있는 첫 칸까지 띄운다. */
+.td-dialog form:not(.td-dialog-actions) { display: flex; flex-direction: column; gap: 1rem; }
+.td-dialog-message { margin-bottom: 0.25rem; overflow-wrap: anywhere; }
+.td-dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 1.25rem; }
+.td-dialog .td-fieldset { gap: 0.5rem; }
+.td-lock-form { max-width: 18rem; margin: 1.5rem auto 0.25rem; text-align: center; }
+.td-lock-form h1 { font-size: 1.5rem; font-weight: 700; line-height: 2rem; color: var(--td-text); }
+.td-lock-form .input { margin: 0.75rem 0; text-align: center; }
+.td-lock-form .btn { margin-bottom: 0.25rem; padding-inline: 2rem; }
+@media (max-width: 30rem) { .td-toolbar { gap: 0; } .td-toolbar .td-row-action { width: 1.75rem; } .td-list-controls { gap: 0; } }
+
+.td-shell { display: flow-root; }
+.td-login form { display: flex; flex-direction: column; gap: 1.25rem; margin-top: 1.75rem; }
+.td-login form > .btn { margin-top: 0.25rem; }
+
+html { overflow-y: scroll; background: var(--td-canvas); }
+.td-list { border-color: var(--td-divider); border-radius: 0.5rem; }
+.td-shell .select { appearance: none; background-image: url("/static/caret-down.svg"); background-position: right 0.75rem center; background-repeat: no-repeat; background-size: 0.75rem; }
+@media (max-width: 23rem) { .td-list-controls .td-row-action { width: 1.5rem; } .td-section-header { gap: 0.25rem; } }
+
+.td-upload-zone .td-selected-file-icon svg { width: 5rem; height: 5rem; color: var(--td-text); }
+.td-upload-filename { font-size: 0.875rem; color: var(--td-text-muted); }
+.td-uploading-title { display: none; color: var(--td-text); font-size: 1.875rem; line-height: 2.25rem; font-weight: 700; text-align: center; }
+.is-uploading .td-section-header, .is-uploading form > :not(#upload-progress-wrap) { display: none; }
+.is-uploading .td-section-body { padding-block: 1.5rem; }
+.is-uploading .td-uploading-title { display: block; }
+.is-uploading .td-progress { height: 1rem; }
+.is-uploading #upload-progress-wrap { display: flex; flex-direction: column; gap: 0.75rem; }
+.is-uploading #upload-progress { order: 1; }
+.is-uploading #upload-progress-label { margin: 0; color: var(--td-text); font-size: 1.125rem; font-weight: 600; line-height: 1.75rem; }
+[data-theme="teledrop-dark"] .td-dialog::backdrop { background: rgb(17 24 39 / 0.8); }
+.td-list-heading .td-section-title { white-space: nowrap; }
+.td-list-controls { flex-shrink: 0; }
+.td-list-controls .select { width: 4.6875rem; flex: none; }
+#drop-list .td-section-header { flex-wrap: wrap; }
+@media (max-width: 23rem) { .td-list-controls { margin-left: auto; } }
+
+[data-drop-action] [aria-busy="true"] { cursor: progress; }
+[data-drop-action] button:disabled { opacity: 0.55; cursor: progress; }
+
+/* Keep theme surfaces and explicitly colored text in step. Inherited text
+   follows its parent; animating every descendant would make it lag behind. */
+html,
+body,
+.td-shell :is(
+    .td-section, .td-section-title, .td-label,
+    .td-logo, .td-text-action, .td-icon-button, .td-row-action,
+    .td-upload-zone, .td-upload-filename, .td-uploading-title,
+    .td-list, .td-drop-row, .td-row-meta, .td-list-icon, .td-row-status, .td-file-card,
+    .td-preview-description, .td-muted, .td-dialog, .td-dialog-header,
+    .input, .select, .textarea, .btn, .td-login h1, .td-lock-form h1
+) {
+    transition: background-color 160ms ease, color 160ms ease,
+        border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.td-dialog::backdrop {
+    transition: background-color 160ms ease;
+}
+
+[data-theme="teledrop-dark"] .td-favorite [data-favorite-filled] svg,
+[data-theme="teledrop-dark"] .td-favorite-indicator > svg { color: #fbbf24; }
+
+.td-menu { position: relative; }
+.td-menu-items {
+    position: absolute; top: calc(100% + 0.25rem); right: 0; z-index: 50;
+    display: flex; flex-direction: column; min-width: 10rem; padding: 0.25rem; border: 1px solid var(--td-border);
+    border-radius: 0.5rem; background: var(--td-surface); color: var(--td-text); box-shadow: var(--td-shadow);
+}
+.td-menu-items:not(.is-open) { display: none; }
+.td-menu-items [role^="menuitem"] {
+    display: flex; align-items: center; gap: 0.625rem; width: 100%; min-height: 2.25rem; padding: 0.375rem 0.75rem;
+    border-radius: 0.3rem; font-size: 0.875rem; text-align: left; white-space: nowrap; cursor: pointer;
+}
+.td-menu-items [role^="menuitem"] svg { display: block; width: 1.125rem; height: 1.125rem; flex: none; }
+.td-menu-items [role^="menuitem"]:is(:hover, :focus-visible) { background: var(--td-surface-hover); outline: none; }
+/* 삭제처럼 되돌릴 수 없는 작업은 평소에도 위험 색(--td-danger)으로 구분한다. */
+.td-menu-items .td-menu-danger { color: var(--td-danger); }
+/* 공개 범위·정렬처럼 현재 값을 보여 주는 메뉴 버튼은 테두리 없는 글자 버튼으로 둔다. */
+.td-menu-button {
+    display: inline-flex; align-items: center; gap: 0.375rem; height: 2rem; padding: 0 0.5rem;
+    border-radius: 0.5rem; color: var(--td-text-muted); font-size: 0.875rem; font-weight: 600; white-space: nowrap;
+}
+.td-menu-button:hover, .td-menu-button[aria-expanded="true"] { background: var(--td-surface-hover); color: var(--td-text); }
+.td-menu-button:focus-visible { outline: 3px solid var(--td-focus-ring); outline-offset: 2px; }
+.td-menu-button:disabled { cursor: progress; opacity: 0.6; }
+.td-menu-button > svg { width: 1.125rem; height: 1.125rem; flex: none; }
+.td-menu-button > svg:last-child { width: 0.875rem; height: 0.875rem; }
+/* 누구나 열 수 있는 상태만 강조색으로 표시한다. */
+[data-access-level="public"] > .td-menu-button > svg:first-child { color: var(--td-link); }
+.td-access-short { display: none; }
+@media (max-width: 23rem) { .td-access-full { display: none; } .td-access-short { display: inline; } }
+/* 공개 범위 메뉴는 버튼이 아니라 헤더 오른쪽 끝에 맞춰 좁은 화면에서도 카드 안에 들어오게 한다. */
+#drop-detail .td-section-header { position: relative; }
+#drop-access.td-menu { position: static; }
+.td-access-menu { width: min(17rem, 100%); }
+.td-access-menu [role="menuitemradio"] { align-items: flex-start; white-space: normal; }
+.td-access-menu [role="menuitemradio"] > svg { margin-top: 0.125rem; }
+.td-access-item { display: flex; flex-direction: column; flex: 1; gap: 0.125rem; }
+.td-access-hint { font-size: 0.75rem; color: var(--td-text-muted); }
+/* 선택형 메뉴는 현재 값에만 체크를 보인다. */
+.td-menu-items [role="menuitemradio"] > svg:last-child { margin-left: auto; color: var(--td-link); visibility: hidden; }
+.td-menu-items [aria-checked="true"] > svg:last-child { visibility: visible; }
+.td-menu-group { display: block; padding: 0.375rem 0.75rem 0.125rem; font-size: 0.75rem; color: var(--td-text-muted); }
+.td-menu-form { display: contents; }
+.td-menu-separator { height: 1px; margin: 0.25rem 0; background: var(--td-divider); }
+.td-language-error { position: absolute; right: 0; top: 100%; z-index: 50; width: min(15rem, 80vw); padding: 0.75rem; border: 1px solid var(--td-border); border-radius: 0.5rem; background: var(--td-surface); }
+#language-toggle[aria-busy="true"] { cursor: progress; opacity: 0.6; }
+/* JS 없는 대체 UI는 기본으로 숨기고 <noscript> 스타일이 되살린다. hidden 속성은 preflight의 layer 안 !important라 noscript로 풀 수 없다. */
+#language-fallback { display: none; align-items: center; gap: 0.25rem; }
+html[lang="en"] .td-list-controls { flex-wrap: wrap; justify-content: flex-end; }
+html[lang="en"] .td-topbar-side { width: auto; }
+html[lang="en"] .td-dialog-header { gap: 0.5rem; }
+.td-pdf-toolbar { flex-wrap: wrap; }
+.td-pdf-toolbar [data-pdf-status] { flex: 1; text-align: center; }

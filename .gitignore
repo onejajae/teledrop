@@ -1,21 +1,34 @@
-# common ignores (sharing gitignore and dockerignore) - pycache, envfile, etc..
-**/__pycache__/
-**/*.py[cod]
-*$py.class
+# .NET build output
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+
+# environment
 .env
 .env.*
 
-# vscode
+# editor
 .vscode
+.idea
 
-# virtual environment
-.venv
-
-# macOS 
+# macOS
 .DS_Store
 
 # WSL
 *Zone.identifier
 
+# node — 생성된 CSS는 커밋하고, htmx·PDF.js·Pretendard는 npm 설치 때 복사한다 (docs/DESIGN.md '개발 명령' 참고)
+node_modules/
+src/Teledrop.Infrastructure/wwwroot/js/htmx.min.js
+src/Teledrop.Infrastructure/wwwroot/js/pdfjs/
+src/Teledrop.Infrastructure/wwwroot/fonts/
+
 # teledrop default share directory
 share/
+.local/
+
+# Local agent skills
+/.agents/
+/.claude/

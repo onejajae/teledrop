@@ -1,0 +1,220 @@
+@page
+@model Teledrop.Features.Drops.IndexModel
+@{
+    ViewData["Title"] = Ui["Home"];
+    ViewData["TitleKey"] = "Home";
+}
+
+@if (Model.DeleteSucceeded)
+{
+    <div class="td-alert td-alert-success" role="status">
+        <span td-text="Delete.Success"></span>
+    </div>
+}
+
+<section id="upload-card" class="td-section">
+    <div class="td-section-body">
+        <div class="td-section-header">
+            <h1 class="td-section-title" td-text="Upload.Title"></h1>
+        </div>
+
+        <form id="upload-form"
+              method="post"
+              asp-page="/Upload"
+              asp-antiforgery="false"
+              enctype="multipart/form-data"
+              hx-post="@Url.Page("/Upload")"
+              hx-encoding="multipart/form-data"
+              hx-swap="none">
+            @Html.AntiForgeryToken()
+
+            <label id="upload-zone" class="td-upload-zone" for="upload-file">
+                <input id="upload-file"
+                       type="file"
+                       name="File"
+                       required />
+                <span id="upload-icon" class="td-upload-icon"><partial name="_Icon" model='@("FileArrowUpOutline")' /></span>
+                <span id="upload-file-icon" class="td-selected-file-icon" hidden><partial name="_Icon" model='@("FileOutline")' /></span>
+                <img id="upload-preview" class="td-upload-preview" td-alt="Upload.Preview" hidden />
+                <video id="upload-video" class="td-upload-preview" controls hidden></video>
+                <p id="upload-prompt" class="td-upload-prompt">
+                    <strong td-text="Upload.Click"></strong> <span td-text="Upload.Drag"></span>
+                </p>
+                <p id="upload-filename" class="td-upload-filename" hidden></p>
+                <p id="upload-drop-error"
+                   class="text-sm font-semibold text-error"
+                   role="alert"
+                   hidden></p>
+            </label>
+
+            <div id="upload-progress-wrap" hidden>
+                <h2 id="upload-progress-title" tabindex="-1" class="td-uploading-title" td-text="Upload.Progress"></h2>
+                <progress id="upload-progress" td-aria-label="Upload.ProgressName"
+                          class="td-progress"
+                          value="0"
+                          max="100"></progress>
+                <p id="upload-progress-label"
+                   class="td-muted mt-1 text-center text-sm"
+                   aria-live="polite">0%</p>
+            </div>
+
+            <div class="td-upload-actions">
+                <button id="upload-submit"
+                        type="submit"
+                        class="btn btn-primary w-full">
+                    <partial name="_Icon" model='@("UploadOutline")' />
+                    <span td-text="Upload"></span>
+                </button>
+            </div>
+        </form>
+    </div>
+</section>
+
+@section Scripts {
+    <script nonce="@ViewContext.HttpContext.Items[SecurityHeaders.ContentSecurityPolicyNonceItemKey]">
+        (() => {
+            const form = document.getElementById("upload-form");
+            if (!form) return;
+            const fileInput = document.getElementById("upload-file");
+            const uploadZone = document.getElementById("upload-zone");
+            const prompt = document.getElementById("upload-prompt");
+            const fileName = document.getElementById("upload-filename");
+            const dropError = document.getElementById("upload-drop-error");
+            const progressWrap = document.getElementById("upload-progress-wrap");
+            const progress = document.getElementById("upload-progress");
+            const progressLabel = document.getElementById("upload-progress-label");
+            const submit = document.getElementById("upload-submit");
+
+            const imagePreview = document.getElementById("upload-preview");
+            const videoPreview = document.getElementById("upload-video");
+            const uploadIcon = document.getElementById("upload-icon");
+            const fileIcon = document.getElementById("upload-file-icon");
+            const uploadCard = document.getElementById("upload-card");
+            let previewUrl;
+            const syncSelectedFile = () => {
+                const selectedFile = fileInput.files?.[0];
+                if (previewUrl) URL.revokeObjectURL(previewUrl);
+                imagePreview.hidden = true;
+                videoPreview.hidden = true;
+                imagePreview.removeAttribute("src");
+                videoPreview.removeAttribute("src");
+                uploadIcon.hidden = Boolean(selectedFile);
+                fileIcon.hidden = !selectedFile || selectedFile.type.startsWith("image/") || selectedFile.type.startsWith("video/");
+                if (selectedFile?.type.startsWith("image/")) {
+                    previewUrl = URL.createObjectURL(selectedFile);
+                    imagePreview.src = previewUrl;
+                    imagePreview.hidden = false;
+                } else if (selectedFile?.type.startsWith("video/")) {
+                    previewUrl = URL.createObjectURL(selectedFile);
+                    videoPreview.src = previewUrl;
+                    videoPreview.hidden = false;
+                }
+                prompt.hidden = Boolean(selectedFile);
+                fileName.hidden = !selectedFile;
+                fileName.textContent = selectedFile?.name ?? "";
+            };
+
+            const clearDropError = () => {
+                tdI18n.setText(dropError, "");
+                dropError.hidden = true;
+            };
+
+            syncSelectedFile();
+            // 파일 없이 누르면 제출 대신 파일 선택 창을 연다. JS가 없으면 required가 제출을 막는다.
+            submit.addEventListener("click", event => {
+                if (fileInput.files?.length) return;
+                event.preventDefault();
+                fileInput.click();
+            });
+            fileInput.addEventListener("change", () => {
+                clearDropError();
+                syncSelectedFile();
+            });
+
+            for (const eventName of ["dragenter", "dragover"]) {
+                uploadZone.addEventListener(eventName, (event) => {
+                    event.preventDefault();
+                    uploadZone.classList.add("is-dragging");
+                });
+            }
+
+            for (const eventName of ["dragleave", "drop"]) {
+                uploadZone.addEventListener(eventName, (event) => {
+                    event.preventDefault();
+                    uploadZone.classList.remove("is-dragging");
+                });
+            }
+
+            uploadZone.addEventListener("drop", (event) => {
+                const droppedFiles = event.dataTransfer?.files;
+                if (!droppedFiles?.length) {
+                    return;
+                }
+
+                if (droppedFiles.length > 1) {
+                    fileInput.value = "";
+                    syncSelectedFile();
+                    tdI18n.setText(dropError, "Upload.OneFile");
+                    dropError.hidden = false;
+                    return;
+                }
+
+                clearDropError();
+                fileInput.files = droppedFiles;
+                syncSelectedFile();
+            });
+
+            // htmx 4 uses Fetch; preserve real upload progress with an XHR transport
+            // for this multipart form while keeping htmx redirects and lifecycle.
+            form.addEventListener("htmx:config:request", event => {
+                event.detail.ctx.request.timeout = 0;
+            });
+            form.addEventListener("htmx:before:request", event => {
+                event.detail.ctx.fetch = (url, options) => new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    const abort = () => xhr.abort();
+                    xhr.open(options.method, url);
+                    for (const [name, value] of Object.entries(options.headers)) xhr.setRequestHeader(name, value);
+                    xhr.upload.addEventListener("progress", event => {
+                        if (!event.lengthComputable) return;
+                        const percent = Math.min(100, Math.round(event.loaded / event.total * 100));
+                        progress.value = percent;
+                        tdI18n.setText(progressLabel, "Upload.Percent", [percent]);
+                    });
+                    xhr.onload = () => {
+                        const headers = new Headers();
+                        for (const line of xhr.getAllResponseHeaders().trim().split(/[\r\n]+/)) {
+                            const colon = line.indexOf(":");
+                            if (colon > 0) headers.append(line.slice(0, colon), line.slice(colon + 1).trim());
+                        }
+                        resolve(new Response(xhr.status === 204 ? null : xhr.responseText, { status: xhr.status, headers }));
+                    };
+                    xhr.onerror = () => reject(new TypeError("Upload failed"));
+                    xhr.onabort = () => reject(new DOMException("Upload aborted", "AbortError"));
+                    xhr.onloadend = () => options.signal.removeEventListener("abort", abort);
+                    options.signal.addEventListener("abort", abort, { once: true });
+                    if (options.signal.aborted) { reject(new DOMException("Upload aborted", "AbortError")); return; }
+                    xhr.send(options.body);
+                });
+                uploadCard.classList.add("is-uploading");
+                progressWrap.hidden = false;
+                progress.value = 0;
+                tdI18n.setText(progressLabel, "Upload.Percent", [0]);
+                submit.disabled = true;
+                document.getElementById("upload-progress-title").focus();
+            });
+
+            form.addEventListener("htmx:finally:request", (event) => {
+                submit.disabled = false;
+
+                if (!event.detail.ctx.response?.raw.ok) {
+                    const restoreFocus = document.activeElement === document.getElementById("upload-progress-title")
+                        || document.activeElement === document.body;
+                    uploadCard.classList.remove("is-uploading");
+                    if (restoreFocus) submit.focus();
+                    tdI18n.setText(progressLabel, event.detail.ctx.response?.status === 413 ? "Upload.TooLarge" : "Upload.Failed");
+                }
+            });
+        })();
+    </script>
+}

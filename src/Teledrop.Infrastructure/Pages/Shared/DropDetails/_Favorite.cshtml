@@ -1,0 +1,15 @@
+@model Teledrop.Features.Drops.DropDetailModel
+@{
+    var drop = Model.Drop!;
+}
+@* ⋯ 메뉴 항목이다. 할 동작(설정·해제)을 글자로 보여 주며, 메뉴 안에서 폼 상자를 만들지 않도록 display: contents로 둔다. *@
+<form data-favorite-value="@drop.IsFavorite.ToString().ToLowerInvariant()" id="drop-favorite" class="td-menu-form" method="post" asp-page="/DropDetail" asp-page-handler="Favorite" asp-route-slug="@drop.Slug"
+      hx-post="@Url.Page("/DropDetail", "Favorite", new { slug = drop.Slug })" hx-swap="none"
+      hx-swap-oob="@(Model.FragmentPart == "favorite" ? "outerHTML" : null)" data-drop-action="favorite">
+    <input type="hidden" name="IsFavorite" value="@((!drop.IsFavorite).ToString().ToLowerInvariant())" />
+    <button id="favorite-button" type="submit" role="menuitem" tabindex="-1" class="td-favorite">
+        <span data-favorite-filled hidden="@(!drop.IsFavorite)"><partial name="_Icon" model='@("StarSolid")' /></span>
+        <span data-favorite-empty hidden="@drop.IsFavorite"><partial name="_Icon" model='@("StarOutline")' /></span>
+        <span data-favorite-label td-text="@(drop.IsFavorite ? "Favorite.Clear" : "Favorite.Set")"></span>
+    </button>
+</form>

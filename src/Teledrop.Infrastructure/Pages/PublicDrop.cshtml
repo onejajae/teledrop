@@ -1,0 +1,7 @@
+@page "/{slug}"
+@model Teledrop.Features.Drops.PublicDropModel
+@{
+    ViewData["TitleKey"] = Model.IsLocked ? "Password.Enter" : null;
+    ViewData["Title"] = Model.IsLocked ? Ui["Password.Enter"] : Model.Drop?.FileName;
+}
+<partial name="_PublicDropContent" model="Model" />

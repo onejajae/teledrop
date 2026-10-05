@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="src/Teledrop.Core/Teledrop.Core.csproj" />
+  <Project Path="src/Teledrop.Infrastructure/Teledrop.Infrastructure.csproj" />
+  <Project Path="src/Teledrop/Teledrop.csproj" />
+  <Project Path="tests/Teledrop.Tests/Teledrop.Tests.csproj" />
+</Solution>

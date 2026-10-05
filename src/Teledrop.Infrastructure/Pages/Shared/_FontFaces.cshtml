@@ -1,0 +1,18 @@
+@using Microsoft.AspNetCore.Components
+@{
+    var assets = Context.GetEndpoint()!.Metadata.GetRequiredMetadata<ResourceAssetCollection>();
+    var fonts = new[]
+    {
+        (Name: "Regular", Weight: 400),
+        (Name: "Medium", Weight: 500),
+        (Name: "SemiBold", Weight: 600),
+        (Name: "Bold", Weight: 700),
+    };
+}
+<style>
+    @foreach (var font in fonts)
+    {
+        var url = Url.Content($"~/{assets[$"fonts/Pretendard-{font.Name}.woff2"]}");
+        <text>@@font-face { font-family: Pretendard; font-style: normal; font-weight: @font.Weight; font-display: swap; src: url("@url") format("woff2"); }</text>
+    }
+</style>

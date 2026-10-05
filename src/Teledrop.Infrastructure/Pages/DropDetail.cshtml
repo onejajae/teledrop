@@ -1,0 +1,51 @@
+@page "/drops/{slug}"
+@model Teledrop.Features.Drops.DropDetailModel
+@{
+    var drop = Model.Drop!;
+    ViewData["Title"] = drop.FileName;
+}
+<section id="drop-detail" class="td-section" data-drop-slug="@drop.Slug"
+         data-shared-state-url="@Url.Page("/DropDetail", "SharedState", new { slug = drop.Slug })"
+         data-favorite-state-url="@Url.Page("/DropDetail", "FavoriteState", new { slug = drop.Slug })">
+    <div class="td-section-body">
+        <div class="td-section-header">
+            <partial name="DropDetails/_Heading" model="Model" />
+            <div class="td-toolbar" td-aria-label="Manage">
+                <partial name="DropDetails/_Access" model="Model" />
+                <span class="td-toolbar-divider" aria-hidden="true"></span>
+                <div class="td-menu">
+                    <button id="drop-actions-toggle" type="button" class="td-row-action" data-menu-toggle
+                            aria-haspopup="menu" aria-expanded="false" aria-controls="drop-actions"
+                            td-tooltip="Actions" td-aria-label="Actions">
+                        <partial name="_Icon" model='@("DotsThreeOutline")' />
+                    </button>
+                    <div id="drop-actions" class="td-menu-items" role="menu" td-aria-label="Actions">
+                        <partial name="DropDetails/_Favorite" model="Model" />
+                        <partial name="DropDetails/_DescriptionMenuItem" model="Model" />
+                        <button id="slug-open" type="button" role="menuitem" tabindex="-1" data-dialog-open="url-dialog">
+                            <partial name="_Icon" model='@("LinkOutline")' /><span td-text="Url"></span>
+                        </button>
+                        <div class="td-menu-separator" role="separator"></div>
+                        <button id="delete-open" type="button" role="menuitem" tabindex="-1" class="td-menu-danger" data-dialog-open="delete-dialog">
+                            <partial name="_Icon" model='@("TrashBinOutline")' /><span td-text="Delete"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <p data-operation-error="favorite" class="text-sm text-error" role="alert" hidden></p>
+        <div id="favorite-recovery" class="flex gap-2 my-2" hidden>
+            <button type="button" class="btn btn-sm" data-favorite-recheck td-text="Favorite.Recheck"></button>
+            <button type="button" class="btn btn-sm" data-favorite-retry td-text="Favorite.Retry"></button>
+        </div>
+        <p data-operation-error="access" class="text-sm text-error" role="alert" hidden></p>
+        <p data-operation-error="shared" class="text-sm text-error" role="alert" hidden></p>
+        <p id="drop-navigation-status" class="td-muted text-sm" role="status" hidden td-text="Operation.Wait"></p>
+        <partial name="DropDetails/_DescriptionEditor" model="Model" />
+        <partial name="_DropPreview" model="drop" view-data='new ViewDataDictionary(ViewData) { ["DescriptionEditor"] = true }' />
+    </div>
+</section>
+<partial name="DropDetails/_PasswordDialog" model="Model" />
+<partial name="DropDetails/_UrlDialog" model="Model" />
+<partial name="DropDetails/_DeleteDialog" model="Model" />
+<noscript><style>.td-dialog { display: block; position: static; margin: 0.75rem 0; width: 100%; max-width: none; } .td-toolbar button[type=button], [data-dialog-close] { display: none; } .td-toolbar .td-menu-items { display: flex !important; position: static; flex-direction: row; border: 0; box-shadow: none; padding: 0; min-width: 0; } .td-access-hint { display: none; } .td-description, .td-description-form { display: block !important; } .td-description > .td-preview-description, [data-description-cancel], .td-description-hint { display: none !important; }</style></noscript>

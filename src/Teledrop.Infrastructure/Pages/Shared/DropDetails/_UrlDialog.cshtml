@@ -1,0 +1,23 @@
+@model Teledrop.Features.Drops.DropDetailModel
+@{
+    var drop = Model.Drop!;
+    var slugError = ViewData.ModelState[nameof(Model.SlugInput)]?.Errors.Count > 0;
+}
+<dialog id="url-dialog" hx-swap-oob="@(Model.FragmentPart == "slug" ? "outerHTML" : null)" class="td-dialog" aria-labelledby="url-title" open="@slugError">
+    <div class="td-dialog-header">
+        <h2 id="url-title" td-text="Url"></h2>
+        <button type="button" class="td-row-action" data-dialog-close td-aria-label="Close"><partial name="_Icon" model='@("CloseOutline")' /></button>
+    </div>
+    <div class="td-dialog-body space-y-4">
+        <partial name="DropDetails/_ShareLink" model="Model" />
+        <p data-operation-error="slug" class="text-sm text-error" role="alert" hidden></p>
+        <form method="post" asp-page="/DropDetail" asp-page-handler="Slug" hx-post="@Url.Page("/DropDetail", "Slug", new { slug = drop.Slug })" hx-swap="none" data-drop-action="slug" asp-route-slug="@drop.Slug">
+            <div class="td-fieldset">
+                <label asp-for="SlugInput" class="td-label" td-text="Url.Change"></label>
+                <input aria-invalid="@(slugError ? "true" : null)" aria-describedby="slug-error" asp-for="SlugInput" class="input w-full" maxlength="64" autocomplete="off" required />
+                <span td-text="@Model.SlugErrorKey" id="slug-error" asp-validation-for="SlugInput" class="text-sm text-error"></span>
+            </div>
+            <button type="submit" class="btn btn-primary w-full" td-text="Change"></button>
+        </form>
+    </div>
+</dialog>

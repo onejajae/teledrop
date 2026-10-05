@@ -1,0 +1,19 @@
+@model Teledrop.Features.Drops.DropDetailModel
+@{
+    var drop = Model.Drop!;
+}
+<dialog id="delete-dialog" hx-swap-oob="@(Model.FragmentPart == "delete" ? "outerHTML" : null)" class="td-dialog" aria-labelledby="delete-title" aria-describedby="delete-question">
+    <div class="td-dialog-header">
+        <h2 id="delete-title" td-text="Delete.Title"></h2>
+        <button type="button" class="td-row-action" data-dialog-close td-aria-label="Close"><partial name="_Icon" model='@("CloseOutline")' /></button>
+    </div>
+    <div class="td-dialog-body">
+        <p id="delete-question" class="td-dialog-message" td-text="Delete.Question" td-args="@(new object[] { drop.FileName })"></p>
+        <p class="td-muted text-sm" td-text="Delete.Irreversible"></p>
+        <p data-operation-error="delete" class="text-sm text-error" role="alert" hidden></p>
+        <form method="post" asp-page="/DropDetail" asp-page-handler="Delete" hx-post="@Url.Page("/DropDetail", "Delete", new { slug = drop.Slug })" hx-swap="none" data-drop-action="delete" asp-route-slug="@drop.Slug" class="td-dialog-actions">
+            <button type="button" class="btn" data-dialog-close td-text="Cancel"></button>
+            <button type="submit" class="btn btn-danger" td-text="Delete"></button>
+        </form>
+    </div>
+</dialog>

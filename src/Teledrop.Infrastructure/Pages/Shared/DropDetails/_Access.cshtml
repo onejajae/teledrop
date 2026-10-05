@@ -1,0 +1,67 @@
+@model Teledrop.Features.Drops.DropDetailModel
+@using Teledrop.Features.Drops
+@{
+    var drop = Model.Drop!;
+    var level = drop.AccessLevel;
+    var levels = new[]
+    {
+        (Level: DropAccessLevel.Private, Value: "private", Icon: "EyeSlashOutline"),
+        (Level: DropAccessLevel.Public, Value: "public", Icon: "GlobeOutline"),
+        (Level: DropAccessLevel.Password, Value: "password", Icon: "LockOutline"),
+    };
+    var current = levels.Single(item => item.Level == level);
+}
+@* 공개 범위는 메뉴 하나로 고른다. 나만 보기·링크 공개는 바로 적용하고, 비밀번호 공개는 비밀번호 대화상자를 거친다. *@
+<div id="drop-access" class="td-menu" data-access-level="@current.Value"
+     hx-swap-oob="@(Model.FragmentPart == "access" ? "outerHTML" : null)">
+    <span id="access-label" class="sr-only" td-text="Access.Label"></span>
+    <button id="access-toggle" type="button" class="td-menu-button" data-menu-toggle
+            aria-haspopup="menu" aria-expanded="false" aria-controls="access-menu" aria-labelledby="access-label access-current">
+        <partial name="_Icon" model="current.Icon" />
+        <span id="access-current">
+            <span class="td-access-full" td-text="Access.@current.Level"></span><span class="td-access-short" aria-hidden="true" td-text="Access.@(current.Level).Short"></span>
+        </span>
+        <partial name="_Icon" model='@("CaretDownOutline")' />
+    </button>
+    <form id="access-menu" class="td-menu-items td-access-menu" role="menu" td-aria-label="Access.Label"
+          method="post" asp-page="/DropDetail" asp-page-handler="Access" asp-route-slug="@drop.Slug"
+          hx-post="@Url.Page("/DropDetail", "Access", new { slug = drop.Slug })" hx-swap="none" data-drop-action="access">
+        @foreach (var item in levels)
+        {
+            var isCurrent = item.Level == level;
+            var hint = $"Access.{item.Level}.Hint";
+            @* 현재 값은 다시 보내지 않는다. 비밀번호 공개는 입력이 필요하므로 대화상자를 연다. *@
+            @if (isCurrent)
+            {
+                <button id="access-@item.Value" type="button" role="menuitemradio" aria-checked="true" tabindex="-1">
+                    <partial name="_Icon" model="item.Icon" />
+                    <span class="td-access-item"><span td-text="Access.@item.Level"></span><span class="td-access-hint" td-text="@hint"></span></span>
+                    <partial name="_Icon" model='@("CheckOutline")' />
+                </button>
+            }
+            else if (item.Level == DropAccessLevel.Password)
+            {
+                <button id="access-@item.Value" type="button" role="menuitemradio" aria-checked="false" tabindex="-1" data-dialog-open="password-dialog">
+                    <partial name="_Icon" model="item.Icon" />
+                    <span class="td-access-item"><span td-text="Access.@item.Level"></span><span class="td-access-hint" td-text="@hint"></span></span>
+                    <partial name="_Icon" model='@("CheckOutline")' />
+                </button>
+            }
+            else
+            {
+                <button id="access-@item.Value" type="submit" name="Access" value="@item.Value" role="menuitemradio" aria-checked="false" tabindex="-1">
+                    <partial name="_Icon" model="item.Icon" />
+                    <span class="td-access-item"><span td-text="Access.@item.Level"></span><span class="td-access-hint" td-text="@hint"></span></span>
+                    <partial name="_Icon" model='@("CheckOutline")' />
+                </button>
+            }
+        }
+        @if (level == DropAccessLevel.Password)
+        {
+            <div class="td-menu-separator" role="separator"></div>
+            <button id="password-change" type="button" role="menuitem" tabindex="-1" data-dialog-open="password-dialog">
+                <partial name="_Icon" model='@("KeyOutline")' /><span td-text="Password.Change"></span>
+            </button>
+        }
+    </form>
+</div>
