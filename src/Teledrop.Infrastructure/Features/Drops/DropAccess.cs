@@ -1,6 +1,6 @@
-using Isopoh.Cryptography.Argon2;
 using Microsoft.EntityFrameworkCore;
 using Teledrop.Data;
+using Teledrop.Infrastructure;
 
 namespace Teledrop.Features.Drops;
 
@@ -42,7 +42,7 @@ public sealed class DropAccess(
             return FromDecision(drop, decision);
 
         if (string.IsNullOrEmpty(dropPassword)
-            || !Argon2.Verify(drop.DropPasswordHash, dropPassword))
+            || !PasswordHash.Verify(drop.DropPasswordHash, dropPassword))
         {
             return DropAccessResult.InvalidDropPassword;
         }

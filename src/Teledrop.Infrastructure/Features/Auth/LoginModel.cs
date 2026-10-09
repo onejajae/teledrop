@@ -1,12 +1,12 @@
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
-using Isopoh.Cryptography.Argon2;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Options;
+using Teledrop.Infrastructure;
 
 namespace Teledrop.Features.Auth;
 
@@ -46,7 +46,7 @@ public sealed class LoginModel(IOptionsMonitor<TeledropOptions> optionsMonitor, 
         }
 
         var options = optionsMonitor.CurrentValue;
-        var passwordMatches = Argon2.Verify(options.WebPassword, Password);
+        var passwordMatches = PasswordHash.Verify(options.WebPassword, Password);
         var usernameMatches = string.Equals(
             Username,
             options.WebUsername,

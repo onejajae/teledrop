@@ -62,6 +62,10 @@ Kestrel은 chunked 입력도 미리 읽을 수 있으므로 위 HTTP 검증은 �
 
 모든 helper는 넘겨받은 `WebApplicationFactory<Program>`의 client·Services·저장 경로를 사용한다. `UploadReceiverTests`의 `WithWebHostBuilder` 설정이 적용된 host를 그대로 전달하며, 별도 factory를 몰래 시작하지 않는다. `FileCoreTests`는 파생 host의 변경된 저장 경로에서도 준비한 파일을 실제 다운로드할 수 있는지 확인한다. factory·client의 수명, Playwright 조작과 host 시작 전 기존 DB 준비는 원래 테스트가 소유한다.
 
+## 비밀번호 해시 호환성
+
+비밀번호 생성·검증은 Infrastructure의 `PasswordHash`가 Geralt와 네이티브 libsodium으로 처리한다. `PasswordHashTests`는 이전 Isopoh 구현으로 생성한 `p=1`·`p=4` 해시, UTF-8 비밀번호, 잘못된 비밀번호와 깨진 해시를 검증한다. `HashPasswordCommandTests`는 새 해시의 비용(`m=65536,t=3,p=1`)·salt와 이전 구현에서의 검증을 확인한다. Isopoh 패키지는 기존 해시와의 호환성을 검증하기 위해 테스트 프로젝트에만 유지한다.
+
 ## 미리보기와 Owner 변경 경로
 
 `DropPreviewTests`는 판단 interface의 MIME 표와 실제 상세·Share Link HTML, 다운로드 disposition을 함께 검증한다. PDF 매개변수·대소문자, 이미지·영상·음성, plain text, SVG·HTML·기타 타입과 파일명 불일치를 포함한다. 저장된 MIME 매개변수가 그대로 전달되고 Range 응답이 동작하는지 확인하며, 잘못된 MIME은 HTML의 미리보기 부재만 확인한다.

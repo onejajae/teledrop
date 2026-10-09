@@ -1,5 +1,5 @@
 using System.Text;
-using Isopoh.Cryptography.Argon2;
+using Teledrop.Infrastructure;
 
 namespace Teledrop.Features.Auth;
 
@@ -47,9 +47,7 @@ public static class HashPasswordCommand
             return 1;
         }
 
-        Console.Out.WriteLine(Argon2.Hash(password,
-            timeCost: 3, memoryCost: 65536, parallelism: 1,
-            type: Argon2Type.HybridAddressing, hashLength: 32));
+        Console.Out.WriteLine(PasswordHash.Hash(password));
         return 0;
     }
 
