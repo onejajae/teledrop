@@ -84,6 +84,8 @@ Kestrel은 chunked 입력도 미리 읽을 수 있으므로 위 HTTP 검증은 �
 
 ## 저장과 파일 module
 
+`DropIdMigrationTests`는 이전 데이터 이관에서 남은 소문자 GUID를 초기 migration DB에 준비한 뒤 최신 migration을 적용한다. 파일·공개 범위·비밀번호 해시와 논리적 ID를 유지하면서 기존 Drop의 비밀번호 해제와 삭제가 가능한지 검증한다. 대소문자만 다른 중복 ID가 있으면 어느 Drop도 버리지 않고 migration 전체가 실패해야 한다.
+
 `DropStoreContractTests`는 실제 임시 SQLite와 fake adapter를 같은 `IDropCommandStore` seam으로 검증한다. 저장 전 변경의 비영속성, 저장 후 새 scope에서의 조회, 미추적·다른 scope·삭제된 객체의 거부, 서로 다른 scope가 변경한 필드의 보존을 검사한다. EF adapter의 삽입·삭제 대기 상태도 별도로 검증한다.
 
 공개 범위 경쟁 검증은 두 scope가 같은 public Drop을 먼저 읽은 뒤 실제 `DropUseCases.SetAccessAsync`를 호출한다. private·비밀번호 공개의 두 저장 순서를 고정해 마지막 저장의 공개 여부·Drop Password 조합이 남고, 앞선 설명·Favorite 변경은 보존되는지 SQLite와 fake 양쪽에서 확인한다. 공개 범위 저장에도 기존 추적 객체 요구 조건을 검증한다.
