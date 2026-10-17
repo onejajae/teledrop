@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="Isopoh.Cryptography.Argon2" Version="2.0.0" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Teledrop.Core/Teledrop.Core.csproj" />
+    <ProjectReference Include="../../src/Teledrop.Infrastructure/Teledrop.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../Shared/FakeDropStore.cs" Link="Shared/FakeDropStore.cs" />
+  </ItemGroup>
+
+</Project>

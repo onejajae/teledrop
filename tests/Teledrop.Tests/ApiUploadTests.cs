@@ -12,38 +12,33 @@ namespace Teledrop.Tests;
 
 public sealed class ApiUploadTests
 {
-    [Fact]
-    public async Task MissingApiKeyReturns401WithApiKeyChallenge()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task MultipleApiKeyValuesAreRejectedWithoutChangingStoredDrops(bool repeatValidKey)
     {
         using var factory = new TeledropWebApplicationFactory();
+        var bytes = "existing file"u8.ToArray();
+        var existing = await SeedDropAsync(factory, "existing", bytes);
         using var client = CreateClient(factory);
+        client.DefaultRequestHeaders.Add("X-API-Key", new[]
+        {
+            TeledropWebApplicationFactory.ApiKey,
+            repeatValidKey ? TeledropWebApplicationFactory.ApiKey : "wrong-api-key",
+        });
         using var multipart = CreateMultipart();
 
-        using var response = await client.PostAsync(
-            "/api/upload",
-            multipart);
+        using var response = await client.PostAsync("/api/upload", multipart);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-        var challenge = Assert.Single(
-            response.Headers.WwwAuthenticate);
-        Assert.Equal("ApiKey", challenge.Scheme);
-    }
-
-    [Fact]
-    public async Task WrongApiKeyReturns401()
-    {
-        using var factory = new TeledropWebApplicationFactory();
-        using var client = CreateClient(factory);
-        client.DefaultRequestHeaders.Add(
-            "X-API-Key",
-            "wrong-api-key");
-        using var multipart = CreateMultipart();
-
-        using var response = await client.PostAsync(
-            "/api/upload",
-            multipart);
-
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal("ApiKey", Assert.Single(response.Headers.WwwAuthenticate).Scheme);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var stored = await scope.ServiceProvider.GetRequiredService<TeledropDbContext>()
+            .Drops.AsNoTracking().SingleAsync();
+        Assert.Equal(existing.Id, stored.Id);
+        var path = Assert.Single(Directory.EnumerateFiles(factory.ShareDirectory));
+        Assert.Equal(Path.Combine(factory.ShareDirectory, existing.Location), path);
+        Assert.Equal(bytes, await File.ReadAllBytesAsync(path));
     }
 
     [Fact]

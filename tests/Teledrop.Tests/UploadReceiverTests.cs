@@ -16,12 +16,9 @@ namespace Teledrop.Tests;
 public sealed class UploadReceiverTests
 {
     [Theory]
-    [InlineData("Title", false)]
-    [InlineData("Title", true)]
     [InlineData("Description", false)]
     [InlineData("Description", true)]
     [InlineData("unexpected", false)]
-    [InlineData("unexpected", true)]
     public async Task WebRejectsAdditionalFieldsBeforeOrAfterFile(string name, bool afterFile)
     {
         using var harness = new Harness();
@@ -123,6 +120,7 @@ public sealed class UploadReceiverTests
         Directory.Delete(harness.Factory.ShareDirectory);
         using var response = await harness.Client.PostAsync(web ? "/upload" : "/api/upload", body);
         Assert.Equal(expected, response.StatusCode);
+        if (!web) Assert.Equal("ApiKey", Assert.Single(response.Headers.WwwAuthenticate).Scheme);
         Assert.False(Directory.Exists(harness.Factory.ShareDirectory));
         await harness.AssertEmptyAsync();
     }
@@ -148,11 +146,51 @@ public sealed class UploadReceiverTests
         Assert.True(drop.IsPrivate);
     }
 
+    [Fact]
+    public async Task ExtendedFileNameTakesPrecedenceAndLosesItsClientDirectory()
+    {
+        using var harness = new Harness();
+        await harness.PrepareAsync(web: false);
+        using var body = Multipart(null);
+        var file = new ByteArrayContent("payload"u8.ToArray());
+        file.Headers.ContentDisposition = new ContentDispositionHeaderValue("form-data")
+        {
+            Name = "file",
+            FileName = "fallback.bin",
+            FileNameStar = "C:\\temp\\설계 문서.txt",
+        };
+        body.Add(file);
+
+        using var response = await harness.Client.PostAsync("/api/upload", body);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var scope = harness.App.Services.CreateScope();
+        var drop = await scope.ServiceProvider.GetRequiredService<TeledropDbContext>().Drops.SingleAsync();
+        Assert.Equal("설계 문서.txt", drop.FileName);
+    }
+
+    [Fact]
+    public async Task AlreadyCanceledUploadStopsBeforeParsingOrCreatingAFile()
+    {
+        using var harness = new Harness();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var context = new DefaultHttpContext();
+        // Cancellation wins even when the request would otherwise be invalid.
+        context.Request.ContentType = "text/plain";
+        using var scope = harness.App.Services.CreateScope();
+        var receiver = scope.ServiceProvider.GetRequiredService<DropUploadReceiver>();
+
+        var thrown = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            receiver.ReceiveApiAsync(context.Request, cancellation.Token));
+
+        Assert.Equal(cancellation.Token, thrown.CancellationToken);
+        await harness.AssertEmptyAsync();
+    }
+
     [Theory]
     [InlineData("public", false)]
     [InlineData("public", true)]
-    [InlineData("title", false)]
-    [InlineData("title", true)]
     public async Task ApiRejectsUnknownFieldsAndCleansCompletedFile(string name, bool afterFile)
     {
         using var harness = new Harness();

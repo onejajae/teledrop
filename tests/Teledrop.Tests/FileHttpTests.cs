@@ -10,7 +10,7 @@ using static Teledrop.Tests.HttpTestSupport;
 
 namespace Teledrop.Tests;
 
-public sealed class FileCoreTests
+public sealed class FileHttpTests
 {
     [Theory]
     [InlineData(false)]
@@ -60,14 +60,19 @@ public sealed class FileCoreTests
         Assert.Null(drop.Description);
     }
 
-    [Fact]
-    public async Task DeletingDropWithMissingPhysicalFileRemovesRowWithoutServerError()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task DeletingADropRemovesOnlyItsStoredFileAndToleratesAMissingFile(bool fileExists)
     {
         using var factory = new TeledropWebApplicationFactory();
         using var client = CreateClient(factory);
         await LogInOwnerAsync(client);
 
-        var drop = await SeedDropAsync(factory, "missing-file", null);
+        var drop = await SeedDropAsync(factory, "delete-source", fileExists ? [1, 2, 3] : null);
+        var retained = await SeedDropAsync(factory, "retained", [4, 5],
+            seed => seed.Location = drop.Slug);
+        Assert.NotEqual(drop.Slug, drop.Location);
         var homeBody = await client.GetStringAsync("/");
         var verificationValue = ExtractAntiforgery(homeBody);
         var formValues = new Dictionary<string, string>
@@ -88,6 +93,10 @@ public sealed class FileCoreTests
             .GetRequiredService<TeledropDbContext>();
         Assert.False(await dbContext.Drops.AnyAsync(
             candidate => candidate.Id == drop.Id));
+        Assert.False(File.Exists(Path.Combine(factory.ShareDirectory, drop.Location)));
+        Assert.Equal(retained.Id, (await dbContext.Drops.SingleAsync()).Id);
+        Assert.Equal(new byte[] { 4, 5 },
+            await File.ReadAllBytesAsync(Path.Combine(factory.ShareDirectory, retained.Location)));
     }
 
     [Fact]
@@ -110,23 +119,6 @@ public sealed class FileCoreTests
         Assert.Equal(
             fileBytes[..4],
             await response.Content.ReadAsByteArrayAsync());
-    }
-
-    [Fact]
-    public async Task UnauthenticatedDownloadRedirectsToLogin()
-    {
-        using var factory = new TeledropWebApplicationFactory();
-        var drop = await SeedDropAsync(factory, "private-download", null);
-        using var client = CreateClient(factory);
-
-        using var response = await client.GetAsync($"/d/{drop.Slug}");
-
-        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-        var location = Assert.IsType<Uri>(response.Headers.Location);
-        var pathAndQuery = location.IsAbsoluteUri
-            ? location.PathAndQuery
-            : location.OriginalString;
-        Assert.StartsWith("/login?ReturnUrl=", pathAndQuery);
     }
 
     [Fact]

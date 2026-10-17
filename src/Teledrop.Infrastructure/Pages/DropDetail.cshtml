@@ -5,6 +5,7 @@
     ViewData["Title"] = drop.FileName;
 }
 <section id="drop-detail" class="td-section" data-drop-slug="@drop.Slug"
+         data-recovery-state-url="@Url.Page("/DropDetail", "RecoveryState", new { slug = drop.Slug, id = drop.Id })"
          data-shared-state-url="@Url.Page("/DropDetail", "SharedState", new { slug = drop.Slug })"
          data-favorite-state-url="@Url.Page("/DropDetail", "FavoriteState", new { slug = drop.Slug })">
     <div class="td-section-body">

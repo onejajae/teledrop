@@ -28,6 +28,22 @@ public sealed class DropDetailModel(
     public Task<IActionResult> OnGetSharedStateAsync(string slug, CancellationToken cancellationToken)
         => RenderStateAsync(slug, "shared", cancellationToken);
 
+    public async Task<IActionResult> OnGetRecoveryStateAsync(Guid id, CancellationToken cancellationToken)
+    {
+        if (id == Guid.Empty) return BadRequest();
+        Response.Headers.CacheControl = "no-store";
+        // A lost rename/delete response must not resolve a different Drop that reused the Slug.
+        var drop = await dbContext.Drops.AsNoTracking().SingleOrDefaultAsync(
+            candidate => candidate.Id == id, cancellationToken);
+        Response.Headers["X-Drop-Exists"] = drop is null ? "false" : "true";
+        Response.Headers["X-Drop-Location"] = drop is null
+            ? Url.Page("/Index", new { deleted = true })
+            : Url.Page("/DropDetail", new { slug = drop.Slug });
+        if (drop is null) return new StatusCodeResult(StatusCodes.Status204NoContent);
+        PopulatePage(drop);
+        return Fragment("recovery", "read");
+    }
+
     [BindProperty]
     public string? DescriptionInput { get; set; }
 

@@ -2,5 +2,7 @@
   <Project Path="src/Teledrop.Core/Teledrop.Core.csproj" />
   <Project Path="src/Teledrop.Infrastructure/Teledrop.Infrastructure.csproj" />
   <Project Path="src/Teledrop/Teledrop.csproj" />
+  <Project Path="tests/Teledrop.Core.Tests/Teledrop.Core.Tests.csproj" />
+  <Project Path="tests/Teledrop.Infrastructure.Tests/Teledrop.Infrastructure.Tests.csproj" />
   <Project Path="tests/Teledrop.Tests/Teledrop.Tests.csproj" />
 </Solution>

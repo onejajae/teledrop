@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Teledrop.Core/Teledrop.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../Shared/FakeDropStore.cs" Link="Shared/FakeDropStore.cs" />
+  </ItemGroup>
+
+</Project>

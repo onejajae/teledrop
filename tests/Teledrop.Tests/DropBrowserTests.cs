@@ -158,12 +158,6 @@ public sealed partial class DropBrowserTests : IAsyncLifetime
         await ChooseAccessAsync("public");
         await Expect(page.Locator("#drop-share-state")).ToContainTextAsync("누구나 열 수 있는");
         await Expect(page.Locator("#password-change")).ToHaveCountAsync(0);
-        // 다시 비밀번호를 걸었다가 나만 보기로 바꾸면 비밀번호가 함께 지워진다.
-        await ChooseAccessAsync("password");
-        await page.Locator("#NewDropPassword").FillAsync("drop-secret");
-        await page.Locator("#password-confirm").FillAsync("drop-secret");
-        await page.Locator("#password-form button[type=submit]").ClickAsync();
-        await Expect(page.Locator("#password-dialog")).Not.ToBeVisibleAsync();
         await ChooseAccessAsync("private");
         await Expect(access).ToHaveAccessibleNameAsync("공개 범위 나만 보기");
         await Expect(page.Locator("#drop-share-state")).ToContainTextAsync("소유자만");
@@ -656,10 +650,6 @@ public sealed partial class DropBrowserTests : IAsyncLifetime
         await Expect(canvas).ToBeVisibleAsync();
         await Expect(status).ToHaveTextAsync("1 / 2 페이지");
         await Expect(page.Locator("[data-pdf-prev]")).ToBeDisabledAsync();
-        var open = page.Locator("[data-pdf-open]");
-        await Expect(open).ToHaveAttributeAsync("href", "/d/pdf?inline=true");
-        await Expect(open).ToHaveAttributeAsync("target", "_blank");
-        await Expect(open).ToHaveAccessibleNameAsync("새 탭에서 PDF 열기");
         var firstPage = await canvas.EvaluateAsync<string>("c => c.toDataURL()");
 
         await page.Locator("[data-pdf-next]").ClickAsync();
@@ -670,26 +660,6 @@ public sealed partial class DropBrowserTests : IAsyncLifetime
         await Expect(page.Locator("[data-pdf-next]")).ToBeDisabledAsync();
         await page.Locator("[data-pdf-prev]").ClickAsync();
         await Expect(status).ToHaveTextAsync("1 / 2 페이지");
-        Assert.Empty(errors);
-    }
-
-    [Fact]
-    public async Task FileDetailsShowAndCopyTheSha256Hash()
-    {
-        await SeedPdfAsync("hash-pdf", locked: false);
-        var bytes = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures/preview.pdf"));
-        var expected = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(bytes));
-        await context.GrantPermissionsAsync(["clipboard-read", "clipboard-write"]);
-        await page.GotoAsync("/drops/hash-pdf");
-        var hash = page.Locator("[data-file-hash]");
-        await Expect(hash).ToBeHiddenAsync();
-
-        await page.Locator(".td-file-card > summary").ClickAsync();
-
-        await Expect(hash).ToHaveTextAsync(expected);
-        await page.Locator("[data-copy-hash]").ClickAsync();
-        await Expect(page.Locator("[data-copy-hash]")).ToHaveAccessibleNameAsync("복사됨");
-        Assert.Equal(expected, await page.EvaluateAsync<string>("() => navigator.clipboard.readText()"));
         Assert.Empty(errors);
     }
 

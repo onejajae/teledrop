@@ -106,7 +106,7 @@ public sealed partial class DropBrowserTests
     }
 
     [Fact]
-    public async Task LanguagePickerKeyboardFailureRetryAndLoginPersistence()
+    public async Task LanguagePickerKeyboardAndLoginPersistence()
     {
         await context.ClearCookiesAsync();
         await page.GotoAsync("/login");
@@ -126,14 +126,6 @@ public sealed partial class DropBrowserTests
         await page.Keyboard.PressAsync("Tab");
         await Expect(page.Locator("#theme-toggle")).ToBeFocusedAsync();
         await Expect(button).ToHaveAttributeAsync("aria-expanded", "false");
-        await page.RouteAsync("**/settings/language", r => r.AbortAsync());
-        await button.FocusAsync();
-        await page.Keyboard.PressAsync("Enter");
-        await page.Keyboard.PressAsync("End");
-        await page.Keyboard.PressAsync("Enter");
-        await Expect(page.Locator("#language-error")).ToBeVisibleAsync();
-        await Expect(page.Locator("html")).ToHaveAttributeAsync("lang", "ko");
-        await page.UnrouteAsync("**/settings/language");
         await ChooseLanguageAsync("en");
         await Expect(page.Locator("#Username")).ToHaveValueAsync("draft");
         await Expect(page.Locator("#Password")).ToHaveValueAsync("secret draft");

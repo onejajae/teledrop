@@ -67,7 +67,7 @@ Infrastructure의 concrete `DropAccess` module이 Share Link 페이지·다운�
 
 폐기도 테이블 없이 한다. 비밀번호 해시에서 파생한 지문을 세션에 넣고 요청마다 현재 값과 대조한다(`OnValidatePrincipal`). **`WEB_PASSWORD`를 바꾸면 모든 기기의 세션이 즉시 죽는다** — 기기를 잃어버렸을 때의 폐기 수단이 이것이다.
 
-**세션은 슬라이딩 30일이다.** 접근할 때마다 갱신되고 30일 놀면 죽는다. "기억하기" 체크박스는 두지 않는다 — 동작이 하나면 고를 것이 없다. 길게 잡는 근거는 **teledrop에 로그인하는 것이 믿는 기기뿐**이라는 점이다. 낯선 PC에서는 로그인하지 않고 public 드롭이나 드롭 비밀번호로 파일에 접근한다.
+**세션은 ASP.NET Core의 슬라이딩 30일이다.** 발행 시 만료를 30일 뒤로 정하고, 수명의 절반인 15일이 지난 뒤 요청하면 그때부터 30일인 쿠키를 다시 발행한다. 갱신 없이 만료 시각이 지나면 로그인이 필요하다. 매 요청마다 만료를 연장하는 방식은 아니다. "기억하기" 체크박스는 두지 않는다 — 동작이 하나면 고를 것이 없다. 길게 잡는 근거는 **teledrop에 로그인하는 것이 믿는 기기뿐**이라는 점이다. 낯선 PC에서는 로그인하지 않고 public 드롭이나 드롭 비밀번호로 파일에 접근한다.
 
 ## REST API
 
@@ -138,7 +138,7 @@ Core의 `DropSlugs` module이 비공개 Drop 생성과 직접 지정한 Slug 변
 - **.NET + Razor Pages (SSR)**, EF Core + SQLite
 - 인증은 ASP.NET Core 쿠키 인증
 - htmx 4.0.0으로 부분 갱신. 웹 업로드 전송률은 해당 폼의 커스텀 XHR 전송으로 표시한다
-- CSS는 Tailwind + daisyUI. **생성 결과물을 저장소에 커밋한다** — Docker에서 node 스테이지를 없애기 위해서다
+- CSS는 Tailwind + 자체 컴포넌트 CSS. **생성 결과물을 저장소에 커밋한다** — Docker에서 node 스테이지를 없애기 위해서다
 
 ### 화면 언어
 
@@ -170,7 +170,8 @@ Infrastructure의 순수 `DropPreviewPolicy.Evaluate`가 MIME을 한 번 해석�
 
 - SVG를 제외한 image 계열, video·audio 계열, PDF는 해당 미리보기와 inline을 허용한다. 개별 subtype 목록은 만들지 않는다.
 - `text/plain`은 화면 미리보기 없이 inline만 허용한다. SVG·HTML과 나머지 타입은 미리보기 없이 attachment로 전달한다. 일반 다운로드는 항상 attachment다.
-- inline 응답에도 원래 파일 이름을 `filename`·`filename*`로 보낸다. PDF 미리보기는 같은 inline 주소를 새 탭으로 여는 링크를 두어 브라우저 내장 뷰어로 볼 수 있게 한다. 내장 뷰어가 없는 브라우저(안드로이드 Chrome 등)에서는 다운로드된다.
+- inline 응답에도 원래 파일 이름을 `filename`·`filename*`로 보낸다.
+- video 주소에는 `#t=0.001`을 붙인다. iOS Safari는 `preload="metadata"`만으로는 첫 프레임을 그리지 않는다.
 - 파일 아이콘의 확장자 fallback과 업로드 전 blob 미리보기는 별도 표시 동작이다. 확장자로 저장된 Drop의 미리보기나 inline을 허용하지 않는다.
 - 저장된 ContentType은 바꾸지 않고 그대로 `PhysicalFile`에 전달한다. 파싱 실패는 미리보기와 inline을 거부할 뿐, 손상된 MIME을 복구하거나 대체하지 않는다. 접근 판정과 Range 처리는 MIME 해석 결과와 무관하다.
 
@@ -203,7 +204,7 @@ npm --prefix src/Teledrop.Infrastructure run watch        # CSS만 감시
 dotnet run --project src/Teledrop --launch-profile http
 ```
 
-`src/Teledrop.Infrastructure/wwwroot/css/app.css`는 **생성물이지만 커밋한다.** htmx, PDF.js, Pretendard는 커밋하지 않는다. npm `postinstall`이 `htmx.org`, `pdfjs-dist`, `pretendard`에서 `wwwroot/`로 복사하므로, 빌드 전에 `npm ci`를 한 번 실행해야 한다. Docker 빌드는 Node 단계에서 같은 파일을 받아 SDK 단계에 넘긴다. daisyUI가 `@plugin`으로 `node_modules` 해석을 요구하므로 Tailwind standalone 바이너리로는 대체할 수 없다.
+`src/Teledrop.Infrastructure/wwwroot/css/app.css`는 **생성물이지만 커밋한다.** htmx, PDF.js, Pretendard는 커밋하지 않는다. npm `postinstall`이 `htmx.org`, `pdfjs-dist`, `pretendard`에서 `wwwroot/`로 복사하므로, 빌드 전에 `npm ci`를 한 번 실행해야 한다. Docker 빌드는 Node 단계에서 같은 파일을 받아 SDK 단계에 넘긴다. CSS는 npm의 Tailwind CLI로 생성한다.
 
 CSS 소스는 `src/Teledrop.Infrastructure/Styles/app.css`다. Tailwind 기본 탐색 경로에 `.cshtml`이 없으므로 `@source`로 `Pages/`를 명시해두었다 — 새 뷰 디렉터리를 만들면 여기에 추가해야 클래스가 방출된다.
 

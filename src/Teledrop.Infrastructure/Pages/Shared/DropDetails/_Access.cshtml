@@ -13,7 +13,7 @@
 }
 @* 공개 범위는 메뉴 하나로 고른다. 나만 보기·링크 공개는 바로 적용하고, 비밀번호 공개는 비밀번호 대화상자를 거친다. *@
 <div id="drop-access" class="td-menu" data-access-level="@current.Value"
-     hx-swap-oob="@(Model.FragmentPart == "access" ? "outerHTML" : null)">
+     hx-swap-oob="@(Model.FragmentPart is "access" or "recovery" ? "outerHTML" : null)">
     <span id="access-label" class="sr-only" td-text="Access.Label"></span>
     <button id="access-toggle" type="button" class="td-menu-button" data-menu-toggle
             aria-haspopup="menu" aria-expanded="false" aria-controls="access-menu" aria-labelledby="access-label access-current">

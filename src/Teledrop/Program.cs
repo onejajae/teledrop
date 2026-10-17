@@ -20,7 +20,6 @@ var app = builder.Build();
 await app.InitializeTeledropStorageAsync();
 
 app.UseTeledropSecurityHeaders();
-app.UseRequestLocalization();
 
 if (!app.Environment.IsDevelopment())
 {
@@ -28,6 +27,8 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+// Reapply language headers when the exception handler re-executes the error page.
+app.UseRequestLocalization();
 app.UseHttpsRedirection();
 app.UseRouting();
 app.UseAuthentication();

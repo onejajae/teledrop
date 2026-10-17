@@ -7,6 +7,17 @@ namespace Teledrop.Tests;
 public sealed class HashPasswordCommandTests
 {
     [Fact]
+    public async Task HelpDoesNotRequireServerConfigurationOrReadAPassword()
+    {
+        var result = await RunAsync("", "--help");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Usage: hash-password [--stdin]", result.Output);
+        Assert.DoesNotContain("$argon2", result.Output);
+        Assert.Empty(result.Error);
+    }
+
+    [Fact]
     public async Task GeneratesSaltedArgon2idWithoutServerConfiguration()
     {
         const string password = "test-비밀번호 $ with spaces";

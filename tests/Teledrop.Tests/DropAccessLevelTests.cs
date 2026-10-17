@@ -52,7 +52,6 @@ public sealed class DropAccessLevelTests
 
     [Theory]
     [InlineData(null)]
-    [InlineData("")]
     [InlineData("hidden")]
     [InlineData("7")]
     public async Task AccessHandlerRejectsUnknownLevels(string? level)

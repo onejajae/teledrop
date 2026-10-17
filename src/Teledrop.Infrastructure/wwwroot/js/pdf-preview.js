@@ -21,13 +21,14 @@ async function loadPdf(root) {
             wasmUrl: `${assets}wasm/`,
             isEvalSupported: false,
         }).promise;
-        let pageNumber = 1;
+        let pageNumber = 0; // No page is available for navigation until the first render succeeds.
         let rendering = false;
         const render = async (number) => {
             if (rendering) return;
             rendering = true;
             const focused = root.contains(document.activeElement) ? document.activeElement : null;
             previous.disabled = next.disabled = true;
+            let renderTask;
             try {
                 const page = await pdf.getPage(number);
                 const base = page.getViewport({ scale: 1 });
@@ -35,17 +36,20 @@ async function loadPdf(root) {
                 const viewport = page.getViewport({ scale });
                 canvas.width = Math.ceil(viewport.width);
                 canvas.height = Math.ceil(viewport.height);
-                await page.render({ canvas, viewport }).promise;
+                renderTask = page.render({ canvas, viewport });
+                await renderTask.promise;
                 canvas.hidden = false;
                 pageNumber = number;
                 tdI18n.setText(status, "Pdf.Page", [pageNumber, pdf.numPages]);
                 tdI18n.setAttribute(canvas, "aria-label", "Pdf.PageLabel", [pageNumber, pdf.numPages]);
             } catch {
+                // Release PDF.js's canvas ownership even if graphics initialization failed.
+                renderTask?.cancel();
                 tdI18n.setText(status, "Pdf.PageFailed");
             } finally {
                 rendering = false;
                 previous.disabled = pageNumber <= 1;
-                next.disabled = pageNumber >= pdf.numPages;
+                next.disabled = pageNumber === 0 || pageNumber >= pdf.numPages;
                 if (focused && document.activeElement === document.body) {
                     if (focused.isConnected && !focused.disabled) focused.focus();
                     else (number >= pdf.numPages ? previous : next).focus();

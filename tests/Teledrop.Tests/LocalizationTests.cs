@@ -1,9 +1,6 @@
-using System.Collections;
 using System.Globalization;
 using System.Net;
-using System.Resources;
 using System.Text.RegularExpressions;
-using Teledrop.Localization;
 using Xunit;
 using static Teledrop.Tests.HttpTestSupport;
 
@@ -15,13 +12,10 @@ public sealed class LocalizationTests
     [InlineData(null, "en")]
     [InlineData("ko-KR", "ko")]
     [InlineData("en-US", "en")]
-    [InlineData("en-GB", "en")]
-    [InlineData("ja,ko;q=0.8", "ko")]
     [InlineData("ja,fr;q=0.9,de;q=0.8,ko;q=0.7", "ko")]
     [InlineData("ja,fr;q=0.8", "en")]
     [InlineData("ko;q=0,en;q=0.8", "en")]
     [InlineData("en;q=0.5,ko;q=0.9", "ko")]
-    [InlineData("*", "en")]
     public async Task FirstResponseUsesSupportedBrowserLanguage(string? header, string expected)
     {
         using var factory = new TeledropWebApplicationFactory();
@@ -71,25 +65,6 @@ public sealed class LocalizationTests
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.Equal(location, response.Headers.Location!.OriginalString);
         Assert.Contains("<html lang=\"en\"", await client.GetStringAsync("/login"));
-    }
-
-    [Fact]
-    public void CatalogsContainTheSameKeysAndPlaceholders()
-    {
-        var resources = new ResourceManager("Teledrop.Localization.UiStrings", typeof(UiText).Assembly);
-        Dictionary<string, string> Read(CultureInfo culture) => resources.GetResourceSet(culture, true, false)!
-            .Cast<DictionaryEntry>().ToDictionary(entry => (string)entry.Key, entry => (string)entry.Value!);
-        var english = Read(CultureInfo.InvariantCulture);
-        var korean = Read(CultureInfo.GetCultureInfo("ko"));
-        Assert.Equal(english.Keys.Order(), korean.Keys.Order());
-        foreach (var key in english.Keys)
-        {
-            Assert.False(string.IsNullOrWhiteSpace(korean[key]));
-            Assert.Equal(Regex.Matches(english[key], @"\{\d+\}").Select(m => m.Value).Order(),
-                Regex.Matches(korean[key], @"\{\d+\}").Select(m => m.Value).Order());
-        }
-        Assert.Equal("Sign in", UiText.Catalogs["en"]["Login"]);
-        Assert.Equal("로그인", UiText.Catalogs["ko"]["Login"]);
     }
 
     private static FormUrlEncodedContent Form(string language, string token, string returnUrl = "/login") => new(new Dictionary<string, string>

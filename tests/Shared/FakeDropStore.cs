@@ -1,7 +1,7 @@
 using System.Reflection;
 using Teledrop.Features.Drops;
 
-namespace Teledrop.Tests;
+namespace Teledrop.Testing;
 
 // Committed snapshots are shared; working copies belong to one store scope.
 internal sealed class FakeDropStore : IDropCommandStore
@@ -105,6 +105,9 @@ internal sealed class FakeDropStore : IDropCommandStore
         {
             RequireTrackedDrop(drop);
             var pending = StageChanges();
+            // Access writes both fields even when this scope has no local edits.
+            // Keep that forced write isolated until all pending changes validate.
+            pending[drop.Id] = Copy(pending[drop.Id]);
             pending[drop.Id].IsPrivate = drop.IsPrivate;
             pending[drop.Id].DropPasswordHash = drop.DropPasswordHash;
             HasSlugConflict(pending, targetId: null);
@@ -159,14 +162,19 @@ internal sealed class FakeDropStore : IDropCommandStore
         {
             // Merge only changed fields, as the SQLite adapter does. Nothing
             // reaches committed state until the whole write has been validated.
-            var saved = Copy(committed[id]);
+            Drop? saved = null;
             foreach (var property in Properties)
             {
                 var current = property.GetValue(entry.Current);
                 if (!Equals(current, property.GetValue(entry.Original)))
+                {
+                    saved ??= Copy(committed[id]);
                     property.SetValue(saved, current);
+                }
             }
-            pending[id] = saved;
+            // An unchanged tracked row may have been deleted by another scope.
+            // Like EF, do not write it or require it to exist for unrelated edits.
+            if (saved is not null) pending[id] = saved;
         }
         return pending;
     }

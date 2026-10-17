@@ -9,46 +9,19 @@ namespace Teledrop.Tests;
 public sealed class DropPreviewTests
 {
     [Theory]
-    [InlineData(null, DropPreviewKind.None, false)]
-    [InlineData("", DropPreviewKind.None, false)]
-    [InlineData("not a mime", DropPreviewKind.None, false)]
-    [InlineData("application/pdf; =", DropPreviewKind.None, false)]
-    [InlineData("IMAGE/JPEG; charset=binary", DropPreviewKind.Image, true)]
-    [InlineData(" image/png ", DropPreviewKind.Image, true)]
-    [InlineData("image/x-custom", DropPreviewKind.Image, true)]
-    [InlineData("VIDEO/WEBM; codecs=vp8", DropPreviewKind.Video, true)]
-    [InlineData("audio/ogg", DropPreviewKind.Audio, true)]
-    [InlineData("application/pdf", DropPreviewKind.Pdf, true)]
-    [InlineData("APPLICATION/PDF; charset=binary", DropPreviewKind.Pdf, true)]
-    [InlineData("text/plain; charset=utf-8", DropPreviewKind.None, true)]
-    [InlineData("IMAGE/SVG+XML; charset=utf-8", DropPreviewKind.None, false)]
-    [InlineData("text/html", DropPreviewKind.None, false)]
-    [InlineData("application/octet-stream", DropPreviewKind.None, false)]
-    [InlineData("application/x-unknown", DropPreviewKind.None, false)]
-    public void DecidesPreviewAndInlineTogether(string? contentType, DropPreviewKind kind, bool allowInline)
-    {
-        var result = DropPreviewPolicy.Evaluate(contentType);
-
-        Assert.Equal(kind, result.Kind);
-        Assert.Equal(allowInline, result.AllowInline);
-    }
-
-    [Theory]
     [InlineData("IMAGE/PNG; charset=binary", DropPreviewKind.Image, true)]
     [InlineData("video/webm", DropPreviewKind.Video, true)]
     [InlineData("audio/ogg", DropPreviewKind.Audio, true)]
-    [InlineData("application/pdf", DropPreviewKind.Pdf, true)]
     [InlineData("APPLICATION/PDF; charset=binary", DropPreviewKind.Pdf, true)]
     [InlineData("text/plain; charset=utf-8", DropPreviewKind.None, true)]
     [InlineData("IMAGE/SVG+XML; charset=utf-8", DropPreviewKind.None, false)]
     [InlineData("text/html", DropPreviewKind.None, false)]
     [InlineData("application/octet-stream", DropPreviewKind.None, false)]
-    [InlineData("application/x-unknown", DropPreviewKind.None, false)]
     public async Task DetailShareLinkAndDownloadAgreeOnMime(
         string contentType, DropPreviewKind kind, bool allowInline)
     {
         using var factory = new TeledropWebApplicationFactory();
-        var bytes = "preview bytes"u8.ToArray();
+        var bytes = "<script>document.title='owned'</script>"u8.ToArray();
         var drop = await SeedDropAsync(factory, "preview", bytes, seed =>
         {
             seed.IsPrivate = false;
@@ -69,6 +42,12 @@ public sealed class DropPreviewTests
         Assert.Equal(allowInline ? "inline" : "attachment",
             inline.Content.Headers.ContentDisposition?.DispositionType);
         Assert.Equal("attachment", attachment.Content.Headers.ContentDisposition?.DispositionType);
+        Assert.Equal("nosniff", Assert.Single(inline.Headers.GetValues("X-Content-Type-Options")));
+        var policy = Assert.Single(inline.Headers.GetValues("Content-Security-Policy"));
+        Assert.Contains("default-src 'self'", policy);
+        Assert.Contains("script-src 'self' 'nonce-", policy);
+        Assert.Contains("object-src 'none'", policy);
+        Assert.Contains("frame-ancestors 'self'", policy);
         var expectedType = MediaTypeHeaderValue.Parse(contentType).ToString();
         Assert.Equal(expectedType, inline.Content.Headers.ContentType?.ToString(), ignoreCase: true);
         Assert.Equal(expectedType, attachment.Content.Headers.ContentType?.ToString(), ignoreCase: true);
@@ -76,16 +55,14 @@ public sealed class DropPreviewTests
         Assert.Equal(bytes, await attachment.Content.ReadAsByteArrayAsync());
     }
 
-    [Theory]
-    [InlineData("")]
-    [InlineData("not a mime")]
-    public async Task InvalidStoredMimeDoesNotProducePreviewMarkup(string contentType)
+    [Fact]
+    public async Task InvalidStoredMimeDoesNotProducePreviewMarkup()
     {
         using var factory = new TeledropWebApplicationFactory();
         var drop = await SeedDropAsync(factory, "invalid", [0], seed =>
         {
             seed.IsPrivate = false;
-            seed.ContentType = contentType;
+            seed.ContentType = "not a mime";
         });
         using var owner = CreateClient(factory);
         await LogInOwnerAsync(owner);
@@ -135,6 +112,8 @@ public sealed class DropPreviewTests
             (DropPreviewKind.Pdf, "data-pdf-url="),
         })
             Assert.Equal(kind == candidate, preview.Contains(marker, StringComparison.Ordinal));
+        if (kind == DropPreviewKind.Video)
+            Assert.Contains("?inline=true#t=0.001\"", preview);
         Assert.Contains("id=\"drop-download\"", html[end..]);
     }
 }

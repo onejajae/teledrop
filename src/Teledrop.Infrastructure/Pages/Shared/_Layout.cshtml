@@ -3,6 +3,7 @@
         SecurityHeaders.ContentSecurityPolicyNonceItemKey];
     var isAuthenticated = User.Identity?.IsAuthenticated == true;
     var isLoginPage = ViewData["IsLoginPage"] is true;
+    var isErrorPage = ViewData["IsErrorPage"] is true;
 }
 <!DOCTYPE html>
 <html lang="@UiText.Language" data-theme="teledrop-light">
@@ -81,7 +82,7 @@
 
         <main class="td-content">
             @RenderBody()
-            @if (isAuthenticated && !isLoginPage)
+            @if (isAuthenticated && !isLoginPage && !isErrorPage)
             {
                 <p id="drop-list-status" class="sr-only" role="status" aria-atomic="true"></p>
                 @await Component.InvokeAsync("DropList")

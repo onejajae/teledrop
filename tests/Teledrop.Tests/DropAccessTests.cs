@@ -60,144 +60,102 @@ public sealed class DropAccessTests
     }
 
     [Fact]
-    public async Task CorrectDropPasswordUnlocksMetadataAndDownload()
+    public async Task PasswordSetThroughOwnerEndpointUnlocksOnlyWithTheSubmittedPassword()
     {
         using var factory = new TeledropWebApplicationFactory();
-        var fileBytes = "password-protected-file"u8.ToArray();
-        var drop = await SeedDropAsync(
-            factory, "password-check", fileBytes, seed =>
-            {
-                seed.IsPrivate = false;
-                seed.DropPasswordHash = Argon2.Hash(DropPassword);
-                seed.Description = "unlocked title";
-                seed.FileName = "unlocked.bin";
-                seed.ContentType = "image/png";
-            });
-        using var client = CreateClient(factory);
-
-        using var lockedPage = await client.GetAsync($"/{drop.Slug}");
-        Assert.Equal(HttpStatusCode.Unauthorized, lockedPage.StatusCode);
-        var lockedBody = await lockedPage.Content.ReadAsStringAsync();
-        var verificationValue = ExtractAntiforgery(lockedBody);
-
-        using (var wrongPasswordResponse = await PostUnlockAsync(
-                   client,
-                   drop.Slug,
-                   "wrong-password",
-                   verificationValue))
+        var bytes = "newly protected file"u8.ToArray();
+        var drop = await SeedDropAsync(factory, "new-password", bytes, seed =>
         {
-            Assert.Equal(
-                HttpStatusCode.Unauthorized,
-                wrongPasswordResponse.StatusCode);
-            lockedBody = await wrongPasswordResponse.Content.ReadAsStringAsync();
-            verificationValue = ExtractAntiforgery(lockedBody);
-        }
-
-        using (var correctPasswordResponse = await PostUnlockAsync(
-                   client,
-                   drop.Slug,
-                   DropPassword,
-                   verificationValue))
+            seed.FileName = "unlocked.bin";
+            seed.Description = "unlocked title";
+            seed.ContentType = "image/png";
+        });
+        const string newPassword = " 새 비밀번호 🔑 ";
+        using var owner = CreateClient(factory);
+        await LogInOwnerAsync(owner);
+        using var accessForm = new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            Assert.Equal(
-                HttpStatusCode.Redirect,
-                correctPasswordResponse.StatusCode);
-            Assert.Equal(
-                $"/{drop.Slug}",
-                GetPathAndQuery(correctPasswordResponse));
-            var setCookie = Assert.Single(
-                correctPasswordResponse.Headers.GetValues("Set-Cookie"));
-            Assert.Contains("httponly", setCookie, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("secure", setCookie, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("path=/", setCookie, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains(
-                "samesite=lax",
-                setCookie,
-                StringComparison.OrdinalIgnoreCase);
-        }
+            ["Access"] = "password",
+            ["NewDropPassword"] = newPassword,
+            ["__RequestVerificationToken"] = await GetAntiforgeryAsync(owner, $"/drops/{drop.Slug}"),
+        });
+        using var accessResponse = await owner.PostAsync($"/drops/{drop.Slug}?handler=Access", accessForm);
+        Assert.Equal(HttpStatusCode.Redirect, accessResponse.StatusCode);
 
-        using (var unlockedPage = await client.GetAsync($"/{drop.Slug}"))
-        {
-            Assert.Equal(HttpStatusCode.OK, unlockedPage.StatusCode);
-            var body = WebUtility.HtmlDecode(
-                await unlockedPage.Content.ReadAsStringAsync());
-            Assert.Contains(drop.Description!, body, StringComparison.Ordinal);
-            Assert.Contains(drop.FileName, body, StringComparison.Ordinal);
-            Assert.Contains(
-                $"{fileBytes.LongLength} B",
-                body,
-                StringComparison.Ordinal);
-        }
+        // This client has no Owner Session. Its grant must validate the hash
+        // produced through the real access-setting endpoint, not a seeded hash.
+        using var anonymous = CreateClient(factory);
+        using var locked = await anonymous.GetAsync($"/{drop.Slug}");
+        Assert.Equal(HttpStatusCode.Unauthorized, locked.StatusCode);
+        var token = ExtractAntiforgery(await locked.Content.ReadAsStringAsync());
+        using var wrong = await PostUnlockAsync(anonymous, drop.Slug, newPassword.Trim(), token);
+        Assert.Equal(HttpStatusCode.Unauthorized, wrong.StatusCode);
+        AssertNoUnlockCookie(wrong);
+        await AssertReadStatusAsync(anonymous, drop.Slug, HttpStatusCode.Unauthorized);
 
-        using var downloadResponse = await client.GetAsync($"/d/{drop.Slug}");
-        Assert.Equal(HttpStatusCode.OK, downloadResponse.StatusCode);
-        Assert.Equal(
-            fileBytes,
-            await downloadResponse.Content.ReadAsByteArrayAsync());
-
-        using var inlineResponse = await client.GetAsync(
-            $"/d/{drop.Slug}?inline=true");
-        Assert.Equal(HttpStatusCode.OK, inlineResponse.StatusCode);
-        Assert.Equal(
-            "inline",
-            inlineResponse.Content.Headers.ContentDisposition?.DispositionType);
+        using var unlocked = await PostUnlockAsync(anonymous, drop.Slug, newPassword, token);
+        Assert.Equal(HttpStatusCode.Redirect, unlocked.StatusCode);
+        Assert.Equal($"/{drop.Slug}", GetPathAndQuery(unlocked));
+        var cookie = Assert.Single(unlocked.Headers.GetValues("Set-Cookie"));
+        Assert.Contains("httponly", cookie, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("secure", cookie, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("path=/", cookie, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("samesite=lax", cookie, StringComparison.OrdinalIgnoreCase);
+        using var page = await anonymous.GetAsync($"/{drop.Slug}");
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        var html = WebUtility.HtmlDecode(await page.Content.ReadAsStringAsync());
+        Assert.Contains(drop.FileName, html);
+        Assert.Contains(drop.Description!, html);
+        Assert.Contains($"{bytes.LongLength} B", html);
+        using var download = await anonymous.GetAsync($"/d/{drop.Slug}");
+        Assert.Equal(HttpStatusCode.OK, download.StatusCode);
+        Assert.Equal(bytes, await download.Content.ReadAsByteArrayAsync());
+        using var inline = await anonymous.GetAsync($"/d/{drop.Slug}?inline=true");
+        Assert.Equal(HttpStatusCode.OK, inline.StatusCode);
+        Assert.Equal("inline", inline.Content.Headers.ContentDisposition?.DispositionType);
     }
 
-    [Fact]
-    public async Task TextHtmlAndSvgInlineRequestsAreForcedToAttachment()
+    [Theory]
+    [InlineData(false, "public")]
+    [InlineData(true, "public")]
+    [InlineData(false, "locked")]
+    [InlineData(true, "locked")]
+    [InlineData(false, "unlocked")]
+    [InlineData(true, "unlocked")]
+    [InlineData(false, "wrong-password")]
+    [InlineData(true, "wrong-password")]
+    public async Task PublicPageResponsesPreventCachingForEveryAccessState(bool htmx, string state)
     {
         using var factory = new TeledropWebApplicationFactory();
-        var fileBytes = "<script>document.title='owned'</script>"u8.ToArray();
+        var drop = state == "public"
+            ? await SeedDropAsync(factory, "open", [1], seed => seed.IsPrivate = false)
+            : await AddProtectedDropAsync(factory);
         using var client = CreateClient(factory);
+        if (state == "unlocked") await UnlockDropAsync(client, drop.Slug, DropPassword);
 
-        foreach (var (slug, contentType) in new[]
-                 {
-                     ("unsafe-html", "text/html"),
-                     ("unsafe-svg", "image/svg+xml"),
-                 })
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"/{drop.Slug}");
+        if (state == "wrong-password")
         {
-            var drop = await SeedDropAsync(
-                factory, slug, fileBytes, seed =>
-                {
-                    seed.IsPrivate = false;
-                    seed.DropPasswordHash = null;
-                    seed.Description = "unsafe inline content";
-                    seed.FileName = $"{slug}.html";
-                    seed.ContentType = contentType;
-                });
-
-            using var response = await client.GetAsync(
-                $"/d/{drop.Slug}?inline=true");
-
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.Equal(
-                "attachment",
-                response.Content.Headers.ContentDisposition?.DispositionType);
-            Assert.Equal(
-                "nosniff",
-                Assert.Single(
-                    response.Headers.GetValues(
-                        "X-Content-Type-Options")));
-
-            var contentSecurityPolicy = Assert.Single(
-                response.Headers.GetValues("Content-Security-Policy"));
-            Assert.Contains(
-                "default-src 'self'",
-                contentSecurityPolicy,
-                StringComparison.Ordinal);
-            Assert.Contains(
-                "script-src 'self' 'nonce-",
-                contentSecurityPolicy,
-                StringComparison.Ordinal);
-            Assert.Contains(
-                "object-src 'none'",
-                contentSecurityPolicy,
-                StringComparison.Ordinal);
-            Assert.Contains(
-                "frame-ancestors 'self'",
-                contentSecurityPolicy,
-                StringComparison.Ordinal);
+            using var locked = await client.GetAsync($"/{drop.Slug}");
+            var token = ExtractAntiforgery(await locked.Content.ReadAsStringAsync());
+            request.Method = HttpMethod.Post;
+            request.RequestUri = new Uri($"/{drop.Slug}?handler=Unlock", UriKind.Relative);
+            request.Content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["DropPassword"] = "wrong-password",
+                ["__RequestVerificationToken"] = token,
+            });
         }
+        if (htmx) request.Headers.Add("HX-Request", "true");
+
+        using var response = await client.SendAsync(request);
+
+        Assert.Equal(state is "locked" or "wrong-password"
+            ? HttpStatusCode.Unauthorized : HttpStatusCode.OK, response.StatusCode);
+        Assert.True(response.Headers.CacheControl?.NoStore);
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.Contains("id=\"public-drop\"", html);
+        Assert.Equal(!htmx, html.Contains("<html", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -522,6 +480,52 @@ public sealed class DropAccessTests
                 (await slugs.ChangeAsync("renamed", drop.Slug, default)).Status);
         }
         await AssertReadStatusAsync(client, drop.Slug, HttpStatusCode.OK);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RenamingTheCookieCannotTransferItsGrantToAnotherSlug(bool renameDrop)
+    {
+        using var factory = new TeledropWebApplicationFactory();
+        var source = await AddProtectedDropAsync(factory);
+        using var unlocked = CreateClient(factory);
+        var cookie = await UnlockDropAsync(unlocked, source.Slug, DropPassword);
+        const string targetSlug = "different-slug";
+        if (renameDrop)
+        {
+            await using var scope = factory.Services.CreateAsyncScope();
+            var result = await scope.ServiceProvider.GetRequiredService<DropSlugs>()
+                .ChangeAsync(source.Slug, targetSlug, default);
+            Assert.Equal(ChangeDropSlugStatus.Succeeded, result.Status);
+        }
+        else
+        {
+            await SeedDropAsync(factory, targetSlug, "other protected bytes"u8.ToArray(), seed =>
+            {
+                seed.IsPrivate = false;
+                seed.DropPasswordHash = source.DropPasswordHash;
+                seed.FileName = source.FileName;
+                seed.Description = source.Description;
+            });
+        }
+
+        // The password fingerprint still matches. Only the protected payload's
+        // Slug can reject a grant whose cookie name has been changed by a caller.
+        using var client = CreateClient(factory, handleCookies: false);
+        client.DefaultRequestHeaders.Add("Cookie",
+            $"teledrop.unlock.{targetSlug}{cookie[cookie.IndexOf('=')..]}");
+        using var page = await client.GetAsync($"/{targetSlug}");
+        using var download = await client.GetAsync($"/d/{targetSlug}");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, page.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, download.StatusCode);
+        var html = WebUtility.HtmlDecode(await page.Content.ReadAsStringAsync());
+        Assert.DoesNotContain(source.FileName, html);
+        Assert.DoesNotContain(source.Description!, html);
+        Assert.Empty(await download.Content.ReadAsByteArrayAsync());
+        AssertNoUnlockCookie(page);
+        AssertNoUnlockCookie(download);
     }
 
     [Fact]

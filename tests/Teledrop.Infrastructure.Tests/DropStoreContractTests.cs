@@ -1,9 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Teledrop.Data;
 using Teledrop.Features.Drops;
+using Teledrop.Testing;
 using Xunit;
 
-namespace Teledrop.Tests;
+namespace Teledrop.Infrastructure.Tests;
 
 public sealed class DropStoreContractTests
 {
@@ -110,6 +111,84 @@ public sealed class DropStoreContractTests
         var saved = (await ReadAsync(fixture))!;
         Assert.Equal("Updated", saved.FileName);
         Assert.False(saved.IsPrivate);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AnUnchangedDropDeletedByAnotherScopeDoesNotBlockOtherPendingChanges(bool sqlite)
+    {
+        using var fixture = new StoreFixture(sqlite);
+        await SeedAsync(fixture, "deleted", "retained");
+        using var editing = fixture.CreateScope();
+        await editing.Store.FindBySlugAsync("deleted", default);
+        var retained = (await editing.Store.FindBySlugAsync("retained", default))!;
+        using (var deleting = fixture.CreateScope())
+            Assert.NotNull(await deleting.Store.DeleteBySlugAsync("deleted", default));
+        retained.FileName = "Saved after the other deletion";
+
+        await editing.Store.UpdateAsync(retained, default);
+
+        Assert.Equal("Saved after the other deletion", (await ReadAsync(fixture, "retained"))!.FileName);
+        Assert.Null(await ReadAsync(fixture, "deleted"));
+        Assert.Null(await editing.Store.FindBySlugAsync("deleted", default));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PendingChangesToAnExternallyDeletedDropStillFailWithoutCommittingOtherChanges(bool sqlite)
+    {
+        using var fixture = new StoreFixture(sqlite);
+        await SeedAsync(fixture, "deleted", "retained");
+        using var editing = fixture.CreateScope();
+        var deleted = (await editing.Store.FindBySlugAsync("deleted", default))!;
+        var retained = (await editing.Store.FindBySlugAsync("retained", default))!;
+        using (var deleting = fixture.CreateScope())
+            Assert.NotNull(await deleting.Store.DeleteBySlugAsync("deleted", default));
+        deleted.FileName = "Must not resurrect the deleted Drop";
+        retained.Description = "Must remain pending";
+
+        await Assert.ThrowsAnyAsync<Exception>(() => editing.Store.UpdateAsync(retained, default));
+
+        Assert.Null(await ReadAsync(fixture, "deleted"));
+        Assert.Null((await ReadAsync(fixture, "retained"))!.Description);
+        Assert.Equal("Must remain pending", retained.Description);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ARejectedAccessWriteKeepsThePreviouslyCommittedPasswordState(bool sqlite)
+    {
+        using var fixture = new StoreFixture(sqlite);
+        await SeedAsync(fixture, "source", "other", "taken");
+        using (var seed = fixture.CreateScope())
+        {
+            var source = (await seed.Store.FindBySlugAsync("source", default))!;
+            source.IsPrivate = false;
+            await seed.Store.UpdateAccessAsync(source, default);
+        }
+        using var stale = fixture.CreateScope();
+        var target = (await stale.Store.FindBySlugAsync("source", default))!;
+        var other = (await stale.Store.FindBySlugAsync("other", default))!;
+        using (var competing = fixture.CreateScope())
+        {
+            var source = (await competing.Store.FindBySlugAsync("source", default))!;
+            source.DropPasswordHash = "committed-password";
+            await competing.Store.UpdateAccessAsync(source, default);
+        }
+        other.Slug = "taken";
+
+        // Writing the stale public state forces its null password to be written,
+        // but the unrelated conflict must roll back the entire scope's write.
+        await Assert.ThrowsAnyAsync<Exception>(() => stale.Store.UpdateAccessAsync(target, default));
+
+        var saved = (await ReadAsync(fixture))!;
+        Assert.Equal(DropAccessLevel.Password, saved.AccessLevel);
+        Assert.Equal("committed-password", saved.DropPasswordHash);
+        Assert.NotNull(await ReadAsync(fixture, "other"));
+        Assert.Equal("taken", other.Slug);
     }
 
     [Theory]

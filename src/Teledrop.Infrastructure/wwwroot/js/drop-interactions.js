@@ -8,6 +8,9 @@
     let sharedReading = false;
     let favoriteNeeded = false;
     let favoriteReading = false;
+    let recoveryNeeded = null;
+    let recoveryReading = null;
+    let recoveryRetry = null;
     let retryFavorite = null;
     let optimisticFavorite = null;
     let navigation = null;
@@ -42,18 +45,18 @@
     function locks() {
         for (const form of document.querySelectorAll("form[data-drop-action]")) {
             const group = form.dataset.dropAction;
-            const blocked = active.has(group) || (group === "favorite" && (favoriteNeeded || favoriteReading))
+            const busy = recoveryNeeded || recoveryReading || active.has(group) || (group === "favorite" && (favoriteNeeded || favoriteReading))
                 || (navigation && (navigation.form !== form || navigation.started));
-            form.setAttribute("aria-busy", String(Boolean(blocked)));
+            form.setAttribute("aria-busy", String(Boolean(busy)));
             for (const control of form.querySelectorAll("button[type=submit], input:not([type=hidden]), textarea")) {
-                control.disabled = Boolean(blocked);
+                control.disabled = Boolean(busy || recoveryRetry);
             }
         }
         // 공개 범위 응답이 메뉴와 비밀번호 대화상자를 새로 그리므로, 변경이 끝날 때까지 메뉴를 열지 않는다.
         const accessToggle = document.getElementById("access-toggle");
-        if (accessToggle) accessToggle.disabled = Boolean(active.has("access") || (navigation && navigation.started));
+        if (accessToggle) accessToggle.disabled = Boolean(recoveryNeeded || recoveryReading || recoveryRetry || active.has("access") || (navigation && navigation.started));
         for (const button of document.querySelectorAll("[data-favorite-recheck], [data-favorite-retry]")) {
-            button.disabled = Boolean(active.has("favorite") || favoriteReading || favoriteNeeded || navigation);
+            button.disabled = Boolean(recoveryNeeded || recoveryReading || recoveryRetry || active.has("favorite") || favoriteReading || favoriteNeeded || navigation);
         }
         const status = document.getElementById("drop-navigation-status");
         if (status) status.hidden = !navigation || navigation.started;
@@ -72,16 +75,24 @@
     function read(kind) {
         if (!detail) return;
         if (kind === "favorite") { favoriteNeeded = false; favoriteReading = true; }
+        else if (kind === "recovery") { recoveryReading = recoveryNeeded; recoveryNeeded = null; }
         else { sharedNeeded = false; sharedReading = true; }
         locks();
-        htmx.ajax("GET", kind === "favorite" ? detail.dataset.favoriteStateUrl : detail.dataset.sharedStateUrl, {
+        const url = kind === "favorite" ? detail.dataset.favoriteStateUrl
+            : kind === "recovery" ? detail.dataset.recoveryStateUrl : detail.dataset.sharedStateUrl;
+        htmx.ajax("GET", url, {
             source: detail, target: detail, swap: "none", headers: { "X-Drop-Read": kind },
         }).catch(() => {});
     }
     function drain() {
         if (leaving || active.size) return;
-        if (favoriteNeeded && !favoriteReading) { read("favorite"); return; }
+        // A favorite read may already be queued behind a shared read on the same source.
+        // Wait for it before admitting recovery so htmx's queue-first policy cannot drop that read.
         if (favoriteReading) return;
+        if (recoveryNeeded && !recoveryReading) { read("recovery"); return; }
+        // Until identity is confirmed, even a queued write could target a reused Slug.
+        if (recoveryReading || recoveryRetry) return;
+        if (favoriteNeeded && !favoriteReading) { read("favorite"); return; }
         if (navigation && !navigation.started) {
             navigation.started = true;
             const { form, submitter } = navigation;
@@ -97,7 +108,7 @@
         const form = event.target;
         const group = form.dataset.dropAction;
         if (!group || !window.htmx) return;
-        if (active.has(group) || (group === "favorite" && (favoriteNeeded || favoriteReading))
+        if (recoveryNeeded || recoveryReading || recoveryRetry || active.has(group) || (group === "favorite" && (favoriteNeeded || favoriteReading))
             || (navigation && navigation.form !== form)) {
             event.preventDefault(); event.stopImmediatePropagation(); return;
         }
@@ -168,6 +179,43 @@
         requests.delete(ctx);
         if (ctx.response?.headers.get("HX-Redirect")) { leaving = true; return; }
         if (info.read) {
+            if (info.read === "recovery") {
+                const pending = recoveryReading;
+                recoveryReading = null;
+                const exists = ctx.response?.headers.get("X-Drop-Exists");
+                const destination = ctx.response?.headers.get("X-Drop-Location");
+                if (info.stale) {
+                    recoveryNeeded = pending;
+                } else if (successful && destination && (exists === "true" || exists === "false")) {
+                    recoveryRetry = null;
+                    // Only the server's lookup by the original Drop ID can establish where it is now.
+                    if (exists === "false" || new URL(destination, document.baseURI).pathname !== location.pathname) {
+                        leaving = true;
+                        location.assign(destination);
+                        return;
+                    }
+                    message(pending.group, "Operation.Uncertain");
+                    message("shared");
+                    const title = document.getElementById("drop-access").dataset.accessLevel === "password"
+                        ? "Password.Change" : "Password.Publish";
+                    tdI18n.setText(document.getElementById("password-title"), title);
+                    tdI18n.setText(document.querySelector("#password-form button[type=submit]"), title);
+                    // Refresh public visibility and the list, while retaining every dialog input and media node.
+                    notify("drop-changed");
+                } else {
+                    recoveryRetry = pending;
+                    message(pending.group, "Operation.CheckFailed");
+                }
+                initDialogs();
+                if (document.activeElement === document.body) {
+                    const target = pending.focus?.isConnected && !pending.focus.disabled ? pending.focus
+                        : document.querySelector("dialog:modal [data-dialog-close]")
+                            ?? document.getElementById(recoveryRetry ? "drop-list-refresh" : "access-toggle");
+                    target?.focus();
+                }
+                drain();
+                return;
+            }
             if (info.read === "favorite") favoriteReading = false;
             else sharedReading = false;
             if (info.stale) {
@@ -208,8 +256,15 @@
                 document.getElementById(target)?.focus();
             }
         } else if (outcome !== "invalid") {
-            message(info.group, ctx.response?.status === 404 ? "Operation.NotFound" : "Operation.Failed");
-            if (info.group === "favorite") favoriteNeeded = true;
+            if (info.group === "access" || isNavigation(info.group)) {
+                // A failed response does not tell us whether the write committed. Read; never replay it.
+                recoveryNeeded = info;
+                recoveryRetry = null;
+                message(info.group, "Operation.Checking");
+            } else {
+                message(info.group, ctx.response?.status === 404 ? "Operation.NotFound" : "Operation.Failed");
+                if (info.group === "favorite") favoriteNeeded = true;
+            }
         }
         if (isNavigation(info.group)) navigation = null;
         initDialogs();
@@ -253,6 +308,16 @@
     });
 
     document.addEventListener("click", async event => {
+        if (event.target.closest("#drop-list-refresh") && recoveryRetry && !recoveryReading) {
+            recoveryNeeded = recoveryRetry;
+            drain();
+        }
+        // The sharing error directs the owner to retry through the list refresh control.
+        if (event.target.closest("#drop-list-refresh") && !sharedReading
+            && document.querySelector('[data-operation-error="shared"]:not([hidden])')) {
+            sharedNeeded = true;
+            drain();
+        }
         if (event.target.closest("#copy-share-link")) {
             const button = document.getElementById("copy-share-link");
             const input = document.getElementById("share-link");

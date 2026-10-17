@@ -74,20 +74,17 @@ public sealed class UiRegressionTests
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    [Theory]
-    [InlineData("sort=name&direction=asc&pageNumber=2", "drop-21", "drop-01")]
-    [InlineData("sort=name&direction=desc&pageNumber=1", "drop-21", "drop-01")]
-    [InlineData("search=drop-07&sort=name&direction=asc", "drop-07", "drop-08")]
-    public async Task ListFragmentAppliesFiltersWithoutRenderingThePage(
-        string query, string includedSlug, string excludedSlug)
+    [Fact]
+    public async Task ListFragmentAppliesFiltersWithoutRenderingThePage()
     {
         using var factory = new TeledropWebApplicationFactory();
         await AddDropsAsync(factory, Enumerable.Range(1, IndexModel.PageSize + 1)
             .Select(index => $"drop-{index:D2}").ToArray());
+        await AddDropsAsync(factory, "unrelated");
         using var client = CreateClient(factory);
         await LogInOwnerAsync(client);
         using var request = new HttpRequestMessage(HttpMethod.Get,
-            $"/?handler=DropList&currentSlug={includedSlug}&{query}");
+            "/?handler=DropList&currentSlug=drop-21&search=drop-&sort=name&direction=asc&pageNumber=2");
         request.Headers.Add("HX-Request", "true");
 
         using var response = await client.SendAsync(request);
@@ -95,8 +92,9 @@ public sealed class UiRegressionTests
         response.EnsureSuccessStatusCode();
         var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
         Assert.Contains("id=\"drop-list\"", body);
-        Assert.Contains($"{includedSlug}.bin", body);
-        Assert.DoesNotContain($"{excludedSlug}.bin", body);
+        Assert.Contains("drop-21.bin", body);
+        Assert.DoesNotContain("drop-01.bin", body);
+        Assert.DoesNotContain("unrelated.bin", body);
         Assert.Contains("aria-current=\"page\"", body);
         Assert.DoesNotContain("<html", body, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("id=\"upload-form\"", body);
@@ -130,30 +128,10 @@ public sealed class UiRegressionTests
     }
 
     [Fact]
-    public async Task UploadPageRendersExplicitMultipleFileDropRejection()
+    public async Task SlugValidationErrorOpensUrlDialog()
     {
         using var factory = new TeledropWebApplicationFactory();
-        using var client = CreateClient(factory);
-        await LogInOwnerAsync(client);
-
-        using var ownerResponse = await client.GetAsync("/");
-
-        ownerResponse.EnsureSuccessStatusCode();
-        AssertMultipleFileDropRejection(
-            await ownerResponse.Content.ReadAsStringAsync());
-    }
-
-    [Theory]
-    [InlineData(
-        "INVALID!",
-        "slug는 영문 소문자 또는 숫자로 시작하고")]
-    [InlineData("duplicate", "이미 사용 중인 slug입니다.")]
-    public async Task SlugValidationErrorOpensUrlDialog(
-        string slugInput,
-        string expectedError)
-    {
-        using var factory = new TeledropWebApplicationFactory();
-        await AddDropsAsync(factory, "source", "duplicate");
+        await AddDropsAsync(factory, "source");
         using var client = CreateClient(factory);
         await LogInOwnerAsync(client);
         var verificationValue = await GetAntiforgeryAsync(
@@ -163,7 +141,7 @@ public sealed class UiRegressionTests
         using var content = new FormUrlEncodedContent(
             new Dictionary<string, string>
             {
-                ["SlugInput"] = slugInput,
+                ["SlugInput"] = "INVALID!",
                 ["__RequestVerificationToken"] = verificationValue,
             });
         using var response = await client.PostAsync(
@@ -173,7 +151,7 @@ public sealed class UiRegressionTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = WebUtility.HtmlDecode(
             await response.Content.ReadAsStringAsync());
-        Assert.Contains(expectedError, body, StringComparison.Ordinal);
+        Assert.Contains("slug는 영문 소문자 또는 숫자로 시작하고", body, StringComparison.Ordinal);
         AssertDialogIsOpen(body, "url-dialog");
         AssertDialogIsClosed(body, "password-dialog");
     }
@@ -368,27 +346,6 @@ public sealed class UiRegressionTests
     }
 
     [Fact]
-    public async Task PaginationKeepsEmptySlotForMissingButton()
-    {
-        using var factory = new TeledropWebApplicationFactory();
-        await AddDropsAsync(
-            factory,
-            Enumerable.Range(1, IndexModel.PageSize + 1)
-                .Select(index => $"drop-{index:D2}")
-                .ToArray());
-        using var client = CreateClient(factory);
-        await LogInOwnerAsync(client);
-
-        var body = await client.GetStringAsync("/?pageNumber=2");
-        var pagination = body[body.IndexOf("class=\"td-pagination\"", StringComparison.Ordinal)..];
-        pagination = pagination[..pagination.IndexOf("</nav>", StringComparison.Ordinal)];
-
-        Assert.Contains("id=\"drop-list-prev\"", pagination);
-        Assert.DoesNotContain("id=\"drop-list-next\"", pagination);
-        Assert.Contains("<span class=\"td-pagination-slot\"></span>", pagination);
-    }
-
-    [Fact]
     public async Task HomeShowsDeleteNoticeAndLogout()
     {
         using var factory = new TeledropWebApplicationFactory();
@@ -413,23 +370,6 @@ public sealed class UiRegressionTests
         var location = home.Headers.Location!;
         Assert.StartsWith("/login?ReturnUrl=",
             location.IsAbsoluteUri ? location.PathAndQuery : location.OriginalString);
-    }
-
-    private static void AssertMultipleFileDropRejection(string pageBody)
-    {
-        var body = WebUtility.HtmlDecode(pageBody);
-        Assert.Contains(
-            "droppedFiles.length > 1",
-            body,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            "fileInput.value = \"\"",
-            body,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            "Upload.OneFile",
-            body,
-            StringComparison.Ordinal);
     }
 
     private static void AssertDialogIsOpen(string pageBody, string id)

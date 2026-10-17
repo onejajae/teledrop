@@ -1,5 +1,9 @@
 @import "tailwindcss";
-@plugin "daisyui";
+
+/* Semantic error color follows the selected application theme. */
+@utility text-error {
+    color: var(--color-error);
+}
 
 /* Razor 파일에서 클래스를 훑는다. 기본 탐색 경로에 .cshtml이 없으므로 명시한다. */
 @source "../Pages/**/*.cshtml";
@@ -7,34 +11,10 @@
 :root,
 [data-theme="teledrop-light"] {
     color-scheme: light;
-    --color-base-100: #ffffff;
-    --color-base-200: #f3f4f6;
-    --color-base-300: #e5e7eb;
-    --color-base-content: #111827;
     --color-primary: #0369a1;
     --color-primary-content: #ffffff;
-    --color-secondary: #64748b;
-    --color-secondary-content: #ffffff;
-    --color-accent: #0d9488;
-    --color-accent-content: #ffffff;
-    --color-neutral: #374151;
-    --color-neutral-content: #ffffff;
-    --color-info: #38bdf8;
-    --color-info-content: #0c4a6e;
     --color-success: #16a34a;
-    --color-success-content: #ffffff;
-    --color-warning: #f59e0b;
-    --color-warning-content: #451a03;
     --color-error: #b91c1c;
-    --color-error-content: #ffffff;
-    --radius-selector: 0.5rem;
-    --radius-field: 0.5rem;
-    --radius-box: 0.75rem;
-    --size-selector: 0.25rem;
-    --size-field: 0.25rem;
-    --border: 1px;
-    --depth: 0;
-    --noise: 0;
     --td-canvas: #f9fafb;
     --td-surface: #ffffff;
     --td-surface-hover: #f3f4f6;
@@ -57,26 +37,10 @@
 
 [data-theme="teledrop-dark"] {
     color-scheme: dark;
-    --color-base-100: #1f2937;
-    --color-base-200: #111827;
-    --color-base-300: #374151;
-    --color-base-content: #e5e7eb;
     --color-primary: #0369a1;
     --color-primary-content: #ffffff;
-    --color-secondary: #94a3b8;
-    --color-secondary-content: #0f172a;
-    --color-accent: #2dd4bf;
-    --color-accent-content: #042f2e;
-    --color-neutral: #111827;
-    --color-neutral-content: #f9fafb;
-    --color-info: #38bdf8;
-    --color-info-content: #082f49;
     --color-success: #4ade80;
-    --color-success-content: #052e16;
-    --color-warning: #fbbf24;
-    --color-warning-content: #451a03;
     --color-error: #fda4af;
-    --color-error-content: #4c0519;
     --td-canvas: #111827;
     --td-surface: #1f2937;
     --td-surface-hover: #374151;
@@ -275,8 +239,7 @@ textarea {
 
 .input,
 .select,
-.textarea,
-.file-input {
+.textarea {
     border-color: var(--td-border);
     background: var(--td-field);
     color: var(--td-text);
@@ -285,8 +248,7 @@ textarea {
 
 .input:focus,
 .select:focus,
-.textarea:focus,
-.file-input:focus {
+.textarea:focus {
     border-color: var(--color-primary);
     outline-color: color-mix(in srgb, var(--color-primary) 45%, transparent);
 }
@@ -298,6 +260,15 @@ textarea {
 }
 
 .btn {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+    text-align: center;
+    cursor: pointer;
+    user-select: none;
+    touch-action: manipulation;
     border-radius: 0.5rem;
     font-weight: 600;
     text-transform: none;
@@ -308,8 +279,9 @@ textarea {
     background: var(--color-primary);
 }
 
-.btn-ghost:hover {
-    background: var(--td-surface-hover);
+.btn:focus-visible {
+    outline: 2px solid var(--td-focus-ring);
+    outline-offset: 2px;
 }
 
 .td-upload-zone {
@@ -552,8 +524,8 @@ textarea {
     visibility: visible;
 }
 
-/* 상단바와 PDF 도구 줄은 위·오른쪽 끝에 붙어 있어(PDF 영역은 overflow: hidden) 툴팁을 아래로, 오른쪽 정렬로 띄운다. */
-:is(.td-topbar, .td-pdf-toolbar) [data-tooltip]::before {
+/* 상단바는 위·오른쪽 끝에 붙어 있어 툴팁을 아래로, 오른쪽 정렬로 띄운다. */
+.td-topbar [data-tooltip]::before {
     top: calc(100% - 0.25rem);
     bottom: auto;
     border-top: 1px solid var(--td-border);
@@ -562,7 +534,7 @@ textarea {
     border-bottom: 0;
 }
 
-:is(.td-topbar, .td-pdf-toolbar) [data-tooltip]::after {
+.td-topbar [data-tooltip]::after {
     top: 100%;
     bottom: auto;
     left: auto;
@@ -634,14 +606,19 @@ textarea {
 }
 }
 
-/* Unlayered overrides keep main's Flowbite control styles above daisyUI defaults. */
+/* Shared application controls. */
 .td-shell .input, .td-shell .select, .td-shell .textarea {
+    appearance: none; vertical-align: middle; touch-action: manipulation;
     border: 1px solid var(--td-border); border-radius: 0.5rem;
     background: var(--td-field); color: var(--td-text);
     padding: 0.625rem; font-size: 0.875rem; line-height: 1.25rem;
     height: auto; min-height: 0; outline: none; box-shadow: none;
 }
 .td-shell .input { height: 2.625rem; }
+.td-shell :is(.input, .select, .textarea):disabled { opacity: 0.5; cursor: not-allowed; }
+@media (forced-colors: active) {
+    .td-shell :is(.input, .select, .textarea):focus { outline: 2px solid Highlight; outline-offset: 2px; }
+}
 .td-shell .select { padding: 0.5rem 2.5rem 0.5rem 0.5rem; height: 2.375rem; }
 .td-shell .input:focus, .td-shell .textarea:focus, .td-shell .select:focus {
     border-color: var(--td-focus-ring); box-shadow: 0 0 0 1px var(--td-focus-ring);

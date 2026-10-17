@@ -387,6 +387,15 @@
   <data name="Operation.Failed" xml:space="preserve">
     <value>Could not save the changes. Check your input and try again.</value>
   </data>
+  <data name="Operation.Checking" xml:space="preserve">
+    <value>Checking the result of the change…</value>
+  </data>
+  <data name="Operation.Uncertain" xml:space="preserve">
+    <value>Could not confirm the change. The current state has been reloaded; check it before retrying.</value>
+  </data>
+  <data name="Operation.CheckFailed" xml:space="preserve">
+    <value>Could not check the change. Refresh the list to check its current state.</value>
+  </data>
   <data name="Request.Failed" xml:space="preserve">
     <value>The request failed. Please try again.</value>
   </data>
@@ -398,9 +407,6 @@
   </data>
   <data name="Pdf.Next" xml:space="preserve">
     <value>Next PDF page</value>
-  </data>
-  <data name="Pdf.OpenInBrowser" xml:space="preserve">
-    <value>Open PDF in a new tab</value>
   </data>
   <data name="Pdf.Loading" xml:space="preserve">
     <value>Loading PDF…</value>

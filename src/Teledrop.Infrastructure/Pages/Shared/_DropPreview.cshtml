@@ -17,7 +17,8 @@
     }
     else if (preview.Kind == DropPreviewKind.Video)
     {
-        <div class="td-preview"><video src="@inlineUrl" controls preload="metadata"></video></div>
+        @* iOS Safari는 preload="metadata"만으로 첫 프레임을 그리지 않는다. 시작 시각 fragment를 주면 그 프레임을 받아 미리보기로 보여준다. *@
+        <div class="td-preview"><video src="@(inlineUrl)#t=0.001" controls preload="metadata"></video></div>
     }
     else if (preview.Kind == DropPreviewKind.Audio)
     {
@@ -30,10 +31,6 @@
                 <button type="button" class="btn btn-sm" data-pdf-prev disabled td-aria-label="Pdf.Previous" td-text="Previous"></button>
                 <span data-pdf-status role="status" tabindex="-1" td-text="Pdf.Loading"></span>
                 <button type="button" class="btn btn-sm" data-pdf-next disabled td-aria-label="Pdf.Next" td-text="Next"></button>
-                <a href="@inlineUrl" target="_blank" rel="noopener" class="td-row-action" data-pdf-open
-                   td-tooltip="Pdf.OpenInBrowser" td-aria-label="Pdf.OpenInBrowser">
-                    <partial name="_Icon" model='@("ArrowSquareOutOutline")' />
-                </a>
             </div>
             <canvas data-pdf-canvas role="img" td-aria-label="Pdf.Preview" td-args="@(new object[] { Model.FileName })" hidden></canvas>
             <noscript><span td-text="Pdf.NoScript"></span></noscript>

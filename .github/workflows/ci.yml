@@ -52,9 +52,9 @@ jobs:
 
       - name: Run all tests
         run: >-
-          dotnet test tests/Teledrop.Tests/Teledrop.Tests.csproj
+          dotnet test Teledrop.slnx
           --configuration Release --no-build
-          --logger "trx;LogFileName=tests.trx"
+          --logger trx
           --results-directory TestResults
 
       - name: Publish application
